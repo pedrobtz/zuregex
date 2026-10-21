@@ -38,6 +38,11 @@ pak::pak("pedrobtz/zuregex")
   : Detect and count matches
 - [`re_escape()`](https://pedrobtz.github.io/zuregex/reference/re_escape.md)
   : Quote regular expression metacharacters
+- [`re_extract()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md)
+  [`re_extract_all()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md)
+  [`re_match()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md)
+  [`re_match_all()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md)
+  : Extract matches and capture groups
 - [`re_info()`](https://pedrobtz.github.io/zuregex/reference/re_info.md)
   : Describe compiled patterns
 - [`re_locate()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)

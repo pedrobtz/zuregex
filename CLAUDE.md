@@ -34,8 +34,9 @@ match, serially, through the three-phase core (Stage 3), and
 [`re_locate()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
 and
 [`re_locate_all()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
-locate (Stage 4). The roadmap in `.agents/roadmap.md` takes it to
-v0.1.0; §11 of the design lists the stages it is expected to hold.
+locate (Stage 4), and the extract and match verbs capture (Stage 5). The
+roadmap in `.agents/roadmap.md` takes it to v0.1.0; §11 of the design
+lists the stages it is expected to hold.
 
 ## Stage tracking
 
@@ -141,6 +142,10 @@ without the R API.
 - `zuregex_next_start()` in `src/match.c` is the one place that decides
   where the next search starts: PCRE2’s empty-match rule, JavaScript’s,
   or one character on for `overlap`. Every iterating verb uses it.
+- `src/capture.c` keeps every group’s offsets per match in phase 2.
+  `make_string()` there is the one place a match becomes a CHARSXP,
+  marked UTF-8 for character input and bytes for bytes. `group_layout()`
+  in `R/capture.R` builds the column union for per-element patterns.
 - `src/locate.c` converts byte offsets to one-based characters in
   phase 2. Per-element match lists are `malloc()`ed, and phase 3 runs
   under `R_ExecWithCleanup()` so they are freed even if an R allocation

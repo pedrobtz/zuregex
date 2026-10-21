@@ -41,3 +41,14 @@
   matches with `dialect = "js"`, as
   [`re_count()`](https://pedrobtz.github.io/zuregex/reference/re_detect.md)
   now does.
+- [`re_extract()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md),
+  [`re_extract_all()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md),
+  [`re_match()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md)
+  and
+  [`re_match_all()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md)
+  return matches and capture groups as vectors and data frames built
+  in C.
+  [`re_match()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md)
+  takes a `proto` for typed columns, as
+  [`utils::strcapture()`](https://rdrr.io/r/utils/strcapture.html) does,
+  and is about 17 times faster than it on 100,000 strings.
