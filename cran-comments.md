@@ -14,6 +14,8 @@ hidden, so it cannot bind to the PCRE2 R itself loads.
 * GitHub Actions: ubuntu-latest (R release, oldrel-1), macOS-latest
   (R release), windows-latest (R release, R-devel)
 * R-hub containers, R-devel: `clang23`, `ubuntu-clang`, `ubuntu-gcc16`
+* `nosuggests` (without suggested packages) and `nold` (without a long
+  double)
 * UBSan, ASan, valgrind, gctorture, rchk, LTO and `-fanalyzer`
 
 ## R CMD check results
@@ -39,4 +41,9 @@ Matching uses OpenMP on large inputs. The tests cap it at two threads.
 
 ## Network use
 
-Tests, examples and vignettes do not use the network.
+Tests and examples do not use the network.
+
+## Method References
+
+There are no published references describing the methods in this package.
+It packages the PCRE2 library and documents it in its help pages.

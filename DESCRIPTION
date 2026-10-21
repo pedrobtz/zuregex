@@ -1,5 +1,5 @@
 Package: zuregex
-Title: 'PCRE2' Regular Expressions for R and for C Code
+Title: Bundled 'PCRE2' Regular Expressions with a C Interface
 Version: 0.1.0
 Authors@R: c(
     person("Pedro", "Baltazar", , "pedrobtz@gmail.com",
@@ -10,6 +10,8 @@ Authors@R: c(
            comment = "PCRE2, bundled in src/vendor/pcre2"),
     person("Zoltan", "Herczeg", role = "cph",
            comment = "PCRE2 JIT compiler and sljit, bundled in src/vendor/pcre2"),
+    person("Nicholas", "Wilson", role = "ctb",
+           comment = "PCRE2 maintainer, bundled in src/vendor/pcre2"),
     person("PCRE2 contributors", role = "cph",
            comment = "see inst/COPYRIGHTS"))
 Description: Matches regular expressions with a bundled copy of the 'PCRE2'
