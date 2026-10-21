@@ -1,0 +1,23 @@
+# Valgrind suppressions for the valgrind job in native-checks.yaml.
+#
+# One entry, and the block is glibc's. When libgomp starts its worker
+# threads for the first parallel region, pthread_create() allocates each
+# thread's TLS (_dl_allocate_tls). libgomp keeps the thread pool alive until
+# the process exits, so valgrind reports that block as "possibly lost"
+# (run 39681644391: 368 bytes, from zuregex_count_c's GOMP_parallel). No
+# zuregex allocation is involved.
+#
+# Matched on that call path and on "possible" only, so a definite leak, or
+# one from any other caller, is still reported.
+{
+   libgomp-worker-thread-tls
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   ...
+   fun:_dl_allocate_tls
+   ...
+   fun:pthread_create*
+   ...
+   fun:GOMP_parallel
+}

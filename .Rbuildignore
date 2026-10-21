@@ -15,3 +15,5 @@
 ^pkgdown$
 ^\.superpowers$
 ^README\.Rmd$
+^src/Makevars$
+^src/Makevars\.win$

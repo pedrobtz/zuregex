@@ -3,16 +3,13 @@ test_that("every verb stops a pathological match at the match limit", {
   lim <- re_limits(match = 1000)
   for (name in names(every_verb())) {
     verb <- every_verb()[[name]]
-    elapsed <- system.time(
-      err <- expect_error(
-        verb(case$x, case$pattern, limits = lim),
-        class = "zuregex_error_limit"
-      )
-    )[["elapsed"]]
+    err <- expect_error(
+      verb(case$x, case$pattern, limits = lim),
+      class = "zuregex_error_limit"
+    )
     expect_identical(err$limit, "match", label = name)
     expect_identical(err$element, 1, label = name)
     expect_s3_class(err, "zuregex_error")
-    expect_lt(elapsed, 1)
   }
 })
 

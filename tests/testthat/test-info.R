@@ -21,10 +21,15 @@ test_that("zuregex_info() returns its documented fields with their types", {
       "unicode_version",
       "jit",
       "jit_usable",
-      "jit_target"
+      "jit_target",
+      "openmp",
+      "threads",
+      "cache_size"
     )
   )
-  for (field in c("unicode", "jit", "jit_usable")) {
+  expect_type(info$threads, "integer")
+  expect_identical(info$cache_size, re_cache_size())
+  for (field in c("unicode", "jit", "jit_usable", "openmp")) {
     expect_true(is_flag(info[[field]]), label = field)
   }
   expect_type(info$jit_target, "character")

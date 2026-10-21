@@ -17,11 +17,15 @@ A list with elements:
 \item \code{jit_usable}: whether the JIT compiler works on this machine.
 \item \code{jit_target}: the architecture the JIT compiler generates code for,
 or \code{NA} without it.
+\item \code{openmp}: whether this build matches on several threads.
+\item \code{threads}: the most threads a call may use; see \code{\link[=re_threads]{re_threads()}}.
+\item \code{cache_size}: the pattern cache's capacity; see \code{\link[=re_cache_size]{re_cache_size()}}.
 }
 }
 \description{
-Reports the version of PCRE2 that zuregex was built with, and whether its
-just-in-time (JIT) compiler works on this machine.
+Reports the version of PCRE2 that zuregex was built with, whether its
+just-in-time (JIT) compiler works on this machine, and how matching is
+set up: OpenMP, the thread cap and the cache size.
 }
 \details{
 The JIT compiler can be built in and still fail at run time, on a CPU it

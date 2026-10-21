@@ -24,6 +24,8 @@ jobs:
   valgrind:
     uses: pedrobtz/r-actions/.github/workflows/valgrind.yml@v1
     with:
+      # libgomp's worker threads outlive the tests; see the file.
+      suppressions: tools/valgrind.supp
       profile: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci') && 'quick' || 'full' }}
 
   lto:

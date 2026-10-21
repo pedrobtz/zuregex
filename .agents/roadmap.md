@@ -26,7 +26,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 | 5 | [Extract and match](#stage-5--extract-and-match) | quick | [#7](https://github.com/pedrobtz/zuregex/issues/7) | [#21](https://github.com/pedrobtz/zuregex/pull/21) | 2026-10-21 |
 | 6 | [Replace, expand and split](#stage-6--replace-expand-and-split) | quick | [#8](https://github.com/pedrobtz/zuregex/issues/8) | [#22](https://github.com/pedrobtz/zuregex/pull/22) | 2026-10-21 |
 | 7 | [Limits](#stage-7--limits) | quick | [#9](https://github.com/pedrobtz/zuregex/issues/9) | [#23](https://github.com/pedrobtz/zuregex/pull/23) | 2026-10-21 |
-| 8 | [OpenMP](#stage-8--openmp) | full | [#10](https://github.com/pedrobtz/zuregex/issues/10) | | |
+| 8 | [OpenMP](#stage-8--openmp) | full | [#10](https://github.com/pedrobtz/zuregex/issues/10) | [#24](https://github.com/pedrobtz/zuregex/pull/24) | 2026-10-21 |
 | 9 | [C API and consumers](#stage-9--c-api-and-consumers) | quick | [#11](https://github.com/pedrobtz/zuregex/issues/11) | | |
 | 10 | [Full CI](#stage-10--full-ci) | full | [#12](https://github.com/pedrobtz/zuregex/issues/12) | | |
 | 11 | [v0.1.0 readiness](#stage-11--v010-readiness) | full | [#13](https://github.com/pedrobtz/zuregex/issues/13) | | |
@@ -540,6 +540,46 @@ absent.
   step, every runner including Windows R-devel and macOS with R's `libomp`.
 
 **Design.** §4, §5.6, §6.6, §10, §13 D5.
+
+**Measured (2026-10-21)**, in a Linux container (rocker/r-ver 4.5.1, gcc,
+four CPUs of a 2019 x86-64 laptop), median of three runs:
+
+| Measure | 1 thread | 4 threads | Ratio |
+| --- | --- | --- | --- |
+| `re_detect()`, `(\\w+)\\s(\\w+)\\s\\2\\1`, 200,000 × 120 characters | 1.038 s | 0.313 s | 3.32× |
+| `re_detect()`, `\\b(\\w)\\w*\\1\\b`, same input | 0.331 s | 0.115 s | 2.88× |
+| `re_detect()`, `[0-9]`, 8 KiB per call | 41.7 µs | 44.9 µs | 0.93× |
+| `re_detect()`, `[0-9]`, 16 KiB per call | 57.7 µs | 51.3 µs | 1.12× |
+| `re_detect()`, `[0-9]`, 64 KiB per call | 153.8 µs | 76.9 µs | 2.00× |
+
+The serial threshold is 16 KiB of total subject bytes, where four threads
+first beat one on the cheapest pattern. The test asserts 2.5× for the first
+pattern where `ZUREGEX_TIMING_TESTS=true` and four threads are available.
+
+**Deviations (2026-10-21).**
+
+- No `configure.win` probe: `configure.win` writes `src/Makevars.win` from
+  the same `src/Makevars.in` with R's own `$(SHLIB_OPENMP_CFLAGS)`, so one
+  file holds the object list and defines. `tools/vendor/verify` now reads
+  the template.
+- An internal `serial_bytes()` sets the threshold, so the tests run the
+  parallel path on small inputs too.
+- The speedup test runs only with `ZUREGEX_BENCH_THREADS=true`, on a
+  machine with four free cores. GitHub's shared runners measured 1.99×
+  and 2.19× (runs 39678103610 and 39681039948), whatever their reported
+  core count; the 3.32× above is from four dedicated cores. The 2.5×
+  bound is unchanged. The single-thread ratios (Stages 2 and 5) still run
+  in CI.
+- Phase 2 matches a copy of each subject followed by 64 zero bytes. PCRE2's
+  JIT code reads past the end of the subject with wide loads, and past an R
+  string valgrind saw those bytes as uninitialised (run 39678103829). The
+  bug dates from Stage 3; only the full profile runs valgrind.
+- `tools/valgrind.supp` suppresses one "possibly lost" block: the TLS glibc
+  allocates for libgomp's worker threads, which live until exit (run
+  39681644391). Matched on that call path only.
+- The serial build is covered by legs without OpenMP: this package's local
+  macOS build and the clang sanitizer containers, which define `_OPENMP`
+  without `<omp.h>`.
 
 ## Stage 9 — C API and consumers
 

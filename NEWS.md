@@ -34,3 +34,7 @@
   verb or the `zuregex.limits` option. An element that hits a limit raises
   `zuregex_error_limit`, or gives `NA` and one warning per call with
   `on_limit = "na"`.
+* Matching runs on several threads with OpenMP when a call's subjects pass
+  an internal size threshold, with identical results at any thread count.
+  `re_threads()` caps the threads; `zuregex_info()` reports `openmp`,
+  `threads` and `cache_size`.

@@ -52,3 +52,7 @@ CRAN-SUBMISSION
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Written by ./configure and ./configure.win from src/Makevars.in.
+src/Makevars
+src/Makevars.win

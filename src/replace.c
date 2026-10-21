@@ -13,6 +13,7 @@
 
 #include "zuregex.h"
 #include "match.h"
+#include "omp.h"
 
 typedef struct {
   char *buf;
@@ -160,84 +161,99 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   memset(status, 0, n * sizeof(zuregex_status));
   replace_job job = {&call, NULL, x, expand_flag};
   job.out = calloc(n, sizeof(out_buf));
-  pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
-  if (job.out == NULL || md == NULL) {
-    free(job.out);
-    pcre2_match_data_free(md);
-    Rf_error("out of memory allocating replacement buffers");
-  }
+  if (job.out == NULL) Rf_error("out of memory allocating replacement buffers");
 
-  // Phase 2: no R API.
-  int oom = 0;
+  // Phase 2: no R API, on several threads. Running out of memory is an
+  // element's error, so threads share no flag.
   const int *first_repl = per_match ? INTEGER(first) : NULL;
-  for (R_xlen_t i = 0; i < call.n && !oom; i++) {
-    const zuregex_pattern *p = zuregex_pattern_for(&call, i);
-    out_buf *o = &job.out[i];
-    const zuregex_subject *tmpl = per_match ? NULL : &r[nr == 1 ? 0 : i];
-    if (p == NULL || (tmpl != NULL && tmpl->na) ||
-        (per_match && first_repl[i] == NA_INTEGER)) {
-      o->state = -1;
-      continue;
-    }
-    R_xlen_t next_repl = per_match ? first_repl[i] : 0;
-    const zuregex_subject *s = &call.subjects[i];
-    size_t start = 0, last = 0;
-    uint32_t options = 0;
-    int matches = 0;
-    while (matches < limit) {
-      int m = zuregex_match_once(&call, p, s, start, options, md, &status[i]);
-      if (m < 0) {
+  int nt = zuregex_threads_for(&call);
+  ZUREGEX_OMP_PARALLEL
+  {
+    pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
+    zuregex_pad_buf pad = {NULL, 0};
+    ZUREGEX_OMP_FOR
+    for (R_xlen_t i = 0; i < call.n; i++) {
+      const zuregex_pattern *p = zuregex_pattern_for(&call, i);
+      out_buf *o = &job.out[i];
+      const zuregex_subject *tmpl = per_match ? NULL : &r[nr == 1 ? 0 : i];
+      if (p == NULL || (tmpl != NULL && tmpl->na) ||
+          (per_match && first_repl[i] == NA_INTEGER)) {
         o->state = -1;
-        break;
+        continue;
       }
-      if (m == 0) break;
-      PCRE2_SIZE *ov = pcre2_get_ovector_pointer(md);
-      size_t m0 = ov[0], m1 = ov[1];
-      matches++;
-      o->state = 1;
-      if (!expand_flag && m0 >= last &&
-          !append(o, s->ptr + last, m0 - last)) {
+      if (md == NULL) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        o->state = -1;
+        continue;
+      }
+      R_xlen_t next_repl = per_match ? first_repl[i] : 0;
+      zuregex_subject padded;
+      if (!zuregex_pad(&call.subjects[i], &pad, &padded)) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        o->state = -1;
+        continue;
+      }
+      const zuregex_subject *s = &padded;
+      size_t start = 0, last = 0;
+      uint32_t options = 0;
+      int matches = 0, oom = 0;
+      while (matches < limit) {
+        int m = zuregex_match_once(&call, p, s, start, options, md, &status[i]);
+        if (m < 0) {
+          o->state = -1;
+          break;
+        }
+        if (m == 0) break;
+        PCRE2_SIZE *ov = pcre2_get_ovector_pointer(md);
+        size_t m0 = ov[0], m1 = ov[1];
+        matches++;
+        o->state = 1;
+        if (!expand_flag && m0 >= last &&
+            !append(o, s->ptr + last, m0 - last)) {
+          oom = 1;
+          break;
+        }
+        if (per_match) {
+          if (next_repl >= nr) {
+            // The first pass found fewer matches than this one: cannot
+            // happen with the same pattern, subject and limits.
+            o->state = -1;
+            break;
+          }
+          const zuregex_subject *t = &r[next_repl++];
+          if (t->na) {
+            o->state = -1;
+            break;
+          }
+          if (!append(o, t->ptr, t->len)) {
+            oom = 1;
+            break;
+          }
+        } else {
+          int e = expand(p, s, start, options, md, tmpl, syntax, o, &status[i]);
+          if (e == 0) {
+            oom = 1;
+            break;
+          }
+          if (e < 0) {
+            o->state = -1;
+            break;
+          }
+        }
+        if (m1 > last) last = m1;
+        if (!zuregex_next_start(p, s, md, 0, &start, &options)) break;
+      }
+      if (!oom && o->state == 1 && !expand_flag &&
+          !append(o, s->ptr + last, s->len > last ? s->len - last : 0)) {
         oom = 1;
-        break;
       }
-      if (per_match) {
-        if (next_repl >= nr) {
-          // The first pass found fewer matches than this one: cannot
-          // happen with the same pattern, subject and limits.
-          o->state = -1;
-          break;
-        }
-        const zuregex_subject *t = &r[next_repl++];
-        if (t->na) {
-          o->state = -1;
-          break;
-        }
-        if (!append(o, t->ptr, t->len)) {
-          oom = 1;
-          break;
-        }
-      } else {
-        int e = expand(p, s, start, options, md, tmpl, syntax, o, &status[i]);
-        if (e == 0) {
-          oom = 1;
-          break;
-        }
-        if (e < 0) {
-          o->state = -1;
-          break;
-        }
+      if (oom) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        o->state = -1;
       }
-      if (m1 > last) last = m1;
-      if (!zuregex_next_start(p, s, md, 0, &start, &options)) break;
     }
-    if (o->state == 1 && !expand_flag && !oom) {
-      if (!append(o, s->ptr + last, s->len > last ? s->len - last : 0)) oom = 1;
-    }
-  }
-  pcre2_match_data_free(md);
-  if (oom) {
-    free_out(&job);
-    Rf_error("out of memory building replacements");
+    pcre2_match_data_free(md);
+    free(pad.data);
   }
 
   SEXP err = PROTECT(zuregex_status_error(&call, status));

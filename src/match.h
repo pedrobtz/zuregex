@@ -29,6 +29,7 @@ typedef struct {
   const int *index;            // per subject: 1-based pattern, NA_INTEGER for NA
   int index_len;               // 1 (one pattern for all) or n
   uint32_t max_ovector;        // pairs needed by the pattern with most groups
+  double total_bytes;          // of all subjects: decides serial or parallel
   pcre2_match_context *mctx;   // the call's limits; NULL for PCRE2's defaults
   int limit_na;                // on_limit = "na": a limited element is NA
 } zuregex_call;
@@ -46,8 +47,32 @@ typedef struct {
 void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index, SEXP limits,
                      zuregex_call *call);
 
+// Threads for phase 2 of this call (threads.c): 1 below the serial
+// threshold, otherwise the cap set by re_threads().
+int zuregex_threads_for(const zuregex_call *call);
+
 // The pattern for element i, or NULL for an NA pattern or subject.
 zuregex_pattern *zuregex_pattern_for(const zuregex_call *call, R_xlen_t i);
+
+// PCRE2's JIT code scans with wide loads that can read up to this many
+// bytes past the end of the subject. That is safe within a page, but past an
+// R string those bytes are uninitialised heap, which valgrind (and so
+// CRAN's valgrind check) reports. Phase 2 therefore matches a copy of each
+// subject followed by this many zero bytes.
+#define ZUREGEX_PADDING 64
+
+// A per-thread buffer for padded subjects, grown as needed; start it at
+// {NULL, 0} and free it with free(buf.data).
+typedef struct {
+  char *data;
+  size_t cap;
+} zuregex_pad_buf;
+
+// Copies *s into *buf followed by ZUREGEX_PADDING zero bytes and sets *out
+// to the copy. Offsets into the copy equal offsets into the original.
+// Returns 0 when memory ran out. No R API.
+int zuregex_pad(const zuregex_subject *s, zuregex_pad_buf *buf,
+                zuregex_subject *out);
 
 // One pcre2_match(). Returns 1 for a match, 0 for none, -1 for an error
 // recorded in *st.

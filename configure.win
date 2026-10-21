@@ -1,0 +1,8 @@
+#!/bin/sh
+# Writes src/Makevars.win from src/Makevars.in with R's own OpenMP flags,
+# so Windows builds from the same object list and defines as everywhere
+# else.
+sed -e 's|@OPENMP_CFLAGS@|$(SHLIB_OPENMP_CFLAGS)|' \
+    -e 's|@OPENMP_LIBS@|$(SHLIB_OPENMP_CFLAGS)|' \
+    src/Makevars.in > src/Makevars.win
+exit 0
