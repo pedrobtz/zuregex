@@ -23,7 +23,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 | 2 | [Compile, flags and the cache](#stage-2--compile-flags-and-the-cache) | full | [#4](https://github.com/pedrobtz/zuregex/issues/4) | [#18](https://github.com/pedrobtz/zuregex/pull/18) | 2026-10-21 |
 | 3 | [Detect and count](#stage-3--detect-and-count) | quick | [#5](https://github.com/pedrobtz/zuregex/issues/5) | [#19](https://github.com/pedrobtz/zuregex/pull/19) | 2026-10-21 |
 | 4 | [Locate](#stage-4--locate) | quick | [#6](https://github.com/pedrobtz/zuregex/issues/6) | [#20](https://github.com/pedrobtz/zuregex/pull/20) | 2026-10-21 |
-| 5 | [Extract and match](#stage-5--extract-and-match) | quick | [#7](https://github.com/pedrobtz/zuregex/issues/7) | | 2026-10-21 |
+| 5 | [Extract and match](#stage-5--extract-and-match) | quick | [#7](https://github.com/pedrobtz/zuregex/issues/7) | [#21](https://github.com/pedrobtz/zuregex/pull/21) | 2026-10-21 |
 | 6 | [Replace, expand and split](#stage-6--replace-expand-and-split) | quick | [#8](https://github.com/pedrobtz/zuregex/issues/8) | | |
 | 7 | [Limits](#stage-7--limits) | quick | [#9](https://github.com/pedrobtz/zuregex/issues/9) | | |
 | 8 | [OpenMP](#stage-8--openmp) | full | [#10](https://github.com/pedrobtz/zuregex/issues/10) | | |
