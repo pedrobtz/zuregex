@@ -118,7 +118,7 @@ zuregex_pattern *zuregex_pattern_compile(const zuregex_key *key, int *errcode,
   memcpy(copy, key->pattern, key->length);
   copy[key->length] = '\0';
 
-  uint32_t options = key->options | PCRE2_UTF;
+  uint32_t options = key->options | (key->utf ? PCRE2_UTF : 0);
   uint32_t extra = key->extra;
   if (key->literal) {
     // The dialect's options change pattern syntax, which a literal does

@@ -50,7 +50,7 @@ test_that("patterns over 65,536 characters bypass the cache", {
   expect_identical(stats_delta(before), c(hits = 1, misses = 3, evictions = 0))
   expect_identical(zuregex:::cache_stats()$size, 1L)
   # Characters, not bytes: 40,000 two-byte characters are cached.
-  wide <- strrep("é", 40000L)
+  wide <- strrep("\u00e9", 40000L)
   re_compile(wide)
   expect_identical(zuregex:::cache_stats()$size, 2L)
 })

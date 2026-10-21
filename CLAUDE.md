@@ -25,7 +25,8 @@ stay open until the roadmap or a stage settles them.
 ## Current state
 
 PCRE2 10.48 is vendored and builds on every platform (Stage 1). Patterns
-compile, with flags, dialects and a cache (Stage 2); no verb matches yet. The
+compile, with flags, dialects and a cache (Stage 2). `re_detect()` and
+`re_count()` match, serially, through the three-phase core (Stage 3). The
 roadmap in `.agents/roadmap.md` takes it to v0.1.0; §11 of the
 design lists the stages it is expected to hold.
 
@@ -115,6 +116,14 @@ API.
   reference, with the pattern, flags, dialect, literal and jit as
   attributes. `re_restore()` recompiles pointers that `saveRDS()` nulled.
 - `R/errors.R` has `zuregex_abort()` and the argument checks.
+- `src/match.h` defines the three phases every verb shares.
+  `zuregex_collect()` is phase 1: subjects become pointer and length pairs,
+  translated to UTF-8 where needed, and patterns become a table plus a
+  per-element index. Phase 2 loops in `src/match.c` read only those
+  arrays. Phase 3 turns per-element status into R results or a condition.
+- `R/match.R` applies the pairing rule (`patterns()`), decides between
+  UTF-8 and bytes (`subjects()`), and raises match errors. `R/detect.R` has
+  the first verbs.
 
 ## Invariants that are easy to break
 
@@ -142,6 +151,9 @@ stage establishes it.
 - **A pattern's reference count is main-thread only.** The cache, each
   `re` external pointer and its finalizer own references. A worker thread
   may read a `zuregex_pattern`, never retain or release one.
+- **Bytes mode needs patterns compiled without `PCRE2_UTF`.** The key's
+  `utf` field separates the two in the cache. An `re` object is always
+  compiled for UTF-8 and is recompiled for bytes when a call needs it.
 - **PCRE2 is built with `LINK_SIZE 4`** (`src/pcre2-config/config.h`).
   With upstream's 2, patterns well under the cache's 65,536-character
   limit fail to compile.
@@ -165,9 +177,12 @@ stage establishes it.
   Use it as an oracle rather than inventing cases by hand. The design (§9)
   names two oracles: PCRE2's own `testdata/` through the C API, and base R's
   `perl = TRUE` and stringr for parity, with every deliberate difference
-  marked `# GAP`. Neither is wired up yet.
+  marked `# GAP`. Base R and stringr parity is wired up through
+  `helper-corpus.R`; the `testdata/` oracle arrives with Stage 9.
 - **Helpers live in `tests/testthat/helper-*.R`.** `helper-symbols.R` runs
-  `nm` on the loaded shared object; `helper-types.R` has small predicates.
+  `nm` on the loaded shared object; `helper-types.R` has small predicates;
+  `helper-cache.R` gives a test its own cache (`local_cache()`);
+  `helper-corpus.R` is the parity corpus every verb is checked on.
 - **Timing tests are opt-in.** `skip_unless_timing()` runs them only with
   `ZUREGEX_TIMING_TESTS=true`, which `R-CMD-check.yaml` sets. Coverage,
   sanitizers, valgrind and gctorture distort timings.

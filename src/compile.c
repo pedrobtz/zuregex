@@ -49,16 +49,20 @@ static int byte_to_char_offset(const char *s, size_t bytes) {
   return chars;
 }
 
-// pattern: UTF-8 character vector; flags: one string; dialect: 0 or 1.
+// pattern: UTF-8 character vector; flags: one string; dialect: 0 or 1;
+// utf: compile for UTF-8 (TRUE) or bytes (FALSE); use_cache: go through
+// the cache.
 // Returns list(value = <list of external pointers>, error = NULL), or
 // list(value = NULL, error = <description>) for the first failure.
 SEXP zuregex_compile_c(SEXP pattern, SEXP flags, SEXP dialect, SEXP literal,
-                       SEXP jit) {
+                       SEXP jit, SEXP utf, SEXP use_cache) {
   zuregex_key key;
   memset(&key, 0, sizeof(key));
   key.dialect = Rf_asInteger(dialect);
   key.literal = Rf_asLogical(literal);
   key.jit = Rf_asLogical(jit);
+  key.utf = Rf_asLogical(utf);
+  int cached = Rf_asLogical(use_cache);
 
   const char *f = Rf_translateCharUTF8(STRING_ELT(flags, 0));
   int bad = zuregex_parse_flags(f, key.literal, &key.options, &key.extra);
@@ -82,7 +86,7 @@ SEXP zuregex_compile_c(SEXP pattern, SEXP flags, SEXP dialect, SEXP literal,
     key.length = (size_t) LENGTH(s);
     int errcode;
     size_t erroffset;
-    zuregex_pattern *p = zuregex_cache_get(&key, &errcode, &erroffset);
+    zuregex_pattern *p = zuregex_cache_get(&key, cached, &errcode, &erroffset);
     if (p == NULL) {
       PCRE2_UCHAR msg[256];
       if (pcre2_get_error_message(errcode, msg, sizeof(msg)) < 0) {

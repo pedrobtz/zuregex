@@ -21,7 +21,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zuregex/issues/2) | [#16](https://github.com/pedrobtz/zuregex/pull/16) | 2026-10-21 |
 | 1 | [Vendor PCRE2](#stage-1--vendor-pcre2) | full | [#3](https://github.com/pedrobtz/zuregex/issues/3) | [#17](https://github.com/pedrobtz/zuregex/pull/17) | 2026-10-21 |
 | 2 | [Compile, flags and the cache](#stage-2--compile-flags-and-the-cache) | full | [#4](https://github.com/pedrobtz/zuregex/issues/4) | [#18](https://github.com/pedrobtz/zuregex/pull/18) | 2026-10-21 |
-| 3 | [Detect and count](#stage-3--detect-and-count) | quick | [#5](https://github.com/pedrobtz/zuregex/issues/5) | | |
+| 3 | [Detect and count](#stage-3--detect-and-count) | quick | [#5](https://github.com/pedrobtz/zuregex/issues/5) | [#19](https://github.com/pedrobtz/zuregex/pull/19) | 2026-10-21 |
 | 4 | [Locate](#stage-4--locate) | quick | [#6](https://github.com/pedrobtz/zuregex/issues/6) | | |
 | 5 | [Extract and match](#stage-5--extract-and-match) | quick | [#7](https://github.com/pedrobtz/zuregex/issues/7) | | |
 | 6 | [Replace, expand and split](#stage-6--replace-expand-and-split) | quick | [#8](https://github.com/pedrobtz/zuregex/issues/8) | | |
@@ -271,6 +271,24 @@ that Stage 8 parallelises, and they agree with base R.
 - Quick profile green; `devtools::test(shuffle = TRUE)` green.
 
 **Design.** §4, §5.2 (detect, count), §6.1, §6.3, §6.5, §13 D8.
+
+**Deviations (2026-10-21).**
+
+- `re_count()` steps past empty matches with `pcre2_next_match()`, PCRE2's
+  own rule, for both dialects. JavaScript's rule arrives with
+  `re_locate_all()` in Stage 4, which will switch `re_count()` to it for
+  `dialect = "js"`.
+- A raw vector is one subject, and a list of raw vectors is one subject
+  per element, with `NULL` for `NA`. A character vector with any element
+  marked `"bytes"` is matched as bytes throughout.
+- Match-time anchoring makes PCRE2 use its interpreter instead of JIT
+  code. That is correct but slower; compiling anchored variants is left
+  for when a benchmark asks for it.
+- Parity GAPs, each a named test: an `NA` subject gives `NA`, where
+  `grepl()` gives `FALSE`; `re_count()` counts the empty match after a
+  non-empty one, as Python does, where `gregexpr()` does not; `\w`, `\d`
+  and POSIX classes are ASCII as in base R, where stringr's ICU is
+  Unicode.
 
 ## Stage 4 — Locate
 
@@ -590,9 +608,12 @@ In the order design §14 expects them:
 
 ## Open questions
 
-- **File scanning in v0.1.0?** (design §15). This roadmap defers it, per
-  the design's §2 scope. Decide before Stage 3 merges, since bringing it
-  in changes the phase-1 subject collection.
+- **File scanning in v0.1.0?** (design §15). Kept deferred at Stage 3
+  (2026-10-21), as the design's §2 scope and this roadmap have it. Phase 1
+  collects subjects through `zuregex_collect()` into pointer and length
+  pairs, so a file or connection source can be added later without
+  changing phases 2 and 3. The maintainer may still move it in; that
+  would be a new stage.
 - **`syntax = "base"` templates in `re_replace()`** (design §15). Blocks
   nothing in Stage 6, which ships `"extended"` and `"literal"`; a decision
   before Stage 6 avoids a later argument change.

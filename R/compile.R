@@ -101,7 +101,9 @@ compile_patterns <- function(
   dialect,
   literal,
   jit,
-  call = sys.call(-1L)
+  call = sys.call(-1L),
+  utf = TRUE,
+  use_cache = TRUE
 ) {
   res <- .Call(
     zuregex_compile_c,
@@ -109,7 +111,9 @@ compile_patterns <- function(
     flags,
     if (dialect == "js") 1L else 0L,
     literal,
-    jit
+    jit,
+    utf,
+    use_cache
   )
   if (!is.null(res$error)) {
     raise_compile_error(res$error, pattern, flags, literal, call)
