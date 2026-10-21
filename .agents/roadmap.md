@@ -714,6 +714,32 @@ branch's code and everything it finds is fixed.
 
 **Design.** §12.
 
+**Decisions and deviations (2026-10-22).**
+
+- `pkg-critical-review` ran on 5d12d76 and filed #25 to #63. The Blocking
+  and Required findings are fixed in this stage's pull request. The
+  Suggestions and the review notes stay open for after 0.1.0 unless the
+  CRAN review needs them.
+- Groups that share a name (`J`) give the first group that took part, in
+  every verb and in replacement functions: PCRE2's own rule for `${name}`
+  (#25).
+- Text that would hold a NUL byte, from raw input, raises
+  `zuregex_error_match` instead of R's unclassed error (#29). Raw input
+  still gives strings, marked as bytes; returning raw vectors would change
+  the return types of five verbs.
+- Errors native code raises without a class (R's own, such as running out
+  of memory) reach the user as `zuregex_error_native`, a new subclass of
+  `zuregex_error` (#34).
+- Not tested from R, with the reason (#28, #36): a result over 2^31 - 1
+  bytes needs more than 2 GB of memory, and allocation failures in phase
+  2 and in `calloc()` need a failing allocator. Both are handled as
+  element errors or classed errors and reviewed by reading. There is no
+  interrupt check: limits bound the work per element (#42 tracks adding
+  one).
+- Lifecycle: the README carries an `experimental` badge for the package;
+  no function is marked separately, since nothing in 0.1.0 is less settled
+  than the rest (design §15).
+
 ## After 0.1.0
 
 In the order design §14 expects them:
@@ -751,9 +777,8 @@ In the order design §14 expects them:
   package size ... OK" on Ubuntu release and oldrel, macOS, both Windows
   legs and clang23). The source tarball is 0.8 MB and the installed
   package 0.9 MB on macOS.
-- **Marking incubating functions** (design §15). Lifecycle badges, as the
-  family does, unless something in v0.1.0 is actually experimental. Decide
-  in Stage 11.
+- **Marking incubating functions** (design §15). Settled in Stage 11: an
+  `experimental` badge for the package, none per function.
 - **D1** was ratified by Stage 1 (2026-10-21) and is now **(M)** in the
   design.
 - **`dialect = "js"` sufficiency for `zuschema`** (design §15). Not a
