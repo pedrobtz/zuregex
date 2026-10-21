@@ -30,7 +30,8 @@ compile, with flags, dialects and a cache (Stage 2). `re_detect()` and
 `re_locate()` and `re_locate_all()` locate (Stage 4), and the extract and
 match verbs capture (Stage 5). `re_replace()`, `re_expand()` and
 `re_split()` complete the v0.1.0 verbs (Stage 6), and `re_limits()`
-bounds every one of them (Stage 7). The
+bounds every one of them (Stage 7). Phase 2 runs on OpenMP threads
+(Stage 8). The
 roadmap in `.agents/roadmap.md` takes it to v0.1.0; §11 of the
 design lists the stages it is expected to hold.
 
@@ -107,8 +108,11 @@ API.
   symbol, `R_init_zuregex`, marked `attribute_visible`.
 - `src/zuregex.h` declares the first-party native routines.
 - `src/info.c` backs `zuregex_info()`.
-- `src/vendor/pcre2/` is PCRE2 with its upstream layout; `src/Makevars`
-  lists its 31 units in `PCRE2_OBJECTS` and builds it without CMake.
+- `src/vendor/pcre2/` is PCRE2 with its upstream layout;
+  `src/Makevars.in` lists its 31 units in `PCRE2_OBJECTS` and builds it
+  without CMake. `./configure` writes `src/Makevars` from it, choosing the
+  OpenMP flags as zurand does, and `./configure.win` writes
+  `src/Makevars.win`. Edit `Makevars.in`, never the generated files.
   `src/pcre2-config/config.h` is the package's own PCRE2 configuration.
 - `src/pattern.c` turns flag letters into PCRE2 options and owns
   `zuregex_pattern`, a compiled pattern with a reference count.
@@ -148,6 +152,11 @@ API.
   needs no freeing. A replacement function makes two passes; R passes
   each element's first row to the second, so a limited element cannot
   misalign the strings.
+- `src/omp.h` gates OpenMP on `ZUREGEX_OPENMP` and defines
+  `ZUREGEX_OMP_PARALLEL` and `ZUREGEX_OMP_FOR`, the shape of every phase-2
+  loop: per-thread match data inside the parallel block, dynamic
+  scheduling, and the thread count in a variable named `nt`.
+  `src/threads.c` holds the cap and the serial threshold.
 - `src/locate.c` converts byte offsets to one-based characters in phase 2.
   Per-element match lists are `malloc()`ed, and phase 3 runs under
   `R_ExecWithCleanup()` so they are freed even if an R allocation fails.
@@ -165,7 +174,11 @@ stage establishes it.
   a crash that only shows up under load.
 - **Results are identical for any thread count** (design §6.6). Tests cap at
   two threads in `tests/testthat/setup.R`; a result that depends on the cap
-  is a bug, not a tuning question.
+  is a bug, not a tuning question. `test-threads.R` runs every verb at one
+  thread and at the cap.
+- **Phase-2 loops share no mutable state.** Running out of memory is
+  recorded in the element's own status as `PCRE2_ERROR_NOMEMORY`, never in
+  a shared flag, and loops never `break` out of the element loop.
 - **The pattern cache is main-thread only** (design §6.4). It has no lock
   because nothing else reads or writes it. Touching it from phase 2 breaks
   that assumption silently.
@@ -326,7 +339,7 @@ D1). Vendored in Stage 1:
 | Patches | `tools/patches/pcre2/`, listed in `src/vendor/PROVENANCE` |
 
 `src/vendor/PROVENANCE` holds the update procedure. `tools/vendor/verify`
-checks that the manifest, `PROVENANCE`, `inst/COPYRIGHTS`, `src/Makevars`
+checks that the manifest, `PROVENANCE`, `inst/COPYRIGHTS`, `src/Makevars.in`
 and `tests/testthat/test-info.R` agree, so a bump that forgets one fails.
 `tests/testthat/test-abi.R` is the `nm` guard: it fails on any exported
 symbol but `R_init_zuregex` and on any linked stdio, exit, abort or RNG
