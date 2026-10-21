@@ -76,6 +76,7 @@ static void scan(capture_job *job, double limit, zuregex_status *status) {
   ZUREGEX_OMP_PARALLEL
   {
     pcre2_match_data *md = pcre2_match_data_create(job->width, NULL);
+    zuregex_pad_buf pad = {NULL, 0};
     ZUREGEX_OMP_FOR
     for (R_xlen_t i = 0; i < call->n; i++) {
       const zuregex_pattern *p = zuregex_pattern_for(call, i);
@@ -89,7 +90,13 @@ static void scan(capture_job *job, double limit, zuregex_status *status) {
         e->count = -1;
         continue;
       }
-      const zuregex_subject *s = &call->subjects[i];
+      zuregex_subject padded;
+      if (!zuregex_pad(&call->subjects[i], &pad, &padded)) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        e->count = -1;
+        continue;
+      }
+      const zuregex_subject *s = &padded;
       uint32_t pairs = 0;
       pcre2_pattern_info(p->code, PCRE2_INFO_CAPTURECOUNT, &pairs);
       pairs += 1;
@@ -112,6 +119,7 @@ static void scan(capture_job *job, double limit, zuregex_status *status) {
       }
     }
     pcre2_match_data_free(md);
+    free(pad.data);
   }
 }
 

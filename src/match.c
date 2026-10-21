@@ -1,6 +1,7 @@
 // Phase 1 subject collection, and re_detect() / re_count().
 
 #include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "zuregex.h"
@@ -168,6 +169,25 @@ SEXP zuregex_status_error(const zuregex_call *call,
   return R_NilValue;
 }
 
+int zuregex_pad(const zuregex_subject *s, zuregex_pad_buf *buf,
+                zuregex_subject *out) {
+  size_t need = s->len + ZUREGEX_PADDING;
+  if (need > buf->cap) {
+    size_t cap = buf->cap ? buf->cap : 256;
+    while (cap < need) cap *= 2;
+    char *grown = realloc(buf->data, cap);
+    if (grown == NULL) return 0;
+    buf->data = grown;
+    buf->cap = cap;
+  }
+  memcpy(buf->data, s->ptr, s->len);
+  memset(buf->data + s->len, 0, ZUREGEX_PADDING);
+  out->ptr = buf->data;
+  out->len = s->len;
+  out->na = 0;
+  return 1;
+}
+
 int zuregex_match_once(const zuregex_call *call, const zuregex_pattern *p,
                        const zuregex_subject *s, size_t start,
                        uint32_t options, pcre2_match_data *md,
@@ -270,6 +290,7 @@ SEXP zuregex_detect_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   ZUREGEX_OMP_PARALLEL
   {
     pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
+    zuregex_pad_buf pad = {NULL, 0};
     ZUREGEX_OMP_FOR
     for (R_xlen_t i = 0; i < call.n; i++) {
       const zuregex_pattern *p = zuregex_pattern_for(&call, i);
@@ -279,11 +300,16 @@ SEXP zuregex_detect_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
         status[i].rc = PCRE2_ERROR_NOMEMORY;
         continue;
       }
-      int m = zuregex_match_once(&call, p, &call.subjects[i], 0, options, md,
-                                 &status[i]);
+      zuregex_subject padded;
+      if (!zuregex_pad(&call.subjects[i], &pad, &padded)) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        continue;
+      }
+      int m = zuregex_match_once(&call, p, &padded, 0, options, md, &status[i]);
       if (m >= 0) res[i] = neg ? !m : m;
     }
     pcre2_match_data_free(md);
+    free(pad.data);
   }
 
   // Phase 3.
@@ -308,6 +334,7 @@ SEXP zuregex_count_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits) {
   ZUREGEX_OMP_PARALLEL
   {
     pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
+    zuregex_pad_buf pad = {NULL, 0};
     ZUREGEX_OMP_FOR
     for (R_xlen_t i = 0; i < call.n; i++) {
       const zuregex_pattern *p = zuregex_pattern_for(&call, i);
@@ -317,7 +344,12 @@ SEXP zuregex_count_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits) {
         status[i].rc = PCRE2_ERROR_NOMEMORY;
         continue;
       }
-      const zuregex_subject *s = &call.subjects[i];
+      zuregex_subject padded;
+      if (!zuregex_pad(&call.subjects[i], &pad, &padded)) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        continue;
+      }
+      const zuregex_subject *s = &padded;
       size_t start = 0;
       uint32_t options = 0;
       int count = 0;
@@ -334,6 +366,7 @@ SEXP zuregex_count_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits) {
       res[i] = count;
     }
     pcre2_match_data_free(md);
+    free(pad.data);
   }
 
   SEXP err = PROTECT(zuregex_status_error(&call, status));

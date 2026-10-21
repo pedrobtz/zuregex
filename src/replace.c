@@ -170,6 +170,7 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   ZUREGEX_OMP_PARALLEL
   {
     pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
+    zuregex_pad_buf pad = {NULL, 0};
     ZUREGEX_OMP_FOR
     for (R_xlen_t i = 0; i < call.n; i++) {
       const zuregex_pattern *p = zuregex_pattern_for(&call, i);
@@ -186,7 +187,13 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
         continue;
       }
       R_xlen_t next_repl = per_match ? first_repl[i] : 0;
-      const zuregex_subject *s = &call.subjects[i];
+      zuregex_subject padded;
+      if (!zuregex_pad(&call.subjects[i], &pad, &padded)) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        o->state = -1;
+        continue;
+      }
+      const zuregex_subject *s = &padded;
       size_t start = 0, last = 0;
       uint32_t options = 0;
       int matches = 0, oom = 0;
@@ -246,6 +253,7 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
       }
     }
     pcre2_match_data_free(md);
+    free(pad.data);
   }
 
   SEXP err = PROTECT(zuregex_status_error(&call, status));

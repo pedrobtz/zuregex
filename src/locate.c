@@ -41,6 +41,7 @@ SEXP zuregex_locate_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   ZUREGEX_OMP_PARALLEL
   {
     pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
+    zuregex_pad_buf pad = {NULL, 0};
     ZUREGEX_OMP_FOR
     for (R_xlen_t i = 0; i < call.n; i++) {
       const zuregex_pattern *p = zuregex_pattern_for(&call, i);
@@ -50,13 +51,19 @@ SEXP zuregex_locate_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
         status[i].rc = PCRE2_ERROR_NOMEMORY;
         continue;
       }
-      const zuregex_subject *s = &call.subjects[i];
+      zuregex_subject padded;
+      if (!zuregex_pad(&call.subjects[i], &pad, &padded)) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        continue;
+      }
+      const zuregex_subject *s = &padded;
       if (zuregex_match_once(&call, p, s, 0, 0, md, &status[i]) != 1) continue;
       PCRE2_SIZE *ov = pcre2_get_ovector_pointer(md);
       start_col[i] = to_offset(s, ov[0], chars, p->key.utf) + 1;
       end_col[i] = to_offset(s, ov[1], chars, p->key.utf);
     }
     pcre2_match_data_free(md);
+    free(pad.data);
   }
 
   SEXP err = PROTECT(zuregex_status_error(&call, status));
@@ -161,6 +168,7 @@ SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limit
   ZUREGEX_OMP_PARALLEL
   {
     pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
+    zuregex_pad_buf pad = {NULL, 0};
     ZUREGEX_OMP_FOR
     for (R_xlen_t i = 0; i < call.n; i++) {
       const zuregex_pattern *p = zuregex_pattern_for(&call, i);
@@ -174,7 +182,13 @@ SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limit
         e->count = -1;
         continue;
       }
-      const zuregex_subject *s = &call.subjects[i];
+      zuregex_subject padded;
+      if (!zuregex_pad(&call.subjects[i], &pad, &padded)) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        e->count = -1;
+        continue;
+      }
+      const zuregex_subject *s = &padded;
       size_t start = 0;
       uint32_t options = 0;
       while (e->count < limit) {
@@ -196,6 +210,7 @@ SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limit
       }
     }
     pcre2_match_data_free(md);
+    free(pad.data);
   }
 
   SEXP err = PROTECT(zuregex_status_error(&call, status));
