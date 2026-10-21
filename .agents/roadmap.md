@@ -574,6 +574,9 @@ pattern where `ZUREGEX_TIMING_TESTS=true` and four threads are available.
   JIT code reads past the end of the subject with wide loads, and past an R
   string valgrind saw those bytes as uninitialised (run 39678103829). The
   bug dates from Stage 3; only the full profile runs valgrind.
+- `tools/valgrind.supp` suppresses one "possibly lost" block: the TLS glibc
+  allocates for libgomp's worker threads, which live until exit (run
+  39681644391). Matched on that call path only.
 - The serial build is covered by legs without OpenMP: this package's local
   macOS build and the clang sanitizer containers, which define `_OPENMP`
   without `<omp.h>`.
