@@ -29,15 +29,16 @@
 //     for (R_xlen_t i = 0; i < n; i++) { ... }
 //   }
 //
-// The variable must be named nt. Without OpenMP both macros are empty and
-// the block runs once. Scheduling is dynamic: per-element patterns and
-// subject lengths make elements cost different amounts.
+// The variable must be named nt. Without OpenMP the block runs once:
+// ZUREGEX_OMP_PARALLEL only marks nt as used, and ZUREGEX_OMP_FOR is
+// empty. Scheduling is dynamic: per-element patterns and subject lengths
+// make elements cost different amounts.
 #define ZUREGEX_PRAGMA(x) _Pragma(#x)
 #ifdef ZUREGEX_OPENMP
 #  define ZUREGEX_OMP_PARALLEL ZUREGEX_PRAGMA(omp parallel num_threads(nt) if(nt > 1))
 #  define ZUREGEX_OMP_FOR ZUREGEX_PRAGMA(omp for schedule(dynamic, 64))
 #else
-#  define ZUREGEX_OMP_PARALLEL
+#  define ZUREGEX_OMP_PARALLEL (void) nt;
 #  define ZUREGEX_OMP_FOR
 #endif
 

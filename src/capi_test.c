@@ -121,7 +121,10 @@ SEXP zuregex_capi_info_c(SEXP pattern, SEXP flags, SEXP dialect, SEXP name) {
 
 // A pathological match under limits set through zr_set_limits().
 SEXP zuregex_capi_limit_c(SEXP pattern, SEXP subject, SEXP match_limit) {
-  zr_pattern *p = compile_or_error(pattern, Rf_ScalarReal(0), Rf_ScalarInteger(0));
+  SEXP flags = PROTECT(Rf_ScalarReal(0));
+  SEXP dialect = PROTECT(Rf_ScalarInteger(0));
+  zr_pattern *p = compile_or_error(pattern, flags, dialect);
+  UNPROTECT(2);
   zr_match_data *md = zr_match_data_create(p);
   zr_set_limits(md, (uint32_t) Rf_asReal(match_limit), 0, 0);
   const char *subj0 = CHAR(STRING_ELT(subject, 0));
