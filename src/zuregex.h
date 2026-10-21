@@ -22,6 +22,12 @@ SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
 SEXP zuregex_extract_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
                        SEXP group, SEXP all, SEXP n_max);
 SEXP zuregex_match_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
-                     SEXP colmap, SEXP ncol, SEXP all, SEXP n_max);
+                     SEXP colmap, SEXP ncol, SEXP all, SEXP n_max,
+                     SEXP with_zero);
+SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
+                       SEXP repl, SEXP mode, SEXP literal, SEXP n_max,
+                       SEXP expand_only);
+SEXP zuregex_split_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
+                     SEXP n_max, SEXP keep_groups);
 
 #endif

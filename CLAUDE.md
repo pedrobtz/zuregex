@@ -28,7 +28,8 @@ PCRE2 10.48 is vendored and builds on every platform (Stage 1). Patterns
 compile, with flags, dialects and a cache (Stage 2). `re_detect()` and
 `re_count()` match, serially, through the three-phase core (Stage 3), and
 `re_locate()` and `re_locate_all()` locate (Stage 4), and the extract and
-match verbs capture (Stage 5). The
+match verbs capture (Stage 5). `re_replace()`, `re_expand()` and
+`re_split()` complete the v0.1.0 verbs (Stage 6). The
 roadmap in `.agents/roadmap.md` takes it to v0.1.0; §11 of the
 design lists the stages it is expected to hold.
 
@@ -133,6 +134,13 @@ API.
   `make_string()` there is the one place a match becomes a CHARSXP, marked
   UTF-8 for character input and bytes for bytes. `group_layout()` in
   `R/capture.R` builds the column union for per-element patterns.
+- `src/replace.c` builds each replacement from the match just found, with
+  `pcre2_substitute()` and `PCRE2_SUBSTITUTE_MATCHED`, so `n`, both
+  empty-match rules and `re_expand()` share one loop. A replacement
+  function's strings are spliced in by the same loop, in match order.
+  `re_split()` is a builder over the capture scan in `src/capture.c`.
+- `tools/oracles/python-re.py` records Python's results for
+  `tests/testthat/test-python.R`.
 - `src/locate.c` converts byte offsets to one-based characters in phase 2.
   Per-element match lists are `malloc()`ed, and phase 3 runs under
   `R_ExecWithCleanup()` so they are freed even if an R allocation fails.

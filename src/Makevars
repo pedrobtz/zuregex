@@ -60,4 +60,4 @@ PCRE2_OBJECTS = \
   vendor/pcre2/src/pcre2_valid_utf.o \
   vendor/pcre2/src/pcre2_xclass.o
 
-OBJECTS = init.o info.o compile.o pattern.o cache.o match.o locate.o capture.o $(PCRE2_OBJECTS)
+OBJECTS = init.o info.o compile.o pattern.o cache.o match.o locate.o capture.o replace.o $(PCRE2_OBJECTS)

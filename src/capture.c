@@ -23,9 +23,11 @@ typedef struct {
   uint32_t width;     // pairs per match: groups + 1 of the widest pattern
   // What phase 3 builds, set by the entry points.
   const int *group;   // re_extract*: group per pattern table entry, -1 none
+  int keep_groups;    // re_split(): keep each separator's groups
   SEXP colmap;        // re_match*: per pattern, the column of each group
   int ncol;
   int all;
+  int with_zero;      // re_match*: colmap starts with group 0
 } capture_job;
 
 static void free_caps(void *data) {
@@ -206,7 +208,8 @@ static SEXP build_match(void *data) {
     }
     SEXP map = VECTOR_ELT(job->colmap, k);
     const int *cols = INTEGER(map);
-    int groups = LENGTH(map);
+    int entries = LENGTH(map);
+    int first = job->with_zero ? 0 : 1;  // the group colmap's entry 0 is for
     int utf = utf_of(call, k);
     for (int m = 0; m < e->count; m++, r++) {
       const PCRE2_SIZE *ov = e->ov + (size_t) m * job->width * 2;
@@ -214,12 +217,54 @@ static SEXP build_match(void *data) {
         element[r] = (int) i + 1;
         match[r] = m + 1;
       }
-      for (int g = 1; g <= groups; g++) {
-        SEXP col = VECTOR_ELT(out, cols[g - 1] - 1 + lead);
+      for (int j = 0; j < entries; j++) {
+        int g = j + first;
+        SEXP col = VECTOR_ELT(out, cols[j] - 1 + lead);
         SET_STRING_ELT(col, r, make_string(&call->subjects[i], ov[2 * g],
                                            ov[2 * g + 1], utf));
       }
     }
+  }
+  UNPROTECT(1);
+  return out;
+}
+
+// re_split(): pieces between matches, as Python's re.split() makes them,
+// with each separator's groups between the pieces when asked.
+static SEXP build_split(void *data) {
+  capture_job *job = data;
+  zuregex_call *call = job->call;
+  SEXP out = PROTECT(Rf_allocVector(VECSXP, call->n));
+  for (R_xlen_t i = 0; i < call->n; i++) {
+    element_caps *e = &job->el[i];
+    if (e->count < 0) {
+      SET_VECTOR_ELT(out, i, Rf_ScalarString(NA_STRING));
+      continue;
+    }
+    int k = entry_for(call, i);
+    int utf = utf_of(call, k);
+    uint32_t groups = 0;
+    pcre2_pattern_info(call->patterns[k]->code, PCRE2_INFO_CAPTURECOUNT, &groups);
+    R_xlen_t len = (R_xlen_t) e->count + 1;
+    if (job->keep_groups) len += (R_xlen_t) e->count * groups;
+    SEXP v = PROTECT(Rf_allocVector(STRSXP, len));
+    const zuregex_subject *s = &call->subjects[i];
+    PCRE2_SIZE last = 0;
+    R_xlen_t at = 0;
+    for (int m = 0; m < e->count; m++) {
+      const PCRE2_SIZE *ov = e->ov + (size_t) m * job->width * 2;
+      PCRE2_SIZE from = last, to = ov[0] > last ? ov[0] : last;
+      SET_STRING_ELT(v, at++, make_string(s, from, to, utf));
+      if (job->keep_groups) {
+        for (uint32_t g = 1; g <= groups; g++) {
+          SET_STRING_ELT(v, at++, make_string(s, ov[2 * g], ov[2 * g + 1], utf));
+        }
+      }
+      if (ov[1] > last) last = ov[1];
+    }
+    SET_STRING_ELT(v, at, make_string(s, last, s->len, utf));
+    SET_VECTOR_ELT(out, i, v);
+    UNPROTECT(1);
   }
   UNPROTECT(1);
   return out;
@@ -265,9 +310,11 @@ SEXP zuregex_extract_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
 }
 
 // colmap: per pattern table entry, an integer vector giving the 1-based
-// output column of each of its groups.
+// output column of each of its groups, preceded by group 0's column when
+// with_zero is TRUE.
 SEXP zuregex_match_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
-                     SEXP colmap, SEXP ncol, SEXP all, SEXP n_max) {
+                     SEXP colmap, SEXP ncol, SEXP all, SEXP n_max,
+                     SEXP with_zero) {
   zuregex_call call;
   zuregex_collect(x, Rf_asLogical(bytes), table, index, &call);
   capture_job job;
@@ -276,5 +323,18 @@ SEXP zuregex_match_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
   job.colmap = colmap;
   job.ncol = Rf_asInteger(ncol);
   job.all = Rf_asLogical(all);
+  job.with_zero = Rf_asLogical(with_zero);
   return run(&job, job.all ? Rf_asReal(n_max) : 1, build_match);
+}
+
+// n_max: the most separators to split at (pieces - 1).
+SEXP zuregex_split_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
+                     SEXP n_max, SEXP keep_groups) {
+  zuregex_call call;
+  zuregex_collect(x, Rf_asLogical(bytes), table, index, &call);
+  capture_job job;
+  memset(&job, 0, sizeof(job));
+  job.call = &call;
+  job.keep_groups = Rf_asLogical(keep_groups);
+  return run(&job, Rf_asReal(n_max), build_split);
 }

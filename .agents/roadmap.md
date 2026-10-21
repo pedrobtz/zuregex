@@ -24,7 +24,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 | 3 | [Detect and count](#stage-3--detect-and-count) | quick | [#5](https://github.com/pedrobtz/zuregex/issues/5) | [#19](https://github.com/pedrobtz/zuregex/pull/19) | 2026-10-21 |
 | 4 | [Locate](#stage-4--locate) | quick | [#6](https://github.com/pedrobtz/zuregex/issues/6) | [#20](https://github.com/pedrobtz/zuregex/pull/20) | 2026-10-21 |
 | 5 | [Extract and match](#stage-5--extract-and-match) | quick | [#7](https://github.com/pedrobtz/zuregex/issues/7) | [#21](https://github.com/pedrobtz/zuregex/pull/21) | 2026-10-21 |
-| 6 | [Replace, expand and split](#stage-6--replace-expand-and-split) | quick | [#8](https://github.com/pedrobtz/zuregex/issues/8) | | |
+| 6 | [Replace, expand and split](#stage-6--replace-expand-and-split) | quick | [#8](https://github.com/pedrobtz/zuregex/issues/8) | [#22](https://github.com/pedrobtz/zuregex/pull/22) | 2026-10-21 |
 | 7 | [Limits](#stage-7--limits) | quick | [#9](https://github.com/pedrobtz/zuregex/issues/9) | | |
 | 8 | [OpenMP](#stage-8--openmp) | full | [#10](https://github.com/pedrobtz/zuregex/issues/10) | | |
 | 9 | [C API and consumers](#stage-9--c-api-and-consumers) | quick | [#11](https://github.com/pedrobtz/zuregex/issues/11) | | |
@@ -436,6 +436,25 @@ language as the template syntax.
 
 **Design.** §5.4, §13 D7.
 
+**Deviations (2026-10-21).**
+
+- A malformed template is reported when a match first uses it, since
+  PCRE2 checks a template only while substituting. A template no match
+  uses is never checked.
+- The replacement function is called at most once: not at all when
+  nothing matched. Its data frame names the whole match `0`, next to the
+  group columns `re_match()` uses.
+- A group that did not take part is replaced by `""`
+  (`PCRE2_SUBSTITUTE_UNSET_EMPTY`); a group that does not exist is a
+  template error.
+- `re_split(n = 0)` gives no pieces, as Go's `Split(0)` does.
+- Python's results are recorded by `tools/oracles/python-re.py` and
+  checked as literals in `test-python.R`, so the tests need no Python.
+- Parity GAPs, each a named test: `gsub()` skips an empty match right
+  after a non-empty one, where Python and PCRE2 replace it; `strsplit()`
+  drops a trailing empty piece; base R's `\\1` templates are written `$1`,
+  though PCRE2 also reads `\\1`.
+
 ## Stage 7 — Limits
 
 **Issue.** [#9](https://github.com/pedrobtz/zuregex/issues/9), sub-issue of
@@ -645,9 +664,11 @@ In the order design §14 expects them:
   pairs, so a file or connection source can be added later without
   changing phases 2 and 3. The maintainer may still move it in; that
   would be a new stage.
-- **`syntax = "base"` templates in `re_replace()`** (design §15). Blocks
-  nothing in Stage 6, which ships `"extended"` and `"literal"`; a decision
-  before Stage 6 avoids a later argument change.
+- **`syntax = "base"` templates in `re_replace()`** (design §15). Stage 6
+  (2026-10-21) ships `"extended"` and `"literal"` only. Adding `"base"`
+  later is a new choice for the existing `syntax` argument, not an
+  argument change. PCRE2's extended syntax already reads `\\1` to `\\9`,
+  which covers most `gsub()` templates.
 - **Installed size with JIT** (design §15). Settled by Stage 1
   (2026-10-21): no leg raises the installed-size NOTE ("checking installed
   package size ... OK" on Ubuntu release and oldrel, macOS, both Windows

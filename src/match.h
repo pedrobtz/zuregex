@@ -34,7 +34,9 @@ typedef struct {
 // Phase 2 status per element.
 typedef struct {
   int rc;         // 0, or the PCRE2 error code that stopped this element
-  size_t offset;  // for UTF errors, the byte offset of the bad character
+  size_t offset;  // UTF errors: byte offset of the bad character;
+                  // template errors: byte offset in the template
+  int in_template;  // the error came from expanding a replacement template
 } zuregex_status;
 
 void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index,
