@@ -52,6 +52,7 @@
 <li>
 <code><a href="../reference/re_limits.html">re_limits()</a></code> bounds the work of a match, through <code>limits =</code> on every verb or the <code>zuregex.limits</code> option. An element that hits a limit raises <code>zuregex_error_limit</code>, or gives <code>NA</code> and one warning per call with <code>on_limit = "na"</code>.</li>
 <li>Matching runs on several threads with OpenMP when a call’s subjects pass an internal size threshold, with identical results at any thread count. <code><a href="../reference/re_threads.html">re_threads()</a></code> caps the threads; <code><a href="../reference/zuregex_info.html">zuregex_info()</a></code> reports <code>openmp</code>, <code>threads</code> and <code>cache_size</code>.</li>
+<li>A C API for other packages (<code>LinkingTo: zuregex</code> and <code>&lt;zuregex-r.h&gt;</code>): compile, match, read offsets, substitute and set limits through opaque <code>zr_pattern</code> and <code>zr_match_data</code> handles, so a PCRE2 upgrade never changes a consumer’s build. Offsets there are zero-based, half-open and in bytes.</li>
 </ul></div>
   </main></div>
 

@@ -73,3 +73,8 @@
   caps the threads;
   [`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md)
   reports `openmp`, `threads` and `cache_size`.
+- A C API for other packages (`LinkingTo: zuregex` and `<zuregex-r.h>`):
+  compile, match, read offsets, substitute and set limits through opaque
+  `zr_pattern` and `zr_match_data` handles, so a PCRE2 upgrade never
+  changes a consumer’s build. Offsets there are zero-based, half-open
+  and in bytes.

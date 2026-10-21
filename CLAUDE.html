@@ -43,7 +43,7 @@
 </div>
 <div class="section level2">
 <h2 id="current-state">Current state<a class="anchor" aria-label="anchor" href="#current-state"></a></h2>
-<p>PCRE2 10.48 is vendored and builds on every platform (Stage 1). Patterns compile, with flags, dialects and a cache (Stage 2). <code><a href="reference/re_detect.html">re_detect()</a></code> and <code><a href="reference/re_detect.html">re_count()</a></code> match, serially, through the three-phase core (Stage 3), and <code><a href="reference/re_locate.html">re_locate()</a></code> and <code><a href="reference/re_locate.html">re_locate_all()</a></code> locate (Stage 4), and the extract and match verbs capture (Stage 5). <code><a href="reference/re_replace.html">re_replace()</a></code>, <code><a href="reference/re_replace.html">re_expand()</a></code> and <code><a href="reference/re_split.html">re_split()</a></code> complete the v0.1.0 verbs (Stage 6), and <code><a href="reference/re_limits.html">re_limits()</a></code> bounds every one of them (Stage 7). Phase 2 runs on OpenMP threads (Stage 8). The roadmap in <code>.agents/roadmap.md</code> takes it to v0.1.0; §11 of the design lists the stages it is expected to hold.</p>
+<p>PCRE2 10.48 is vendored and builds on every platform (Stage 1). Patterns compile, with flags, dialects and a cache (Stage 2). <code><a href="reference/re_detect.html">re_detect()</a></code> and <code><a href="reference/re_detect.html">re_count()</a></code> match, serially, through the three-phase core (Stage 3), and <code><a href="reference/re_locate.html">re_locate()</a></code> and <code><a href="reference/re_locate.html">re_locate_all()</a></code> locate (Stage 4), and the extract and match verbs capture (Stage 5). <code><a href="reference/re_replace.html">re_replace()</a></code>, <code><a href="reference/re_replace.html">re_expand()</a></code> and <code><a href="reference/re_split.html">re_split()</a></code> complete the v0.1.0 verbs (Stage 6), and <code><a href="reference/re_limits.html">re_limits()</a></code> bounds every one of them (Stage 7). Phase 2 runs on OpenMP threads (Stage 8). Other packages use it from C through <code>&lt;zuregex-r.h&gt;</code> (Stage 9). The roadmap in <code>.agents/roadmap.md</code> takes it to v0.1.0; §11 of the design lists the stages it is expected to hold.</p>
 </div>
 <div class="section level2">
 <h2 id="stage-tracking">Stage tracking<a class="anchor" aria-label="anchor" href="#stage-tracking"></a></h2>
@@ -115,6 +115,9 @@
 <li>Limits reach C as one double vector (match, depth, heap, on_limit), made by <code>call_limits()</code> in <code>R/limits.R</code>. <code>zuregex_collect()</code> turns it into a PCRE2 match context whose memory comes from <code>R_alloc()</code>, so it needs no freeing. A replacement function makes two passes; R passes each element’s first row to the second, so a limited element cannot misalign the strings.</li>
 <li>
 <code>src/omp.h</code> gates OpenMP on <code>ZUREGEX_OPENMP</code> and defines <code>ZUREGEX_OMP_PARALLEL</code> and <code>ZUREGEX_OMP_FOR</code>, the shape of every phase-2 loop: per-thread match data inside the parallel block, dynamic scheduling, and the thread count in a variable named <code>nt</code>. <code>src/threads.c</code> holds the cap and the serial threshold.</li>
+<li>The C API: <code>inst/include/zuregex.h</code> is plain C99 with the types, flags, status codes and function types, naming neither R nor PCRE2; <code>inst/include/zuregex-r.h</code> adds the versioned table <code>zuregex_api_v1</code>, fetched with <code>R_GetCCallable("zuregex", "zuregex_api_v1")</code>, and <code>zr_*()</code> wrappers. <code>src/capi.c</code> implements it without the R API, so the fuzz target builds it alone; <code>src/init.c</code> registers the table. <code>src/capi_test.c</code> has internal <code>.Call</code> entry points that use the API as a consumer does, for the tests.</li>
+<li>
+<code>tools/consumer/zuregexlink</code> is the consumer fixture; <code>consumer.yaml</code> installs and tests it. <code>tools/fuzz/</code> holds the libFuzzer harness and seeds; <code>tools/pcre2-testdata/convert.py</code> turns PCRE2’s own test results into <code>tests/testthat/fixtures/pcre2-testdata.tsv.gz</code>, with every case it leaves out in <code>tools/pcre2-testdata/skipped.tsv</code>.</li>
 <li>
 <code>src/locate.c</code> converts byte offsets to one-based characters in phase 2. Per-element match lists are <code>malloc()</code>ed, and phase 3 runs under <code>R_ExecWithCleanup()</code> so they are freed even if an R allocation fails.</li>
 </ul></div>
@@ -142,6 +145,8 @@
 <li>
 <strong>PCRE2 is built with <code>LINK_SIZE 4</code></strong> (<code>src/pcre2-config/config.h</code>). With upstream’s 2, patterns well under the cache’s 65,536-character limit fail to compile.</li>
 <li>
+<strong>The C API table only grows.</strong> Fields of <code>zuregex_api_v1</code> are appended, never removed or changed; a change to an existing one is a new callable (<code>zuregex_api_v2</code>). <code>zuregex.h</code> must compile alone as C99 and C++ with <code>-Werror</code>, which <code>consumer.yaml</code> checks.</li>
+<li>
 <strong>The C API uses opaque handles</strong> (design §7), so a PCRE2 upgrade never breaks a consumer’s build. Exposing a raw <code>pcre2_code</code> in <code>inst/include/zuregex.h</code> ties every consumer to one PCRE2 version.</li>
 </ul></div>
 <div class="section level2">
@@ -155,7 +160,7 @@
 <li>
 <strong>Order independence.</strong> <code>devtools::test(shuffle = TRUE)</code> is part of the definition of done.</li>
 <li>
-<strong>Borrow a conformance suite before writing one.</strong> Mainstream implementations in Python, Java, Go or Node usually ship a test corpus. Use it as an oracle rather than inventing cases by hand. The design (§9) names two oracles: PCRE2’s own <code>testdata/</code> through the C API, and base R’s <code>perl = TRUE</code> and stringr for parity, with every deliberate difference marked <code># GAP</code>. Base R and stringr parity is wired up through <code>helper-corpus.R</code>; the <code>testdata/</code> oracle arrives with Stage 9.</li>
+<strong>Borrow a conformance suite before writing one.</strong> Mainstream implementations in Python, Java, Go or Node usually ship a test corpus. Use it as an oracle rather than inventing cases by hand. The design (§9) names two oracles: PCRE2’s own <code>testdata/</code> through the C API, and base R’s <code>perl = TRUE</code> and stringr for parity, with every deliberate difference marked <code># GAP</code>. Both are wired up: base R and stringr through <code>helper-corpus.R</code>, PCRE2’s <code>testdata/</code> through the C API in <code>test-pcre2-testdata.R</code>.</li>
 <li>
 <strong>Helpers live in <code>tests/testthat/helper-*.R</code>.</strong> <code>helper-symbols.R</code> runs <code>nm</code> on the loaded shared object; <code>helper-types.R</code> has small predicates; <code>helper-cache.R</code> gives a test its own cache (<code>local_cache()</code>); <code>helper-corpus.R</code> is the parity corpus every verb is checked on.</li>
 <li>
