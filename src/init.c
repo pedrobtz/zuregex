@@ -8,12 +8,14 @@
 
 static const R_CallMethodDef call_methods[] = {
   {"zuregex_info_c", (DL_FUNC) &zuregex_info_c, 0},
-  {"zuregex_compile_c", (DL_FUNC) &zuregex_compile_c, 5},
+  {"zuregex_compile_c", (DL_FUNC) &zuregex_compile_c, 7},
   {"zuregex_re_valid_c", (DL_FUNC) &zuregex_re_valid_c, 1},
   {"zuregex_re_info_c", (DL_FUNC) &zuregex_re_info_c, 1},
   {"zuregex_cache_size_c", (DL_FUNC) &zuregex_cache_size_c, 1},
   {"zuregex_cache_clear_c", (DL_FUNC) &zuregex_cache_clear_c, 0},
   {"zuregex_cache_stats_c", (DL_FUNC) &zuregex_cache_stats_c, 0},
+  {"zuregex_detect_c", (DL_FUNC) &zuregex_detect_c, 6},
+  {"zuregex_count_c", (DL_FUNC) &zuregex_count_c, 4},
   {NULL, NULL, 0}
 };
 

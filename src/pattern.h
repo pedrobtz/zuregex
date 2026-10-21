@@ -21,6 +21,7 @@ typedef struct {
   int dialect;
   int literal;
   int jit;              // JIT compilation requested
+  int utf;              // PCRE2_UTF: 1 for character input, 0 for bytes
 } zuregex_key;
 
 // Shared by the cache and by every `re` object that refers to it. Its
@@ -53,9 +54,12 @@ void zuregex_pattern_retain(zuregex_pattern *p);
 void zuregex_pattern_release(zuregex_pattern *p);
 
 // The cache (cache.c). Returns a pattern the caller owns one reference to,
-// compiling it on a miss; NULL on a compile error, as above.
-zuregex_pattern *zuregex_cache_get(const zuregex_key *key, int *errcode,
-                                   size_t *erroffset);
+// compiling it on a miss; NULL on a compile error, as above. With
+// use_cache = 0 it only compiles: a call with more distinct patterns than
+// the cache holds compiles them for itself, so as not to flush it
+// (design section 6.5).
+zuregex_pattern *zuregex_cache_get(const zuregex_key *key, int use_cache,
+                                   int *errcode, size_t *erroffset);
 int zuregex_cache_capacity(void);
 int zuregex_cache_set_capacity(int capacity);  // returns the previous one
 int zuregex_cache_clear(void);                 // returns how many it held

@@ -14,7 +14,7 @@ static double hits = 0, misses = 0, evictions = 0;
 static int key_equal(const zuregex_key *a, const zuregex_key *b) {
   return a->length == b->length && a->options == b->options &&
          a->extra == b->extra && a->dialect == b->dialect &&
-         a->literal == b->literal && a->jit == b->jit &&
+         a->literal == b->literal && a->jit == b->jit && a->utf == b->utf &&
          memcmp(a->pattern, b->pattern, a->length) == 0;
 }
 
@@ -44,8 +44,11 @@ static void evict_lru(void) {
   evict(oldest);
 }
 
-zuregex_pattern *zuregex_cache_get(const zuregex_key *key, int *errcode,
-                                   size_t *erroffset) {
+zuregex_pattern *zuregex_cache_get(const zuregex_key *key, int use_cache,
+                                   int *errcode, size_t *erroffset) {
+  if (!use_cache) {
+    return zuregex_pattern_compile(key, errcode, erroffset);
+  }
   for (int i = 0; i < size; i++) {
     if (key_equal(&slots[i]->key, key)) {
       hits++;
