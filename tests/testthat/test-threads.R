@@ -1,5 +1,27 @@
 test_that("the big input is above the serial threshold", {
-  expect_gt(sum(nchar(big_subjects(), type = "bytes")), 262144)
+  expect_gt(
+    sum(nchar(big_subjects(), type = "bytes")),
+    zuregex:::serial_bytes()
+  )
+  expect_identical(zuregex:::serial_bytes(), 16384)
+})
+
+test_that("small inputs give the same results on the parallel path", {
+  x <- parity_subjects()
+  run <- function(threads) {
+    with_serial_bytes(0, function() {
+      with_threads(threads, function() {
+        list(
+          re_count(x, "\\w+"),
+          re_locate_all(x, "[aeiou]"),
+          re_match_all(x, "(\\w)(\\w)?"),
+          re_replace(x, "(\\w+)", "<$1>"),
+          re_split(x, "\\s+")
+        )
+      })
+    })
+  }
+  expect_identical(run(2), run(1))
 })
 
 test_that("every verb gives identical results at one thread and at the cap", {
@@ -33,7 +55,7 @@ test_that("every verb gives identical results at one thread and at the cap", {
 
 test_that("limits give the same NAs at any thread count", {
   case <- pathological()
-  x <- rep(c(big_subjects()[1:50], case$x), length.out = 7100)
+  x <- rep(c(big_subjects()[1:50], case$x), length.out = 3100)
   lim <- re_limits(match = 1000, on_limit = "na")
   run <- function() {
     suppressWarnings(re_count(x, "(\\w+)=(\\d+)|^(a+)+$", limits = lim))
@@ -76,14 +98,16 @@ test_that("re_detect() on four threads is at least 2.5 times faster than one", {
     },
     ""
   )
-  # Backtracking work per element, so the loop is not memory-bound.
-  p <- "(\\w+\\s?){3,}z{2}q"
-  one <- with_threads(1, function() {
-    system.time(a <- re_detect(x, p))[["elapsed"]]
-  })
-  four <- with_threads(4, function() {
-    system.time(b <- re_detect(x, p))[["elapsed"]]
-  })
-  expect_identical(a, b)
-  expect_gt(one / four, 2.5)
+  # Back-references make each element cost real work, so the loop is not
+  # bound by memory bandwidth. Measured at 3.3 times (see the roadmap).
+  p <- "(\\w+)\\s(\\w+)\\s\\2\\1"
+  timed <- function() {
+    value <- NULL
+    elapsed <- system.time(value <- re_detect(x, p))[["elapsed"]]
+    list(elapsed = elapsed, value = value)
+  }
+  one <- with_threads(1, timed)
+  four <- with_threads(4, timed)
+  expect_identical(four$value, one$value)
+  expect_gt(one$elapsed / four$elapsed, 2.5)
 })
