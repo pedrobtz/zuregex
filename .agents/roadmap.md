@@ -20,7 +20,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 | --- | --- | --- | --- | --- | --- |
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zuregex/issues/2) | [#16](https://github.com/pedrobtz/zuregex/pull/16) | 2026-10-21 |
 | 1 | [Vendor PCRE2](#stage-1--vendor-pcre2) | full | [#3](https://github.com/pedrobtz/zuregex/issues/3) | [#17](https://github.com/pedrobtz/zuregex/pull/17) | 2026-10-21 |
-| 2 | [Compile, flags and the cache](#stage-2--compile-flags-and-the-cache) | full | [#4](https://github.com/pedrobtz/zuregex/issues/4) | | |
+| 2 | [Compile, flags and the cache](#stage-2--compile-flags-and-the-cache) | full | [#4](https://github.com/pedrobtz/zuregex/issues/4) | [#18](https://github.com/pedrobtz/zuregex/pull/18) | 2026-10-21 |
 | 3 | [Detect and count](#stage-3--detect-and-count) | quick | [#5](https://github.com/pedrobtz/zuregex/issues/5) | | |
 | 4 | [Locate](#stage-4--locate) | quick | [#6](https://github.com/pedrobtz/zuregex/issues/6) | | |
 | 5 | [Extract and match](#stage-5--extract-and-match) | quick | [#7](https://github.com/pedrobtz/zuregex/issues/7) | | |
@@ -210,6 +210,23 @@ matches yet.
   in a loop.
 
 **Design.** §5.1, §6.3, §6.4, §8, §13 D2 to D4.
+
+**Deviations (2026-10-21).**
+
+- PCRE2 is built with `LINK_SIZE 4`, not upstream's 2. With 2, a pattern
+  of 65,537 characters, which the cache must compile and skip, fails with
+  "regular expression is too large".
+- `literal = TRUE` accepts only the flags `i` and `r`, the ones
+  `PCRE2_LITERAL` allows; any other is a `zuregex_error_flags`. The
+  dialect's options are dropped for a literal instead.
+- A compile error's `offset` is where PCRE2 detected the error, as a
+  one-based character position. That is usually just after the offending
+  item, and the caret points there.
+- `re` objects survive `saveRDS()`: an element whose pointer did not
+  survive is recompiled from the object's attributes. The roadmap did not
+  ask for this; it costs one check per call.
+- The cache key also includes `jit`, so `re_info()$jit` is right for
+  `jit = FALSE`.
 
 ## Stage 3 — Detect and count
 

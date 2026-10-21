@@ -5,5 +5,12 @@
 #include <Rinternals.h>
 
 SEXP zuregex_info_c(void);
+SEXP zuregex_compile_c(SEXP pattern, SEXP flags, SEXP dialect, SEXP literal,
+                       SEXP jit);
+SEXP zuregex_re_valid_c(SEXP re);
+SEXP zuregex_re_info_c(SEXP re);
+SEXP zuregex_cache_size_c(SEXP n);
+SEXP zuregex_cache_clear_c(void);
+SEXP zuregex_cache_stats_c(void);
 
 #endif
