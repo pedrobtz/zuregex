@@ -1,0 +1,49 @@
+zuregex
+=======
+
+The zuregex package is Copyright (c) 2026 Pedro Baltazar and is distributed
+under the MIT licence (see LICENSE). It bundles the third-party code below,
+which keeps its own licence.
+
+
+PCRE2 10.48 (src/vendor/pcre2/)
+-------------------------------
+
+https://github.com/PCRE2Project/pcre2
+
+The basic library functions:
+
+    Written by Philip Hazel
+    Copyright (c) 1997-2007 University of Cambridge
+    Copyright (c) 2007-2024 Philip Hazel
+    All rights reserved.
+
+PCRE2 Just-In-Time compilation support:
+
+    Written by Zoltan Herczeg
+    Copyright (c) 2010-2024 Zoltan Herczeg
+    All rights reserved.
+
+Stack-less Just-In-Time compiler (sljit, src/vendor/pcre2/deps/sljit/):
+
+    Written by Zoltan Herczeg
+    Copyright (c) 2009-2024 Zoltan Herczeg
+    All rights reserved.
+
+All other contributions to PCRE2 remain the copyright of their contributors
+or their employers; src/vendor/pcre2/AUTHORS.md lists them.
+
+PCRE2 is distributed under the BSD-3-Clause licence with the PCRE2
+binary-library exception (src/vendor/pcre2/LICENCE.md). sljit is distributed
+under the BSD-2-Clause licence (src/vendor/pcre2/deps/sljit/LICENSE).
+
+Modifications made for zuregex, recorded in src/vendor/PROVENANCE:
+
+    0001-split-compile-error-texts.patch
+        Splits the compile error message list in src/pcre2_error.c into
+        two string literals, so neither exceeds the length ISO C99
+        requires compilers to support. No message changes.
+
+No other file in src/vendor/pcre2/ is modified. src/vendor/pcre2/src/pcre2.h
+and src/vendor/pcre2/src/pcre2_chartables.c are upstream's pcre2.h.generic
+and pcre2_chartables.c.dist, renamed as PCRE2's NON-AUTOTOOLS-BUILD directs.

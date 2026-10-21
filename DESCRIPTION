@@ -1,9 +1,17 @@
 Package: zuregex
 Title: 'PCRE2' Regular Expressions for R and for C Code
 Version: 0.0.0.9000
-Authors@R: 
+Authors@R: c(
     person("Pedro", "Baltazar", , "pedrobtz@gmail.com",
-           role = c("aut", "cre", "cph"))
+           role = c("aut", "cre", "cph")),
+    person("Philip", "Hazel", role = "cph",
+           comment = "PCRE2, bundled in src/vendor/pcre2"),
+    person("University of Cambridge", role = "cph",
+           comment = "PCRE2, bundled in src/vendor/pcre2"),
+    person("Zoltan", "Herczeg", role = "cph",
+           comment = "PCRE2 JIT compiler and sljit, bundled in src/vendor/pcre2"),
+    person("PCRE2 contributors", role = "cph",
+           comment = "see inst/COPYRIGHTS"))
 Description: Matches regular expressions with a bundled copy of the 'PCRE2'
     library (<https://github.com/PCRE2Project/pcre2>), so that every
     platform runs the same version with its just-in-time compiler. Patterns
@@ -14,6 +22,7 @@ Description: Matches regular expressions with a bundled copy of the 'PCRE2'
     packages reach the same library from C through 'LinkingTo', instead of
     bundling their own copy.
 License: MIT + file LICENSE
+Copyright: file inst/COPYRIGHTS
 URL: https://github.com/pedrobtz/zuregex, https://pedrobtz.github.io/zuregex/
 BugReports: https://github.com/pedrobtz/zuregex/issues
 Suggests: 
