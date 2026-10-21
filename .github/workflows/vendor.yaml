@@ -1,0 +1,20 @@
+# Guards src/vendor/. tools/vendor/verify re-derives the PCRE2 tree from the
+# pinned release archive plus the declared patches, and on pull requests the
+# guard fails when src/vendor/ changes without tools/vendor/manifest.tsv and
+# tools/vendor/checksums.sha256 changing with it.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+name: vendor.yaml
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  vendor:
+    uses: pedrobtz/r-actions/.github/workflows/vendor.yml@v1

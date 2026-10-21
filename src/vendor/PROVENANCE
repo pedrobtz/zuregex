@@ -1,0 +1,41 @@
+Vendored dependency: PCRE2, the 8-bit library with its JIT compiler
+
+  Upstream:      https://github.com/PCRE2Project/pcre2
+  Version:       10.48
+  Tag:           pcre2-10.48
+  Commit:        7978954dbd2efc6f2196869290553cf1871b4ce6
+  Archive:       https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.48/pcre2-10.48.tar.gz
+  SHA-256:       ebcc25aadf2a51fa1fefa9b8bc9e7a79b3dae86870a0f1152a22e42befd46888
+  Imported:      2026-10-21
+  License:       BSD-3-Clause WITH PCRE2-exception (src/vendor/pcre2/LICENCE.md);
+                 sljit is BSD-2-Clause (src/vendor/pcre2/deps/sljit/LICENSE)
+  Local patches: applied in this order, from tools/patches/pcre2/
+                 0001-split-compile-error-texts.patch
+
+src/vendor/pcre2/ is the files listed in tools/vendor/keep/pcre2.txt, copied
+from the release tarball with their upstream layout, with exactly the patch
+above applied. tools/vendor/manifest.tsv pins the archive and its digest,
+which is the one GitHub publishes for the release asset; tools/vendor/verify
+re-derives the tree from it and fails on any other difference.
+
+Only the 8-bit library is imported: the 31 translation units that
+NON-AUTOTOOLS-BUILD lists, their headers, and sljit, which
+pcre2_jit_compile.c includes. Two files are renamed as that document
+directs: src/pcre2.h.generic to src/pcre2.h, and src/pcre2_chartables.c.dist
+to src/pcre2_chartables.c. config.h is not imported; the package's own is
+src/pcre2-config/config.h. The 16-bit and 32-bit libraries share these
+sources but are not built. The POSIX wrapper, pcre2grep, pcre2test,
+pcre2_dftables, the fuzzers, testdata/, doc/ and the CMake, autotools,
+Bazel and Zig builds are excluded.
+
+0001-split-compile-error-texts.patch splits one string literal of about
+5,700 characters into two, because clang -pedantic warns about a literal
+over the 4,095 characters ISO C99 requires and R CMD check reports that
+warning. No message or error number changes.
+
+Updating: change the version, tag, commit, archive and archive_sha256
+columns of tools/vendor/manifest.tsv, run tools/vendor/fetch, rebase any
+patch that no longer applies, and compare src/config.h.generic of the new
+release with src/pcre2-config/config.h. Then update this file, the version
+asserted in tests/testthat/test-info.R, and inst/COPYRIGHTS, and run
+tools/vendor/verify. It checks that all of them agree.

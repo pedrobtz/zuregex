@@ -19,7 +19,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 | Stage | Title | CI | Issue | Pull request | Done |
 | --- | --- | --- | --- | --- | --- |
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zuregex/issues/2) | [#16](https://github.com/pedrobtz/zuregex/pull/16) | 2026-10-21 |
-| 1 | [Vendor PCRE2](#stage-1--vendor-pcre2) | full | [#3](https://github.com/pedrobtz/zuregex/issues/3) | | |
+| 1 | [Vendor PCRE2](#stage-1--vendor-pcre2) | full | [#3](https://github.com/pedrobtz/zuregex/issues/3) | [#17](https://github.com/pedrobtz/zuregex/pull/17) | 2026-10-21 |
 | 2 | [Compile, flags and the cache](#stage-2--compile-flags-and-the-cache) | full | [#4](https://github.com/pedrobtz/zuregex/issues/4) | | |
 | 3 | [Detect and count](#stage-3--detect-and-count) | quick | [#5](https://github.com/pedrobtz/zuregex/issues/5) | | |
 | 4 | [Locate](#stage-4--locate) | quick | [#6](https://github.com/pedrobtz/zuregex/issues/6) | | |
@@ -144,6 +144,24 @@ reports what was built.
   as **(M)** in `design.md` §13 when this stage merges.
 
 **Design.** §4 (hidden symbols, JIT failure), §11 stage 0, §13 D1.
+
+**Deviations (2026-10-21).**
+
+- The `nm` gate is `tests/testthat/test-abi.R`, run by R CMD check on
+  every CI leg, rather than a separate workflow step. It fails on any
+  exported symbol but `R_init_zuregex` and on any linked stdio, exit,
+  abort or RNG symbol. Windows is skipped, as in zucrypt: a DLL exports
+  only its export table, and modules cannot bind to each other's copies.
+- No stdio, abort or exit patch was needed: PCRE2 10.48's library links
+  none. One patch was: `0001-split-compile-error-texts.patch` splits a
+  5,686-character string literal, because clang `-pedantic` warns that it
+  exceeds ISO C99's 4,095 and R CMD check reports that warning.
+- The keep list is `tools/vendor/keep/pcre2.txt`, and
+  `vendor-upstream.yaml` watches PCRE2 releases weekly. Neither was named
+  in the work list.
+- The vendored tree keeps upstream's `src/` and `deps/sljit/` layout, since
+  `pcre2_jit_compile.c` includes `../deps/sljit/sljit_src/sljitLir.c`. The
+  longest tarball path is 90 bytes, under the 100-byte limit.
 
 ## Stage 2 — Compile, flags and the cache
 
@@ -561,13 +579,16 @@ In the order design §14 expects them:
 - **`syntax = "base"` templates in `re_replace()`** (design §15). Blocks
   nothing in Stage 6, which ships `"extended"` and `"literal"`; a decision
   before Stage 6 avoids a later argument change.
-- **Installed size with JIT** (design §15). Stage 1 measures it and records
-  whether R CMD check raises the installed-size NOTE; if it does, fixing it
-  (dropping JIT on some legs, or trimming tables) is Stage 1 work.
+- **Installed size with JIT** (design §15). Settled by Stage 1
+  (2026-10-21): no leg raises the installed-size NOTE ("checking installed
+  package size ... OK" on Ubuntu release and oldrel, macOS, both Windows
+  legs and clang23). The source tarball is 0.8 MB and the installed
+  package 0.9 MB on macOS.
 - **Marking incubating functions** (design §15). Lifecycle badges, as the
   family does, unless something in v0.1.0 is actually experimental. Decide
   in Stage 11.
-- **D1 is still (C).** Stage 1 ratifies it or stops the roadmap.
+- **D1** was ratified by Stage 1 (2026-10-21) and is now **(M)** in the
+  design.
 - **`dialect = "js"` sufficiency for `zuschema`** (design §15). Not a
   v0.1.0 question; `zuschema`'s RFC decides whether it needs a translation
   layer on top.

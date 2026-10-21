@@ -1,0 +1,87 @@
+#!/bin/sh
+# Fetch, verify, trim and patch a vendored source.
+#
+#   tools/vendor/fetch [source ...]           write src/vendor/<source>/ and
+#                                             re-record the checksums
+#   tools/vendor/fetch --into DIR [source]    write DIR/<source>/ only; this
+#                                             is how tools/vendor/verify
+#                                             re-derives the tree
+#
+# Network is required. A maintainer script: R CMD check never runs it.
+# Which files are kept, and under what name, is tools/vendor/keep/<source>.txt.
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+cd "$ROOT"
+MANIFEST=tools/vendor/manifest.tsv
+. tools/vendor/common.sh
+
+into=src/vendor
+record=1
+if [ "${1:-}" = "--into" ]; then
+    into=$2
+    record=0
+    shift 2
+fi
+
+sources=${*:-$(manifest_sources)}
+
+for src in $sources; do
+    tag=$(manifest_field "$src" tag)
+    url=$(manifest_field "$src" archive)
+    want=$(manifest_field "$src" archive_sha256)
+    patches=$(manifest_field "$src" patches)
+
+    printf '==> %s %s\n' "$src" "$tag"
+
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    archive="$tmp/archive"
+
+    # --retry, because verify runs this on every push in CI. Integrity does
+    # not rest on the transport: the sha256 comparison below decides.
+    curl -fsSL --retry 3 --retry-delay 2 --max-time 300 -o "$archive" "$url"
+
+    got=$(sha256_of "$archive")
+    if [ "$got" != "$want" ]; then
+        printf 'sha256 MISMATCH for %s\n  expected %s\n  got      %s\n' \
+            "$url" "$want" "$got" >&2
+        exit 1
+    fi
+    printf '    sha256 ok %s\n' "$got"
+
+    mkdir -p "$tmp/x"
+    tar -xzf "$archive" -C "$tmp/x" --strip-components=1
+
+    dest="$into/$src"
+    rm -rf "$dest"
+    mkdir -p "$dest"
+    n=0
+    keep_pairs "$src" > "$tmp/pairs"
+    while read -r from to; do
+        if [ ! -f "$tmp/x/$from" ]; then
+            echo "missing upstream file: $from" >&2
+            exit 1
+        fi
+        mkdir -p "$(dirname "$dest/$to")"
+        cp "$tmp/x/$from" "$dest/$to"
+        n=$((n + 1))
+    done < "$tmp/pairs"
+    printf '    kept %s files\n' "$n"
+
+    if [ "$patches" != "-" ] && [ -n "$patches" ]; then
+        for p in $(echo "$patches" | tr ',' ' '); do
+            printf '    applying %s\n' "$p"
+            patch -s -p1 -d "$dest" < "tools/patches/$src/$p"
+        done
+        find "$dest" \( -name '*.orig' -o -name '*.rej' \) -exec rm -f {} +
+    fi
+
+    rm -rf "$tmp"
+    trap - EXIT
+done
+
+if [ "$record" -eq 1 ]; then
+    "$ROOT/tools/vendor/record"
+    printf 'done. Review the diff under src/vendor/ before committing.\n'
+fi
