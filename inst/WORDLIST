@@ -1,10 +1,14 @@
 CMD
 CMake
+Lifecycle
 LinkingTo
 OpenMP
 R's
 R’s
 pcre
+py
 sljit
+stringr
+vectorscan
 zuregex's
 ’s
