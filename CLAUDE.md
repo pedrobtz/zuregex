@@ -41,9 +41,9 @@ and
 [`re_split()`](https://pedrobtz.github.io/zuregex/reference/re_split.md)
 complete the v0.1.0 verbs (Stage 6), and
 [`re_limits()`](https://pedrobtz.github.io/zuregex/reference/re_limits.md)
-bounds every one of them (Stage 7). The roadmap in `.agents/roadmap.md`
-takes it to v0.1.0; §11 of the design lists the stages it is expected to
-hold.
+bounds every one of them (Stage 7). Phase 2 runs on OpenMP threads
+(Stage 8). The roadmap in `.agents/roadmap.md` takes it to v0.1.0; §11
+of the design lists the stages it is expected to hold.
 
 ## Stage tracking
 
@@ -120,8 +120,11 @@ without the R API.
 - `src/zuregex.h` declares the first-party native routines.
 - `src/info.c` backs
   [`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md).
-- `src/vendor/pcre2/` is PCRE2 with its upstream layout; `src/Makevars`
-  lists its 31 units in `PCRE2_OBJECTS` and builds it without CMake.
+- `src/vendor/pcre2/` is PCRE2 with its upstream layout;
+  `src/Makevars.in` lists its 31 units in `PCRE2_OBJECTS` and builds it
+  without CMake. `./configure` writes `src/Makevars` from it, choosing
+  the OpenMP flags as zurand does, and `./configure.win` writes
+  `src/Makevars.win`. Edit `Makevars.in`, never the generated files.
   `src/pcre2-config/config.h` is the package’s own PCRE2 configuration.
 - `src/pattern.c` turns flag letters into PCRE2 options and owns
   `zuregex_pattern`, a compiled pattern with a reference count.
@@ -169,6 +172,11 @@ without the R API.
   needs no freeing. A replacement function makes two passes; R passes
   each element’s first row to the second, so a limited element cannot
   misalign the strings.
+- `src/omp.h` gates OpenMP on `ZUREGEX_OPENMP` and defines
+  `ZUREGEX_OMP_PARALLEL` and `ZUREGEX_OMP_FOR`, the shape of every
+  phase-2 loop: per-thread match data inside the parallel block, dynamic
+  scheduling, and the thread count in a variable named `nt`.
+  `src/threads.c` holds the cap and the serial threshold.
 - `src/locate.c` converts byte offsets to one-based characters in
   phase 2. Per-element match lists are `malloc()`ed, and phase 3 runs
   under `R_ExecWithCleanup()` so they are freed even if an R allocation
@@ -187,7 +195,13 @@ when a stage establishes it.
   from a worker thread is a crash that only shows up under load.
 - **Results are identical for any thread count** (design §6.6). Tests
   cap at two threads in `tests/testthat/setup.R`; a result that depends
-  on the cap is a bug, not a tuning question.
+  on the cap is a bug, not a tuning question. `test-threads.R` runs
+  every verb at one thread and at the cap.
+- **Phase-2 loops share no mutable state.** Running out of memory is
+  recorded in the element’s own status as `PCRE2_ERROR_NOMEMORY`, never
+  in a shared flag, and loops never
+  [`break`](https://rdrr.io/r/base/Control.html) out of the element
+  loop.
 - **The pattern cache is main-thread only** (design §6.4). It has no
   lock because nothing else reads or writes it. Touching it from phase 2
   breaks that assumption silently.
@@ -239,7 +253,9 @@ when a stage establishes it.
   is checked on.
 - **Timing tests are opt-in.** `skip_unless_timing()` runs them only
   with `ZUREGEX_TIMING_TESTS=true`, which `R-CMD-check.yaml` sets.
-  Coverage, sanitizers, valgrind and gctorture distort timings.
+  Coverage, sanitizers, valgrind and gctorture distort timings. The
+  thread speedup test also needs `ZUREGEX_BENCH_THREADS=true` and four
+  free cores, which GitHub’s shared runners do not have.
 - **Keep the suite inside the CRAN time budget.** About 4 seconds on a
   2026 laptop at Stage 4, timing tests off. Re-measure when a stage adds
   a large corpus.
@@ -362,7 +378,7 @@ binary-library exception, starting at 10.48 to match `vectorscan`
 
 `src/vendor/PROVENANCE` holds the update procedure.
 `tools/vendor/verify` checks that the manifest, `PROVENANCE`,
-`inst/COPYRIGHTS`, `src/Makevars` and `tests/testthat/test-info.R`
+`inst/COPYRIGHTS`, `src/Makevars.in` and `tests/testthat/test-info.R`
 agree, so a bump that forgets one fails. `tests/testthat/test-abi.R` is
 the `nm` guard: it fails on any exported symbol but `R_init_zuregex` and
 on any linked stdio, exit, abort or RNG symbol, on every CI leg.

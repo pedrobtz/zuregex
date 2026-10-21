@@ -1,7 +1,8 @@
 # Describe the bundled PCRE2 library
 
-Reports the version of PCRE2 that zuregex was built with, and whether
-its just-in-time (JIT) compiler works on this machine.
+Reports the version of PCRE2 that zuregex was built with, whether its
+just-in-time (JIT) compiler works on this machine, and how matching is
+set up: OpenMP, the thread cap and the cache size.
 
 ## Usage
 
@@ -27,6 +28,14 @@ A list with elements:
 
 - `jit_target`: the architecture the JIT compiler generates code for, or
   `NA` without it.
+
+- `openmp`: whether this build matches on several threads.
+
+- `threads`: the most threads a call may use; see
+  [`re_threads()`](https://pedrobtz.github.io/zuregex/reference/re_threads.md).
+
+- `cache_size`: the pattern cache's capacity; see
+  [`re_cache_size()`](https://pedrobtz.github.io/zuregex/reference/re_cache_size.md).
 
 ## Details
 
@@ -60,5 +69,14 @@ zuregex_info()
 #> 
 #> $jit_target
 #> [1] "x86 64bit (little endian + unaligned)"
+#> 
+#> $openmp
+#> [1] TRUE
+#> 
+#> $threads
+#> [1] 4
+#> 
+#> $cache_size
+#> [1] 128
 #> 
 ```

@@ -55,6 +55,8 @@ pak::pak("pedrobtz/zuregex")
   : Replace matches
 - [`re_split()`](https://pedrobtz.github.io/zuregex/reference/re_split.md)
   : Split strings
+- [`re_threads()`](https://pedrobtz.github.io/zuregex/reference/re_threads.md)
+  : Thread cap for matching
 - [`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md)
   : Describe the bundled PCRE2 library
 
