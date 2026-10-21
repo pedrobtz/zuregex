@@ -5,6 +5,28 @@
 # x: a character vector, a raw vector (one subject) or a list of raw
 # vectors. Returns list(x, n, bytes).
 subjects <- function(x, call) {
+  # Element numbers and offsets come back as R integers.
+  if (length(x) > .Machine$integer.max) {
+    zuregex_abort(
+      "argument",
+      "`x` may have at most 2^31 - 1 elements.",
+      call = call
+    )
+  }
+  if (is.raw(x) && length(x) > .Machine$integer.max) {
+    zuregex_abort(
+      "argument",
+      "A raw subject may have at most 2^31 - 1 bytes.",
+      call = call
+    )
+  }
+  if (is.list(x) && any(lengths(x) > .Machine$integer.max)) {
+    zuregex_abort(
+      "argument",
+      "A raw subject may have at most 2^31 - 1 bytes.",
+      call = call
+    )
+  }
   if (is.character(x)) {
     bytes <- any(Encoding(x) == "bytes")
     return(list(x = x, n = length(x), bytes = bytes))
@@ -76,6 +98,7 @@ patterns <- function(pattern, n, bytes, call) {
 }
 
 re_patterns <- function(re, bytes, call) {
+  check_re_attributes(re, call)
   re <- re_restore(re)
   index <- seq_along(re)
   index[is.na(attr(re, "pattern"))] <- NA_integer_
@@ -157,6 +180,7 @@ raise_match_error <- function(err, call) {
 }
 
 run_verb <- function(res, call) {
+  res <- native(res, call)
   if (!is.null(res$error)) {
     raise_match_error(res$error, call)
   }

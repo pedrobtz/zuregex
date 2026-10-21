@@ -42,29 +42,7 @@ re_limits <- function(
     on_limit <- "error"
   }
   check_choice(on_limit, c("error", "na"), "on_limit", call)
-  values <- list(match = match, depth = depth, heap = heap)
-  for (name in names(values)) {
-    v <- values[[name]]
-    if (
-      !is.null(v) &&
-        (!is.numeric(v) ||
-          length(v) != 1L ||
-          is.na(v) ||
-          v < 1 ||
-          v > 4294967295 ||
-          v != trunc(v))
-    ) {
-      zuregex_abort(
-        "argument",
-        sprintf(
-          "`%s` must be `NULL` or a whole number from 1 to 4294967295, not %s.",
-          name,
-          describe(v)
-        ),
-        call = call
-      )
-    }
-  }
+  check_limit_values(list(match = match, depth = depth, heap = heap), call)
   structure(
     list(match = match, depth = depth, heap = heap, on_limit = on_limit),
     class = "re_limits"
@@ -92,6 +70,31 @@ print.re_limits <- function(x, ...) {
   invisible(x)
 }
 
+check_limit_values <- function(values, call) {
+  for (name in names(values)) {
+    v <- values[[name]]
+    if (
+      !is.null(v) &&
+        (!is.numeric(v) ||
+          length(v) != 1L ||
+          is.na(v) ||
+          v < 1 ||
+          v > 4294967295 ||
+          v != trunc(v))
+    ) {
+      zuregex_abort(
+        "argument",
+        sprintf(
+          "`%s` must be `NULL` or a whole number from 1 to 4294967295, not %s.",
+          name,
+          describe(v)
+        ),
+        call = call
+      )
+    }
+  }
+}
+
 # The limits a call uses, as the double vector the C verbs read: match,
 # depth and heap (NA for PCRE2's default), then 1 for on_limit = "na".
 call_limits <- function(limits, call) {
@@ -108,6 +111,16 @@ call_limits <- function(limits, call) {
         "`limits` and the `zuregex.limits` option must be `NULL` or made by `re_limits()`, not %s.",
         describe(limits)
       ),
+      call = call
+    )
+  }
+  # An object edited after re_limits() made it is checked again: C reads
+  # these values as unsigned integers.
+  check_limit_values(limits[c("match", "depth", "heap")], call)
+  if (!is_string(limits$on_limit) || !limits$on_limit %in% c("error", "na")) {
+    zuregex_abort(
+      "argument",
+      "`limits$on_limit` must be \"error\" or \"na\".",
       call = call
     )
   }
