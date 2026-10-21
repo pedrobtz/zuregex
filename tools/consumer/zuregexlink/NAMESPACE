@@ -1,0 +1,6 @@
+useDynLib(zuregexlink, .registration = TRUE)
+importFrom(zuregex, zuregex_info)
+export(link_match)
+export(link_replace)
+export(link_groups)
+export(link_version)

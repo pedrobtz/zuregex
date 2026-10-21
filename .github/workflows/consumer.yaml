@@ -1,0 +1,117 @@
+# The C API from a consumer's side (design section 7, roadmap Stage 9).
+#
+# tools/consumer/zuregexlink is a package that uses zuregex only through
+# LinkingTo and <zuregex-r.h>, as vectorscan will. This installs zuregex
+# from the checkout, then the fixture, and runs the fixture's tests: they
+# check the C API against the R verbs and that the fixture links no PCRE2
+# code of its own.
+#
+# The fixture keeps zuregex installed, unlike the family's header-only
+# providers (rule R10.4): zuregex's C API is a table registered with
+# R_RegisterCCallable(), so a consumer needs zuregex loaded at run time.
+# The roadmap records that deviation under Stage 9.
+#
+# The headers are also compiled on their own, with -Werror: zuregex.h as
+# C99 and C++ with nothing else, zuregex-r.h as a consumer's translation
+# unit would. A warning there is a broken build in someone else's package.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+name: consumer.yaml
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  consumer:
+    runs-on: ${{ matrix.os }}
+    name: consumer fixture (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::testthat
+          needs: check
+
+      - name: Install zuregex, then the fixture
+        shell: bash
+        run: |
+          R CMD INSTALL .
+          R CMD INSTALL tools/consumer/zuregexlink
+
+      - name: Run the fixture's tests
+        shell: Rscript {0}
+        run: |
+          res <- as.data.frame(testthat::test_dir(
+            "tools/consumer/zuregexlink/tests/testthat",
+            package = "zuregexlink", load_package = "installed", reporter = "summary"
+          ))
+          if (nrow(res) == 0L || sum(res$passed) == 0L) stop("no fixture tests ran")
+          if (any(res$failed > 0 | res$error)) stop("fixture tests failed")
+
+  headers:
+    runs-on: ${{ matrix.os }}
+    name: headers standalone (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: zuregex.h compiles as C99 with nothing else
+        run: |
+          printf '#include <zuregex.h>\nint main(void){return 0;}\n' > probe.c
+          cc -std=c99 -Wall -Wextra -Wpedantic -Werror -Iinst/include -c probe.c -o /dev/null
+
+      - name: zuregex.h compiles as C++
+        run: |
+          printf '#include <zuregex.h>\nint main(){return 0;}\n' > probe.cpp
+          c++ -std=c++11 -Wall -Wextra -Werror -Iinst/include -c probe.cpp -o /dev/null
+
+      - name: zuregex-r.h compiles in a consumer's unit, used and unused
+        run: |
+          cat > used.c <<'C'
+          #include <zuregex-r.h>
+          SEXP probe(void) {
+            zr_pattern *p = zr_compile("a", 1, 0, ZR_DIALECT_PCRE, NULL, 0);
+            int n = zr_group_count(p);
+            zr_free(p);
+            return Rf_ScalarInteger(n);
+          }
+          C
+          printf '#include <zuregex-r.h>\nSEXP other(void){ return R_NilValue; }\n' > unused.c
+          for f in used.c unused.c; do
+            cc -std=c99 -Wall -Wextra -Werror -Iinst/include -I"$(R RHOME)/include" -c "$f" -o /dev/null
+          done
+
+      - name: zuregex.h names neither R nor PCRE2
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          src = open("inst/include/zuregex.h", encoding="utf-8").read()
+          code = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+          bad = [w for w in ("pcre2", "PCRE2", "SEXP", "Rinternals", "R_xlen_t") if w in code]
+          for w in bad:
+              print(f"FAIL inst/include/zuregex.h declares '{w}'")
+          sys.exit(1 if bad else 0)
+          PY

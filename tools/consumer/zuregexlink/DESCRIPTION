@@ -1,0 +1,13 @@
+Package: zuregexlink
+Title: Consumer Fixture for the 'zuregex' C API
+Version: 0.0.1
+Authors@R: person("Pedro", "Baltazar", , "pedrobtz@gmail.com", role = c("aut", "cre"))
+Description: Uses the 'zuregex' C API from C, the way a package that links
+    to 'zuregex' does. A test fixture for 'zuregex', not a package to
+    publish.
+License: MIT + file LICENSE
+Imports: zuregex
+LinkingTo: zuregex
+Suggests: testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Encoding: UTF-8
