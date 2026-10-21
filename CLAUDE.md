@@ -25,11 +25,10 @@ design decides. Its decisions (§13) are settled; its open questions
 
 ## Current state
 
-PCRE2 10.48 is vendored and builds on every platform (Stage 1).
-[`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md)
-is the only exported function; no verb matches yet. The roadmap in
-`.agents/roadmap.md` takes it to v0.1.0; §11 of the design lists the
-stages it is expected to hold.
+PCRE2 10.48 is vendored and builds on every platform (Stage 1). Patterns
+compile, with flags, dialects and a cache (Stage 2); no verb matches
+yet. The roadmap in `.agents/roadmap.md` takes it to v0.1.0; §11 of the
+design lists the stages it is expected to hold.
 
 ## Stage tracking
 
@@ -109,6 +108,20 @@ without the R API.
 - `src/vendor/pcre2/` is PCRE2 with its upstream layout; `src/Makevars`
   lists its 31 units in `PCRE2_OBJECTS` and builds it without CMake.
   `src/pcre2-config/config.h` is the package’s own PCRE2 configuration.
+- `src/pattern.c` turns flag letters into PCRE2 options and owns
+  `zuregex_pattern`, a compiled pattern with a reference count.
+  `src/pattern.h` has no R API, so later stages can read patterns from
+  worker threads.
+- `src/cache.c` is the LRU pattern cache; `src/compile.c` holds the R
+  entry points for
+  [`re_compile()`](https://pedrobtz.github.io/zuregex/reference/re_compile.md),
+  [`re_info()`](https://pedrobtz.github.io/zuregex/reference/re_info.md)
+  and the cache.
+- An `re` object is a list of external pointers, each holding one
+  reference, with the pattern, flags, dialect, literal and jit as
+  attributes. `re_restore()` recompiles pointers that
+  [`saveRDS()`](https://rdrr.io/r/base/readRDS.html) nulled.
+- `R/errors.R` has `zuregex_abort()` and the argument checks.
 
 ## Invariants that are easy to break
 
@@ -133,6 +146,12 @@ when a stage establishes it.
 - **Two offset conventions, deliberately** (design §6.2). R results are
   one-based, inclusive and in characters; the C API is zero-based,
   half-open and in bytes. Convert at the boundary, never in the middle.
+- **A pattern’s reference count is main-thread only.** The cache, each
+  `re` external pointer and its finalizer own references. A worker
+  thread may read a `zuregex_pattern`, never retain or release one.
+- **PCRE2 is built with `LINK_SIZE 4`** (`src/pcre2-config/config.h`).
+  With upstream’s 2, patterns well under the cache’s 65,536-character
+  limit fail to compile.
 - **The C API uses opaque handles** (design §7), so a PCRE2 upgrade
   never breaks a consumer’s build. Exposing a raw `pcre2_code` in
   `inst/include/zuregex.h` ties every consumer to one PCRE2 version.
@@ -160,6 +179,9 @@ when a stage establishes it.
 - **Helpers live in `tests/testthat/helper-*.R`.** `helper-symbols.R`
   runs `nm` on the loaded shared object; `helper-types.R` has small
   predicates.
+- **Timing tests are opt-in.** `skip_unless_timing()` runs them only
+  with `ZUREGEX_TIMING_TESTS=true`, which `R-CMD-check.yaml` sets.
+  Coverage, sanitizers, valgrind and gctorture distort timings.
 - **Keep the suite inside the CRAN time budget.** Only the placeholder
   test exists; record the runtime once the suite has one.
 

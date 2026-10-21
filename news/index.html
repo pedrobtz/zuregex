@@ -37,6 +37,10 @@
 <ul><li>Bundles PCRE2 10.48, the 8-bit library with its JIT compiler, built without CMake and with every PCRE2 symbol hidden from R’s own copy.</li>
 <li>
 <code><a href="../reference/zuregex_info.html">zuregex_info()</a></code> reports the bundled PCRE2 version and whether its JIT compiler works on this machine.</li>
+<li>
+<code><a href="../reference/re_compile.html">re_compile()</a></code> compiles patterns, with flag letters, a JavaScript dialect, literal patterns and JIT compilation, into <code>re</code> objects that survive <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code>. <code><a href="../reference/re_info.html">re_info()</a></code> describes them, and <code><a href="../reference/re_escape.html">re_escape()</a></code> quotes metacharacters.</li>
+<li>Compiled patterns are cached, 128 by default; <code><a href="../reference/re_cache_size.html">re_cache_size()</a></code> and <code><a href="../reference/re_cache_size.html">re_cache_clear()</a></code> manage the cache.</li>
+<li>Errors are classed conditions inheriting from <code>zuregex_error</code>. An invalid pattern raises <code>zuregex_error_compile</code>, which shows where PCRE2 found the error.</li>
 </ul></div>
   </main></div>
 

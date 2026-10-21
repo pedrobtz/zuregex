@@ -43,7 +43,7 @@
 </div>
 <div class="section level2">
 <h2 id="current-state">Current state<a class="anchor" aria-label="anchor" href="#current-state"></a></h2>
-<p>PCRE2 10.48 is vendored and builds on every platform (Stage 1). <code><a href="reference/zuregex_info.html">zuregex_info()</a></code> is the only exported function; no verb matches yet. The roadmap in <code>.agents/roadmap.md</code> takes it to v0.1.0; §11 of the design lists the stages it is expected to hold.</p>
+<p>PCRE2 10.48 is vendored and builds on every platform (Stage 1). Patterns compile, with flags, dialects and a cache (Stage 2); no verb matches yet. The roadmap in <code>.agents/roadmap.md</code> takes it to v0.1.0; §11 of the design lists the stages it is expected to hold.</p>
 </div>
 <div class="section level2">
 <h2 id="stage-tracking">Stage tracking<a class="anchor" aria-label="anchor" href="#stage-tracking"></a></h2>
@@ -93,6 +93,13 @@
 <code>src/info.c</code> backs <code><a href="reference/zuregex_info.html">zuregex_info()</a></code>.</li>
 <li>
 <code>src/vendor/pcre2/</code> is PCRE2 with its upstream layout; <code>src/Makevars</code> lists its 31 units in <code>PCRE2_OBJECTS</code> and builds it without CMake. <code>src/pcre2-config/config.h</code> is the package’s own PCRE2 configuration.</li>
+<li>
+<code>src/pattern.c</code> turns flag letters into PCRE2 options and owns <code>zuregex_pattern</code>, a compiled pattern with a reference count. <code>src/pattern.h</code> has no R API, so later stages can read patterns from worker threads.</li>
+<li>
+<code>src/cache.c</code> is the LRU pattern cache; <code>src/compile.c</code> holds the R entry points for <code><a href="reference/re_compile.html">re_compile()</a></code>, <code><a href="reference/re_info.html">re_info()</a></code> and the cache.</li>
+<li>An <code>re</code> object is a list of external pointers, each holding one reference, with the pattern, flags, dialect, literal and jit as attributes. <code>re_restore()</code> recompiles pointers that <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code> nulled.</li>
+<li>
+<code>R/errors.R</code> has <code>zuregex_abort()</code> and the argument checks.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="invariants-that-are-easy-to-break">Invariants that are easy to break<a class="anchor" aria-label="anchor" href="#invariants-that-are-easy-to-break"></a></h2>
@@ -110,6 +117,10 @@
 <li>
 <strong>Two offset conventions, deliberately</strong> (design §6.2). R results are one-based, inclusive and in characters; the C API is zero-based, half-open and in bytes. Convert at the boundary, never in the middle.</li>
 <li>
+<strong>A pattern’s reference count is main-thread only.</strong> The cache, each <code>re</code> external pointer and its finalizer own references. A worker thread may read a <code>zuregex_pattern</code>, never retain or release one.</li>
+<li>
+<strong>PCRE2 is built with <code>LINK_SIZE 4</code></strong> (<code>src/pcre2-config/config.h</code>). With upstream’s 2, patterns well under the cache’s 65,536-character limit fail to compile.</li>
+<li>
 <strong>The C API uses opaque handles</strong> (design §7), so a PCRE2 upgrade never breaks a consumer’s build. Exposing a raw <code>pcre2_code</code> in <code>inst/include/zuregex.h</code> ties every consumer to one PCRE2 version.</li>
 </ul></div>
 <div class="section level2">
@@ -126,6 +137,8 @@
 <strong>Borrow a conformance suite before writing one.</strong> Mainstream implementations in Python, Java, Go or Node usually ship a test corpus. Use it as an oracle rather than inventing cases by hand. The design (§9) names two oracles: PCRE2’s own <code>testdata/</code> through the C API, and base R’s <code>perl = TRUE</code> and stringr for parity, with every deliberate difference marked <code># GAP</code>. Neither is wired up yet.</li>
 <li>
 <strong>Helpers live in <code>tests/testthat/helper-*.R</code>.</strong> <code>helper-symbols.R</code> runs <code>nm</code> on the loaded shared object; <code>helper-types.R</code> has small predicates.</li>
+<li>
+<strong>Timing tests are opt-in.</strong> <code>skip_unless_timing()</code> runs them only with <code>ZUREGEX_TIMING_TESTS=true</code>, which <code>R-CMD-check.yaml</code> sets. Coverage, sanitizers, valgrind and gctorture distort timings.</li>
 <li>
 <strong>Keep the suite inside the CRAN time budget.</strong> Only the placeholder test exists; record the runtime once the suite has one.</li>
 </ul></div>
