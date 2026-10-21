@@ -46,15 +46,12 @@ static const struct {
    ZR_CASELESS_RESTRICT | ZR_ASCII_BSD | ZR_ASCII_BSS | ZR_ASCII_BSW |      \
    ZR_ASCII_DIGIT | ZR_ASCII_POSIX | ZR_LITERAL | ZR_BYTES | ZR_NO_JIT)
 
+#define ZR_STR2(x) #x
+#define ZR_STR(x) ZR_STR2(x)
+
+// A string constant, so any thread may read it at any time.
 const char *zuregex_capi_version(void) {
-  static char version[64];
-  if (version[0] == '\0') {
-    char v[48] = "";
-    pcre2_config(PCRE2_CONFIG_VERSION, v);
-    // Written once, the same bytes by any thread that races here.
-    snprintf(version, sizeof(version), "PCRE2 %s", v);
-  }
-  return version;
+  return "PCRE2 " ZR_STR(PCRE2_MAJOR) "." ZR_STR(PCRE2_MINOR) " " ZR_STR(PCRE2_DATE);
 }
 
 static void set_error(char *errbuf, size_t errlen, const char *msg,
@@ -73,6 +70,15 @@ zr_pattern *zuregex_capi_compile(const char *pattern, size_t len,
   if (pattern == NULL && len > 0) {
     set_error(errbuf, errlen, "pattern is NULL", -1);
     return NULL;
+  }
+  // SIZE_MAX is PCRE2's PCRE2_ZERO_TERMINATED, which consumers pass by
+  // habit: read it as a NUL-terminated pattern.
+  if (len == (size_t) -1) {
+    if (pattern == NULL) {
+      set_error(errbuf, errlen, "pattern is NULL", -1);
+      return NULL;
+    }
+    len = strlen(pattern);
   }
   if ((flags & ~KNOWN_FLAGS) != 0 ||
       (dialect != ZR_DIALECT_PCRE && dialect != ZR_DIALECT_JS)) {

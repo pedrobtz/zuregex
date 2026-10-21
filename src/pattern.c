@@ -105,6 +105,11 @@ zuregex_pattern *zuregex_pattern_compile(const zuregex_key *key, int *errcode,
                                          size_t *erroffset) {
   *errcode = 0;
   *erroffset = 0;
+  // The copy is length + 1 bytes: refuse a length that would wrap.
+  if (key->length >= SIZE_MAX - 1) {
+    *errcode = PCRE2_ERROR_NOMEMORY;
+    return NULL;
+  }
   zuregex_pattern *p = calloc(1, sizeof(*p));
   char *copy = malloc(key->length + 1);
   pcre2_compile_context *ctx = pcre2_compile_context_create(NULL);
