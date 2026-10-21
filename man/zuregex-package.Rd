@@ -25,5 +25,13 @@ Authors:
   \item Pedro Baltazar \email{pedrobtz@gmail.com} [copyright holder]
 }
 
+Other contributors:
+\itemize{
+  \item Philip Hazel (PCRE2, bundled in src/vendor/pcre2) [copyright holder]
+  \item University of Cambridge (PCRE2, bundled in src/vendor/pcre2) [copyright holder]
+  \item Zoltan Herczeg (PCRE2 JIT compiler and sljit, bundled in src/vendor/pcre2) [copyright holder]
+  \item PCRE2 contributors (see inst/COPYRIGHTS) [copyright holder]
+}
+
 }
 \keyword{internal}
