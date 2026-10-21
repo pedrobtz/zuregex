@@ -10,6 +10,7 @@
 
 #include "zuregex.h"
 #include "match.h"
+#include "omp.h"
 
 typedef struct {
   int count;          // matches; -1 for an NA subject or pattern
@@ -67,42 +68,51 @@ static int push(element_caps *e, const PCRE2_SIZE *ov, uint32_t pairs,
   return 1;
 }
 
-// Phase 2: no R API. Returns 0 if memory ran out.
-static int scan(capture_job *job, double limit, zuregex_status *status) {
+// Phase 2: no R API, on several threads. Running out of memory is an
+// element's error, so threads share no flag.
+static void scan(capture_job *job, double limit, zuregex_status *status) {
   zuregex_call *call = job->call;
-  pcre2_match_data *md = pcre2_match_data_create(job->width, NULL);
-  if (md == NULL) return 0;
-  int ok = 1;
-  for (R_xlen_t i = 0; i < call->n && ok; i++) {
-    const zuregex_pattern *p = zuregex_pattern_for(call, i);
-    element_caps *e = &job->el[i];
-    if (p == NULL) {
-      e->count = -1;
-      continue;
-    }
-    const zuregex_subject *s = &call->subjects[i];
-    uint32_t pairs = 0;
-    pcre2_pattern_info(p->code, PCRE2_INFO_CAPTURECOUNT, &pairs);
-    pairs += 1;
-    size_t start = 0;
-    uint32_t options = 0;
-    while (e->count < limit) {
-      int m = zuregex_match_once(call, p, s, start, options, md, &status[i]);
-      if (m < 0) {
-        // An error or a limit: the element is NA, not a partial result.
+  int nt = zuregex_threads_for(call);
+  ZUREGEX_OMP_PARALLEL
+  {
+    pcre2_match_data *md = pcre2_match_data_create(job->width, NULL);
+    ZUREGEX_OMP_FOR
+    for (R_xlen_t i = 0; i < call->n; i++) {
+      const zuregex_pattern *p = zuregex_pattern_for(call, i);
+      element_caps *e = &job->el[i];
+      if (p == NULL) {
         e->count = -1;
-        break;
+        continue;
       }
-      if (m == 0) break;
-      if (!push(e, pcre2_get_ovector_pointer(md), pairs, job->width)) {
-        ok = 0;
-        break;
+      if (md == NULL) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        e->count = -1;
+        continue;
       }
-      if (!zuregex_next_start(p, s, md, 0, &start, &options)) break;
+      const zuregex_subject *s = &call->subjects[i];
+      uint32_t pairs = 0;
+      pcre2_pattern_info(p->code, PCRE2_INFO_CAPTURECOUNT, &pairs);
+      pairs += 1;
+      size_t start = 0;
+      uint32_t options = 0;
+      while (e->count < limit) {
+        int m = zuregex_match_once(call, p, s, start, options, md, &status[i]);
+        if (m < 0) {
+          // An error or a limit: the element is NA, not a partial result.
+          e->count = -1;
+          break;
+        }
+        if (m == 0) break;
+        if (!push(e, pcre2_get_ovector_pointer(md), pairs, job->width)) {
+          status[i].rc = PCRE2_ERROR_NOMEMORY;
+          e->count = -1;
+          break;
+        }
+        if (!zuregex_next_start(p, s, md, 0, &start, &options)) break;
+      }
     }
+    pcre2_match_data_free(md);
   }
-  pcre2_match_data_free(md);
-  return ok;
 }
 
 // The one place a match becomes an R string. Character input is matched
@@ -284,10 +294,7 @@ static SEXP run(capture_job *job, double limit, SEXP (*build)(void *)) {
   job->width = call->max_ovector;
   job->el = calloc(n, sizeof(element_caps));
   if (job->el == NULL) Rf_error("out of memory allocating match buffers");
-  if (!scan(job, limit, status)) {
-    free_caps(job);
-    Rf_error("out of memory collecting matches");
-  }
+  scan(job, limit, status);
   SEXP err = PROTECT(zuregex_status_error(call, status));
   SEXP value = R_NilValue;
   if (Rf_isNull(err)) {

@@ -5,6 +5,7 @@
 
 #include "zuregex.h"
 #include "match.h"
+#include "omp.h"
 
 static void set_subject(zuregex_subject *s, const char *ptr, size_t len) {
   // Offsets are returned as R integers.
@@ -109,6 +110,10 @@ void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index, SEXP limits,
   }
   call->index = INTEGER(index);
   call->index_len = (int) XLENGTH(index);
+  call->total_bytes = 0;
+  for (R_xlen_t i = 0; i < call->n; i++) {
+    if (!call->subjects[i].na) call->total_bytes += (double) call->subjects[i].len;
+  }
 }
 
 zuregex_pattern *zuregex_pattern_for(const zuregex_call *call, R_xlen_t i) {
@@ -260,20 +265,26 @@ SEXP zuregex_detect_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   zuregex_status *status = (zuregex_status *) R_alloc(
     call.n > 0 ? (size_t) call.n : 1, sizeof(zuregex_status));
   memset(status, 0, (call.n > 0 ? (size_t) call.n : 1) * sizeof(zuregex_status));
-  pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
-  if (md == NULL) Rf_error("out of memory allocating match data");
-
-  // Phase 2: no R API from here to the end of the loop.
-  for (R_xlen_t i = 0; i < call.n; i++) {
-    const zuregex_pattern *p = zuregex_pattern_for(&call, i);
-    if (p == NULL) {
+  // Phase 2: no R API, and on several threads.
+  int nt = zuregex_threads_for(&call);
+  ZUREGEX_OMP_PARALLEL
+  {
+    pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
+    ZUREGEX_OMP_FOR
+    for (R_xlen_t i = 0; i < call.n; i++) {
+      const zuregex_pattern *p = zuregex_pattern_for(&call, i);
       res[i] = NA_LOGICAL;
-      continue;
+      if (p == NULL) continue;
+      if (md == NULL) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        continue;
+      }
+      int m = zuregex_match_once(&call, p, &call.subjects[i], 0, options, md,
+                                 &status[i]);
+      if (m >= 0) res[i] = neg ? !m : m;
     }
-    int m = zuregex_match_once(&call, p, &call.subjects[i], 0, options, md, &status[i]);
-    res[i] = m < 0 ? NA_LOGICAL : (neg ? !m : m);
+    pcre2_match_data_free(md);
   }
-  pcre2_match_data_free(md);
 
   // Phase 3.
   SEXP err = PROTECT(zuregex_status_error(&call, status));
@@ -291,34 +302,39 @@ SEXP zuregex_count_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits) {
   zuregex_status *status = (zuregex_status *) R_alloc(
     call.n > 0 ? (size_t) call.n : 1, sizeof(zuregex_status));
   memset(status, 0, (call.n > 0 ? (size_t) call.n : 1) * sizeof(zuregex_status));
-  pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
-  if (md == NULL) Rf_error("out of memory allocating match data");
-
   // Phase 2. Successive matches follow the pattern's dialect
   // (zuregex_next_start()).
-  for (R_xlen_t i = 0; i < call.n; i++) {
-    const zuregex_pattern *p = zuregex_pattern_for(&call, i);
-    if (p == NULL) {
+  int nt = zuregex_threads_for(&call);
+  ZUREGEX_OMP_PARALLEL
+  {
+    pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
+    ZUREGEX_OMP_FOR
+    for (R_xlen_t i = 0; i < call.n; i++) {
+      const zuregex_pattern *p = zuregex_pattern_for(&call, i);
       res[i] = NA_INTEGER;
-      continue;
-    }
-    const zuregex_subject *s = &call.subjects[i];
-    size_t start = 0;
-    uint32_t options = 0;
-    int count = 0;
-    for (;;) {
-      int m = zuregex_match_once(&call, p, s, start, options, md, &status[i]);
-      if (m < 0) {
-        count = NA_INTEGER;
-        break;
+      if (p == NULL) continue;
+      if (md == NULL) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        continue;
       }
-      if (m == 0) break;
-      count++;
-      if (!zuregex_next_start(p, s, md, 0, &start, &options)) break;
+      const zuregex_subject *s = &call.subjects[i];
+      size_t start = 0;
+      uint32_t options = 0;
+      int count = 0;
+      for (;;) {
+        int m = zuregex_match_once(&call, p, s, start, options, md, &status[i]);
+        if (m < 0) {
+          count = NA_INTEGER;
+          break;
+        }
+        if (m == 0) break;
+        count++;
+        if (!zuregex_next_start(p, s, md, 0, &start, &options)) break;
+      }
+      res[i] = count;
     }
-    res[i] = count;
+    pcre2_match_data_free(md);
   }
-  pcre2_match_data_free(md);
 
   SEXP err = PROTECT(zuregex_status_error(&call, status));
   SEXP ans = zuregex_result(&call, status, Rf_isNull(err) ? out : R_NilValue, err);

@@ -1,3 +1,6 @@
+# src/Makevars and src/Makevars.win are written from this file by
+# ./configure and ./configure.win; edit this file, never those.
+#
 # Portable make only: no GNU-make conditionals, no $(shell), no $(wildcard)
 # and no -W* or optimisation flags, any of which costs a CRAN rejection or a
 # GNU make requirement.
@@ -23,7 +26,13 @@ PKG_CPPFLAGS = -Ipcre2-config -Ivendor/pcre2/src \
 # symbol table, so nothing can bind to R's own libpcre2-8, a different version
 # (design section 4). R_init_zuregex is marked attribute_visible.
 # tests/testthat/test-abi.R checks the installed object.
-PKG_CFLAGS = $(C_VISIBILITY)
+#
+# OpenMP: the two placeholders below are filled by ./configure
+# (configure.win on Windows): R's $(SHLIB_OPENMP_CFLAGS) where R sets it; on macOS, where R leaves it empty, the flags that link the libomp
+# R ships, when a test program builds with them; otherwise empty, a serial
+# build (design section 6.6).
+PKG_CFLAGS = $(C_VISIBILITY) $(SHLIB_OPENMP_CFLAGS)
+PKG_LIBS = $(SHLIB_OPENMP_CFLAGS)
 
 # The 8-bit library's translation units, as NON-AUTOTOOLS-BUILD lists them.
 # sljit has no unit of its own: pcre2_jit_compile.c includes sljitLir.c.
@@ -60,4 +69,4 @@ PCRE2_OBJECTS = \
   vendor/pcre2/src/pcre2_valid_utf.o \
   vendor/pcre2/src/pcre2_xclass.o
 
-OBJECTS = init.o info.o compile.o pattern.o cache.o match.o locate.o capture.o replace.o $(PCRE2_OBJECTS)
+OBJECTS = init.o info.o compile.o pattern.o cache.o match.o locate.o capture.o replace.o threads.o $(PCRE2_OBJECTS)

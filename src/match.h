@@ -29,6 +29,7 @@ typedef struct {
   const int *index;            // per subject: 1-based pattern, NA_INTEGER for NA
   int index_len;               // 1 (one pattern for all) or n
   uint32_t max_ovector;        // pairs needed by the pattern with most groups
+  double total_bytes;          // of all subjects: decides serial or parallel
   pcre2_match_context *mctx;   // the call's limits; NULL for PCRE2's defaults
   int limit_na;                // on_limit = "na": a limited element is NA
 } zuregex_call;
@@ -45,6 +46,10 @@ typedef struct {
 // PCRE2's default) and the on_limit mode (1 for "na").
 void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index, SEXP limits,
                      zuregex_call *call);
+
+// Threads for phase 2 of this call (threads.c): 1 below the serial
+// threshold, otherwise the cap set by re_threads().
+int zuregex_threads_for(const zuregex_call *call);
 
 // The pattern for element i, or NULL for an NA pattern or subject.
 zuregex_pattern *zuregex_pattern_for(const zuregex_call *call, R_xlen_t i);

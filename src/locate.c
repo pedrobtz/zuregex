@@ -10,6 +10,7 @@
 
 #include "zuregex.h"
 #include "match.h"
+#include "omp.h"
 
 static int to_offset(const zuregex_subject *s, size_t byte, int chars,
                      int utf) {
@@ -34,21 +35,29 @@ SEXP zuregex_locate_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   int *start_col = INTEGER(out);
   int *end_col = start_col + call.n;
   zuregex_status *status = new_status(call.n);
-  pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
-  if (md == NULL) Rf_error("out of memory allocating match data");
 
   // Phase 2.
-  for (R_xlen_t i = 0; i < call.n; i++) {
-    const zuregex_pattern *p = zuregex_pattern_for(&call, i);
-    start_col[i] = end_col[i] = NA_INTEGER;
-    if (p == NULL) continue;
-    const zuregex_subject *s = &call.subjects[i];
-    if (zuregex_match_once(&call, p, s, 0, 0, md, &status[i]) != 1) continue;
-    PCRE2_SIZE *ov = pcre2_get_ovector_pointer(md);
-    start_col[i] = to_offset(s, ov[0], chars, p->key.utf) + 1;
-    end_col[i] = to_offset(s, ov[1], chars, p->key.utf);
+  int nt = zuregex_threads_for(&call);
+  ZUREGEX_OMP_PARALLEL
+  {
+    pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
+    ZUREGEX_OMP_FOR
+    for (R_xlen_t i = 0; i < call.n; i++) {
+      const zuregex_pattern *p = zuregex_pattern_for(&call, i);
+      start_col[i] = end_col[i] = NA_INTEGER;
+      if (p == NULL) continue;
+      if (md == NULL) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        continue;
+      }
+      const zuregex_subject *s = &call.subjects[i];
+      if (zuregex_match_once(&call, p, s, 0, 0, md, &status[i]) != 1) continue;
+      PCRE2_SIZE *ov = pcre2_get_ovector_pointer(md);
+      start_col[i] = to_offset(s, ov[0], chars, p->key.utf) + 1;
+      end_col[i] = to_offset(s, ov[1], chars, p->key.utf);
+    }
+    pcre2_match_data_free(md);
   }
-  pcre2_match_data_free(md);
 
   SEXP err = PROTECT(zuregex_status_error(&call, status));
   SEXP ans = zuregex_result(&call, status, Rf_isNull(err) ? out : R_NilValue, err);
@@ -144,46 +153,49 @@ SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limit
 
   matches_table t = {NULL, call.n};
   t.el = calloc(call.n > 0 ? (size_t) call.n : 1, sizeof(element_matches));
-  pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
-  if (t.el == NULL || md == NULL) {
-    free(t.el);
-    pcre2_match_data_free(md);
-    Rf_error("out of memory allocating match buffers");
-  }
+  if (t.el == NULL) Rf_error("out of memory allocating match buffers");
 
-  // Phase 2.
-  int oom = 0;
-  for (R_xlen_t i = 0; i < call.n && !oom; i++) {
-    const zuregex_pattern *p = zuregex_pattern_for(&call, i);
-    element_matches *e = &t.el[i];
-    if (p == NULL) {
-      e->count = -1;
-      continue;
-    }
-    const zuregex_subject *s = &call.subjects[i];
-    size_t start = 0;
-    uint32_t options = 0;
-    while (e->count < limit) {
-      int m = zuregex_match_once(&call, p, s, start, options, md, &status[i]);
-      if (m < 0) {
-        // An error or a limit: the element is NA, not a partial result.
+  // Phase 2. Running out of memory is an element's error, so threads share
+  // no flag.
+  int nt = zuregex_threads_for(&call);
+  ZUREGEX_OMP_PARALLEL
+  {
+    pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
+    ZUREGEX_OMP_FOR
+    for (R_xlen_t i = 0; i < call.n; i++) {
+      const zuregex_pattern *p = zuregex_pattern_for(&call, i);
+      element_matches *e = &t.el[i];
+      if (p == NULL) {
         e->count = -1;
-        break;
+        continue;
       }
-      if (m == 0) break;
-      PCRE2_SIZE *ov = pcre2_get_ovector_pointer(md);
-      if (!push_match(e, to_offset(s, ov[0], chars, p->key.utf) + 1,
-                      to_offset(s, ov[1], chars, p->key.utf))) {
-        oom = 1;
-        break;
+      if (md == NULL) {
+        status[i].rc = PCRE2_ERROR_NOMEMORY;
+        e->count = -1;
+        continue;
       }
-      if (!zuregex_next_start(p, s, md, ov_flag, &start, &options)) break;
+      const zuregex_subject *s = &call.subjects[i];
+      size_t start = 0;
+      uint32_t options = 0;
+      while (e->count < limit) {
+        int m = zuregex_match_once(&call, p, s, start, options, md, &status[i]);
+        if (m < 0) {
+          // An error or a limit: the element is NA, not a partial result.
+          e->count = -1;
+          break;
+        }
+        if (m == 0) break;
+        PCRE2_SIZE *ov = pcre2_get_ovector_pointer(md);
+        if (!push_match(e, to_offset(s, ov[0], chars, p->key.utf) + 1,
+                        to_offset(s, ov[1], chars, p->key.utf))) {
+          status[i].rc = PCRE2_ERROR_NOMEMORY;
+          e->count = -1;
+          break;
+        }
+        if (!zuregex_next_start(p, s, md, ov_flag, &start, &options)) break;
+      }
     }
-  }
-  pcre2_match_data_free(md);
-  if (oom) {
-    free_matches(&t);
-    Rf_error("out of memory collecting matches");
+    pcre2_match_data_free(md);
   }
 
   SEXP err = PROTECT(zuregex_status_error(&call, status));
