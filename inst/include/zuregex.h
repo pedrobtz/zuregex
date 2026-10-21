@@ -119,7 +119,13 @@ typedef int (*zr_set_limits_fn)(zr_match_data *md, uint32_t match,
                                  uint32_t depth, uint32_t heap);
 
 /* Searches `subject` (`len` bytes) from byte `start`. Returns the number of
- * offset pairs set, ZR_NOMATCH, or a negative ZR_ERROR_* code. */
+ * offset pairs set, ZR_NOMATCH, or a negative ZR_ERROR_* code.
+ *
+ * JIT-compiled code may read up to 64 bytes past `subject + len` with wide
+ * loads. That is safe within a page and never changes a result, but
+ * valgrind reports it when those bytes are uninitialised, as they are past
+ * an R string. zuregex's own verbs match a copy padded with zeros; a
+ * consumer that runs valgrind can do the same. */
 typedef int (*zr_match_fn)(const zr_pattern *p, const char *subject,
                            size_t len, size_t start, uint32_t options,
                            zr_match_data *md);
