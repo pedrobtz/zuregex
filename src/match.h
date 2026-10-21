@@ -29,6 +29,8 @@ typedef struct {
   const int *index;            // per subject: 1-based pattern, NA_INTEGER for NA
   int index_len;               // 1 (one pattern for all) or n
   uint32_t max_ovector;        // pairs needed by the pattern with most groups
+  pcre2_match_context *mctx;   // the call's limits; NULL for PCRE2's defaults
+  int limit_na;                // on_limit = "na": a limited element is NA
 } zuregex_call;
 
 // Phase 2 status per element.
@@ -39,7 +41,9 @@ typedef struct {
   int in_template;  // the error came from expanding a replacement template
 } zuregex_status;
 
-void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index,
+// limits: a double vector of match, depth and heap limits (NA keeps
+// PCRE2's default) and the on_limit mode (1 for "na").
+void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index, SEXP limits,
                      zuregex_call *call);
 
 // The pattern for element i, or NULL for an NA pattern or subject.
@@ -47,8 +51,9 @@ zuregex_pattern *zuregex_pattern_for(const zuregex_call *call, R_xlen_t i);
 
 // One pcre2_match(). Returns 1 for a match, 0 for none, -1 for an error
 // recorded in *st.
-int zuregex_match_once(const zuregex_pattern *p, const zuregex_subject *s,
-                       size_t start, uint32_t options, pcre2_match_data *md,
+int zuregex_match_once(const zuregex_call *call, const zuregex_pattern *p,
+                       const zuregex_subject *s, size_t start,
+                       uint32_t options, pcre2_match_data *md,
                        zuregex_status *st);
 
 // Where the next search starts after a match, by the pattern's dialect:
@@ -64,13 +69,19 @@ int zuregex_next_start(const zuregex_pattern *p, const zuregex_subject *s,
 // byte is a character.
 size_t zuregex_chars(const char *s, size_t bytes, int utf);
 
-// Raises the first element error in `status`, if any, as an R condition
-// description for the R side: list(kind, element, rc, offset, message).
-// Returns R_NilValue when every element succeeded.
+// The first element error in `status`, if any, as a condition description
+// for the R side: list(kind, element, rc, offset, message). Returns
+// R_NilValue when every element succeeded. With on_limit = "na", limit
+// errors are not errors: their elements are NA, and zuregex_limited()
+// counts them.
 SEXP zuregex_status_error(const zuregex_call *call,
                           const zuregex_status *status);
 
-// list(value, error), as every verb returns to R.
-SEXP zuregex_result(SEXP value, SEXP error);
+int zuregex_is_limit(int rc);
+double zuregex_limited(const zuregex_call *call, const zuregex_status *status);
+
+// list(value, error, limited), as every verb returns to R.
+SEXP zuregex_result(const zuregex_call *call, const zuregex_status *status,
+                    SEXP value, SEXP error);
 
 #endif

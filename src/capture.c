@@ -87,7 +87,13 @@ static int scan(capture_job *job, double limit, zuregex_status *status) {
     size_t start = 0;
     uint32_t options = 0;
     while (e->count < limit) {
-      if (zuregex_match_once(p, s, start, options, md, &status[i]) != 1) break;
+      int m = zuregex_match_once(call, p, s, start, options, md, &status[i]);
+      if (m < 0) {
+        // An error or a limit: the element is NA, not a partial result.
+        e->count = -1;
+        break;
+      }
+      if (m == 0) break;
       if (!push(e, pcre2_get_ovector_pointer(md), pairs, job->width)) {
         ok = 0;
         break;
@@ -290,17 +296,17 @@ static SEXP run(capture_job *job, double limit, SEXP (*build)(void *)) {
     free_caps(job);
   }
   PROTECT(value);
-  SEXP ans = zuregex_result(value, err);
+  SEXP ans = zuregex_result(call, status, value, err);
   UNPROTECT(2);
   return ans;
 }
 
 // group: per pattern table entry, the group to extract (0 is the whole
 // match), or -1 where that pattern has no such group.
-SEXP zuregex_extract_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
+SEXP zuregex_extract_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                        SEXP group, SEXP all, SEXP n_max) {
   zuregex_call call;
-  zuregex_collect(x, Rf_asLogical(bytes), table, index, &call);
+  zuregex_collect(x, Rf_asLogical(bytes), table, index, limits, &call);
   capture_job job;
   memset(&job, 0, sizeof(job));
   job.call = &call;
@@ -312,11 +318,11 @@ SEXP zuregex_extract_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
 // colmap: per pattern table entry, an integer vector giving the 1-based
 // output column of each of its groups, preceded by group 0's column when
 // with_zero is TRUE.
-SEXP zuregex_match_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
+SEXP zuregex_match_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                      SEXP colmap, SEXP ncol, SEXP all, SEXP n_max,
                      SEXP with_zero) {
   zuregex_call call;
-  zuregex_collect(x, Rf_asLogical(bytes), table, index, &call);
+  zuregex_collect(x, Rf_asLogical(bytes), table, index, limits, &call);
   capture_job job;
   memset(&job, 0, sizeof(job));
   job.call = &call;
@@ -328,10 +334,10 @@ SEXP zuregex_match_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
 }
 
 // n_max: the most separators to split at (pieces - 1).
-SEXP zuregex_split_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
+SEXP zuregex_split_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                      SEXP n_max, SEXP keep_groups) {
   zuregex_call call;
-  zuregex_collect(x, Rf_asLogical(bytes), table, index, &call);
+  zuregex_collect(x, Rf_asLogical(bytes), table, index, limits, &call);
   capture_job job;
   memset(&job, 0, sizeof(job));
   job.call = &call;

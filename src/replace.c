@@ -121,14 +121,16 @@ static SEXP build(void *data) {
 }
 
 // mode 0: `repl` holds templates, one or one per element, expanded with
-// `syntax`. mode 1: `repl` holds one string per match, in order, from a
-// replacement function. expand: return only the first match's expansion.
-SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
+// `syntax`. mode 1: `repl` holds one string per match from a replacement
+// function, and first[i] is the 0-based position of element i's first
+// string, NA for an element that gives NA. expand: return only the first
+// match's expansion.
+SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                        SEXP repl, SEXP mode, SEXP literal, SEXP n_max,
-                       SEXP expand_only) {
+                       SEXP expand_only, SEXP first) {
   zuregex_call call;
   int is_bytes = Rf_asLogical(bytes);
-  zuregex_collect(x, is_bytes, table, index, &call);
+  zuregex_collect(x, is_bytes, table, index, limits, &call);
   int per_match = Rf_asInteger(mode) == 1;
   uint32_t syntax = Rf_asLogical(literal) ? PCRE2_SUBSTITUTE_LITERAL
                                           : PCRE2_SUBSTITUTE_EXTENDED;
@@ -167,21 +169,23 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
 
   // Phase 2: no R API.
   int oom = 0;
-  R_xlen_t next_repl = 0;  // per-match strings are consumed in order
+  const int *first_repl = per_match ? INTEGER(first) : NULL;
   for (R_xlen_t i = 0; i < call.n && !oom; i++) {
     const zuregex_pattern *p = zuregex_pattern_for(&call, i);
     out_buf *o = &job.out[i];
     const zuregex_subject *tmpl = per_match ? NULL : &r[nr == 1 ? 0 : i];
-    if (p == NULL || (tmpl != NULL && tmpl->na)) {
+    if (p == NULL || (tmpl != NULL && tmpl->na) ||
+        (per_match && first_repl[i] == NA_INTEGER)) {
       o->state = -1;
       continue;
     }
+    R_xlen_t next_repl = per_match ? first_repl[i] : 0;
     const zuregex_subject *s = &call.subjects[i];
     size_t start = 0, last = 0;
     uint32_t options = 0;
     int matches = 0;
     while (matches < limit) {
-      int m = zuregex_match_once(p, s, start, options, md, &status[i]);
+      int m = zuregex_match_once(&call, p, s, start, options, md, &status[i]);
       if (m < 0) {
         o->state = -1;
         break;
@@ -197,6 +201,12 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
         break;
       }
       if (per_match) {
+        if (next_repl >= nr) {
+          // The first pass found fewer matches than this one: cannot
+          // happen with the same pattern, subject and limits.
+          o->state = -1;
+          break;
+        }
         const zuregex_subject *t = &r[next_repl++];
         if (t->na) {
           o->state = -1;
@@ -238,7 +248,7 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
     free_out(&job);
   }
   PROTECT(value);
-  SEXP ans = zuregex_result(value, err);
+  SEXP ans = zuregex_result(&call, status, value, err);
   UNPROTECT(2);
   return ans;
 }
