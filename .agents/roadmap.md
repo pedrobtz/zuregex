@@ -23,7 +23,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 | 2 | [Compile, flags and the cache](#stage-2--compile-flags-and-the-cache) | full | [#4](https://github.com/pedrobtz/zuregex/issues/4) | [#18](https://github.com/pedrobtz/zuregex/pull/18) | 2026-10-21 |
 | 3 | [Detect and count](#stage-3--detect-and-count) | quick | [#5](https://github.com/pedrobtz/zuregex/issues/5) | [#19](https://github.com/pedrobtz/zuregex/pull/19) | 2026-10-21 |
 | 4 | [Locate](#stage-4--locate) | quick | [#6](https://github.com/pedrobtz/zuregex/issues/6) | [#20](https://github.com/pedrobtz/zuregex/pull/20) | 2026-10-21 |
-| 5 | [Extract and match](#stage-5--extract-and-match) | quick | [#7](https://github.com/pedrobtz/zuregex/issues/7) | | |
+| 5 | [Extract and match](#stage-5--extract-and-match) | quick | [#7](https://github.com/pedrobtz/zuregex/issues/7) | | 2026-10-21 |
 | 6 | [Replace, expand and split](#stage-6--replace-expand-and-split) | quick | [#8](https://github.com/pedrobtz/zuregex/issues/8) | | |
 | 7 | [Limits](#stage-7--limits) | quick | [#9](https://github.com/pedrobtz/zuregex/issues/9) | | |
 | 8 | [OpenMP](#stage-8--openmp) | full | [#10](https://github.com/pedrobtz/zuregex/issues/10) | | |
@@ -378,6 +378,24 @@ is the package's main speed claim for R users.
 - Quick profile green.
 
 **Design.** §5.3, §6.5, §10.
+
+**Measured (2026-10-21).** `re_match()` with a three-column `proto` on
+100,000 strings: 0.111 s against `utils::strcapture()`'s 1.931 s, 17.4×
+(median of three, one thread, macOS x86-64). The test asserts 10× where
+`ZUREGEX_TIMING_TESTS=true`.
+
+**Deviations (2026-10-21).**
+
+- `re_match()` has no column for the whole match: its columns are the
+  groups, as in Python's `groups()`. `re_extract()` gives the whole match.
+- An unnamed group's column is named by its number (`"1"`, `"2"`).
+- `proto` columns with S4 classes are refused, since converting them needs
+  the `methods` package and the package has no Imports.
+- `group` naming a group no pattern has, or a number past every pattern's
+  groups, is a new `zuregex_error_group`.
+- Parity GAP, a named test: `regmatches()` and `strcapture()` give `""` for
+  a group that did not take part in the match; zuregex and stringr give
+  `NA`.
 
 ## Stage 6 — Replace, expand and split
 
