@@ -63,7 +63,10 @@ SEXP zuregex_compile_c(SEXP pattern, SEXP flags, SEXP dialect, SEXP literal,
   const char *f = Rf_translateCharUTF8(STRING_ELT(flags, 0));
   int bad = zuregex_parse_flags(f, key.literal, &key.options, &key.extra);
   if (bad) {
-    return result(R_NilValue, compile_error("flags", 1, bad, ""));
+    SEXP err = PROTECT(compile_error("flags", 1, bad, ""));
+    SEXP res = result(R_NilValue, err);
+    UNPROTECT(1);
+    return res;
   }
 
   R_xlen_t n = XLENGTH(pattern);
