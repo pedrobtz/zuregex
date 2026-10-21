@@ -529,8 +529,9 @@ Stages, each one pull request, following the family's CI tier policy:
 Marked **(M)** when the maintainer decided it in the conversation and
 **(C)** when this RFC decides it and the maintainer may overturn it.
 
-- **D1 (C).** The engine is vendored PCRE2, 8-bit only, with JIT,
-  starting at 10.48 to match `vectorscan`.
+- **D1 (M).** The engine is vendored PCRE2, 8-bit only, with JIT,
+  starting at 10.48 to match `vectorscan`. Ratified by Stage 1
+  (2026-10-21), which builds it on every r-actions leg.
 - **D2 (M).** Defaults follow base R's `perl = TRUE`, not JavaScript.
   node-pcre2 defaults to JavaScript because its users bring JavaScript
   patterns; R users bring base R patterns. `dialect = "js"` is opt-in.

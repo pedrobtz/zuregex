@@ -579,13 +579,16 @@ In the order design §14 expects them:
 - **`syntax = "base"` templates in `re_replace()`** (design §15). Blocks
   nothing in Stage 6, which ships `"extended"` and `"literal"`; a decision
   before Stage 6 avoids a later argument change.
-- **Installed size with JIT** (design §15). Stage 1 measures it and records
-  whether R CMD check raises the installed-size NOTE; if it does, fixing it
-  (dropping JIT on some legs, or trimming tables) is Stage 1 work.
+- **Installed size with JIT** (design §15). Settled by Stage 1
+  (2026-10-21): no leg raises the installed-size NOTE ("checking installed
+  package size ... OK" on Ubuntu release and oldrel, macOS, both Windows
+  legs and clang23). The source tarball is 0.8 MB and the installed
+  package 0.9 MB on macOS.
 - **Marking incubating functions** (design §15). Lifecycle badges, as the
   family does, unless something in v0.1.0 is actually experimental. Decide
   in Stage 11.
-- **D1 is still (C).** Stage 1 ratifies it or stops the roadmap.
+- **D1** was ratified by Stage 1 (2026-10-21) and is now **(M)** in the
+  design.
 - **`dialect = "js"` sufficiency for `zuschema`** (design §15). Not a
   v0.1.0 question; `zuschema`'s RFC decides whether it needs a translation
   layer on top.
