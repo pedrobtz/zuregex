@@ -23,7 +23,10 @@ typedef struct {
   element_caps *el;
   uint32_t width;     // pairs per match: groups + 1 of the widest pattern
   // What phase 3 builds, set by the entry points.
-  const int *group;   // re_extract*: group per pattern table entry, -1 none
+  SEXP groups;        // re_extract*: per pattern table entry, the group
+                      // numbers to try in order (several for a name that
+                      // J shares); empty where that pattern has none
+  R_xlen_t nul_element;  // first element whose text holds a NUL byte, 1-based
   int keep_groups;    // re_split(): keep each separator's groups
   SEXP colmap;        // re_match*: per pattern, the column of each group
   int ncol;
@@ -125,14 +128,35 @@ static void scan(capture_job *job, double limit, zuregex_status *status) {
 
 // The one place a match becomes an R string. Character input is matched
 // as UTF-8, so its matches are marked UTF-8; bytes in, bytes out. R drops
-// the mark for ASCII. An unset group is NA.
-static SEXP make_string(const zuregex_subject *s, PCRE2_SIZE a, PCRE2_SIZE b,
-                        int utf) {
+// the mark for ASCII. An unset group is NA. Text with a NUL byte, possible
+// from raw input, cannot be an R string: the element is recorded in the job
+// and run() raises a classed error instead of R's own.
+static SEXP make_string(capture_job *job, R_xlen_t i, const zuregex_subject *s,
+                        PCRE2_SIZE a, PCRE2_SIZE b, int utf) {
   if (a == PCRE2_UNSET || b == PCRE2_UNSET) return NA_STRING;
   // \K in a lookahead can end a match before its start: PCRE2 reports
   // that as is, and the matched text is empty.
   if (b < a) return R_BlankString;
+  if (memchr(s->ptr + a, 0, b - a) != NULL) {
+    if (job->nul_element == 0) job->nul_element = i + 1;
+    return NA_STRING;
+  }
   return Rf_mkCharLenCE(s->ptr + a, (int) (b - a), utf ? CE_UTF8 : CE_BYTES);
+}
+
+// The group to read for pattern entry k in a match: the first candidate
+// that took part, or the first candidate (unset, so NA) if none did; -1
+// when the pattern has no candidate.
+static int pick_group(const capture_job *job, int k, const PCRE2_SIZE *ov) {
+  if (k < 0) return -1;
+  SEXP cand = VECTOR_ELT(job->groups, k);
+  int n = LENGTH(cand);
+  if (n == 0) return -1;
+  const int *g = INTEGER(cand);
+  for (int j = 0; j < n; j++) {
+    if (ov[2 * g[j]] != PCRE2_UNSET) return g[j];
+  }
+  return g[0];
 }
 
 static int utf_of(const zuregex_call *call, int k) {
@@ -150,13 +174,14 @@ static SEXP build_extract(void *data) {
     for (R_xlen_t i = 0; i < call->n; i++) {
       int k = entry_for(call, i);
       element_caps *e = &job->el[i];
-      int g = k >= 0 ? job->group[k] : -1;
-      if (e->count <= 0 || g < 0) {
+      int g = e->count > 0 ? pick_group(job, k, e->ov) : -1;
+      if (g < 0) {
         SET_STRING_ELT(out, i, NA_STRING);
         continue;
       }
-      SET_STRING_ELT(out, i, make_string(&call->subjects[i], e->ov[2 * g],
-                                         e->ov[2 * g + 1], utf_of(call, k)));
+      SET_STRING_ELT(out, i, make_string(job, i, &call->subjects[i],
+                                         e->ov[2 * g], e->ov[2 * g + 1],
+                                         utf_of(call, k)));
     }
     UNPROTECT(1);
     return out;
@@ -165,12 +190,12 @@ static SEXP build_extract(void *data) {
   for (R_xlen_t i = 0; i < call->n; i++) {
     int k = entry_for(call, i);
     element_caps *e = &job->el[i];
-    int g = k >= 0 ? job->group[k] : -1;
+    int has = k >= 0 && LENGTH(VECTOR_ELT(job->groups, k)) > 0;
     if (e->count < 0) {
       SET_VECTOR_ELT(out, i, Rf_ScalarString(NA_STRING));
       continue;
     }
-    if (g < 0) {
+    if (!has) {
       // The element's pattern has no such group: NA for each match.
       SEXP v = PROTECT(Rf_allocVector(STRSXP, e->count));
       for (int m = 0; m < e->count; m++) SET_STRING_ELT(v, m, NA_STRING);
@@ -181,7 +206,8 @@ static SEXP build_extract(void *data) {
     SEXP v = PROTECT(Rf_allocVector(STRSXP, e->count));
     for (int m = 0; m < e->count; m++) {
       const PCRE2_SIZE *ov = e->ov + (size_t) m * job->width * 2;
-      SET_STRING_ELT(v, m, make_string(&call->subjects[i], ov[2 * g],
+      int g = pick_group(job, k, ov);
+      SET_STRING_ELT(v, m, make_string(job, i, &call->subjects[i], ov[2 * g],
                                        ov[2 * g + 1], utf_of(call, k)));
     }
     SET_VECTOR_ELT(out, i, v);
@@ -244,8 +270,11 @@ static SEXP build_match(void *data) {
       for (int j = 0; j < entries; j++) {
         int g = j + first;
         SEXP col = VECTOR_ELT(out, cols[j] - 1 + lead);
-        SET_STRING_ELT(col, r, make_string(&call->subjects[i], ov[2 * g],
-                                           ov[2 * g + 1], utf));
+        // Groups that share a name (J) share a column: the first one that
+        // took part fills it, which is PCRE2's own rule for ${name}.
+        if (STRING_ELT(col, r) != NA_STRING) continue;
+        SET_STRING_ELT(col, r, make_string(job, i, &call->subjects[i],
+                                           ov[2 * g], ov[2 * g + 1], utf));
       }
     }
   }
@@ -278,15 +307,15 @@ static SEXP build_split(void *data) {
     for (int m = 0; m < e->count; m++) {
       const PCRE2_SIZE *ov = e->ov + (size_t) m * job->width * 2;
       PCRE2_SIZE from = last, to = ov[0] > last ? ov[0] : last;
-      SET_STRING_ELT(v, at++, make_string(s, from, to, utf));
+      SET_STRING_ELT(v, at++, make_string(job, i, s, from, to, utf));
       if (job->keep_groups) {
         for (uint32_t g = 1; g <= groups; g++) {
-          SET_STRING_ELT(v, at++, make_string(s, ov[2 * g], ov[2 * g + 1], utf));
+          SET_STRING_ELT(v, at++, make_string(job, i, s, ov[2 * g], ov[2 * g + 1], utf));
         }
       }
       if (ov[1] > last) last = ov[1];
     }
-    SET_STRING_ELT(v, at, make_string(s, last, s->len, utf));
+    SET_STRING_ELT(v, at, make_string(job, i, s, last, s->len, utf));
     SET_VECTOR_ELT(out, i, v);
     UNPROTECT(1);
   }
@@ -307,6 +336,11 @@ static SEXP run(capture_job *job, double limit, SEXP (*build)(void *)) {
   SEXP value = R_NilValue;
   if (Rf_isNull(err)) {
     value = R_ExecWithCleanup(build, job, free_caps, job);
+    if (job->nul_element > 0) {
+      UNPROTECT(1);
+      err = PROTECT(zuregex_nul_error(job->nul_element));
+      value = R_NilValue;
+    }
   } else {
     free_caps(job);
   }
@@ -316,8 +350,8 @@ static SEXP run(capture_job *job, double limit, SEXP (*build)(void *)) {
   return ans;
 }
 
-// group: per pattern table entry, the group to extract (0 is the whole
-// match), or -1 where that pattern has no such group.
+// group: per pattern table entry, an integer vector of the groups to try
+// in order (0 is the whole match), empty where that pattern has none.
 SEXP zuregex_extract_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                        SEXP group, SEXP all, SEXP n_max) {
   zuregex_call call;
@@ -325,7 +359,7 @@ SEXP zuregex_extract_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   capture_job job;
   memset(&job, 0, sizeof(job));
   job.call = &call;
-  job.group = INTEGER(group);
+  job.groups = group;
   job.all = Rf_asLogical(all);
   return run(&job, job.all ? Rf_asReal(n_max) : 1, build_extract);
 }
