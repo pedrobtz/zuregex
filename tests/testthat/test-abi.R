@@ -25,6 +25,12 @@ test_that("nothing CRAN's compiled-code check rejects is linked", {
   # terminate R, or use the system RNG. R CMD check reports these as a NOTE,
   # and CRAN's automated pretest archives an upload on it. Vendored code
   # counts, so a PCRE2 upgrade that brings one back fails here first.
+  # Coverage and sanitizer runtimes link stdio and abort themselves, so an
+  # instrumented build is skipped; every ordinary CI leg still runs this.
+  skip_if(
+    is_instrumented_build(),
+    "instrumented build: its runtime links stdio and abort"
+  )
   forbidden <- c(
     "printf",
     "puts",
