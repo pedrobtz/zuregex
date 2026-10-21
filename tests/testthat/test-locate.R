@@ -70,15 +70,15 @@ test_that("an empty match at k is start = k, end = k - 1", {
 })
 
 test_that("bytes = TRUE counts bytes", {
-  x <- "héllo wörld"
+  x <- "h\u00e9llo w\u00f6rld"
   expect_identical(re_locate(x, "l+"), cbind(start = 3L, end = 4L))
   expect_identical(
     re_locate(x, "l+", bytes = TRUE),
     cbind(start = 4L, end = 5L)
   )
-  b <- re_locate(x, "wör", bytes = TRUE)
-  expect_identical(rawToChar(charToRaw(x)[b[, "start"]:b[, "end"]]), "wör")
-  all <- re_locate_all(x, "[éö]", bytes = TRUE)
+  b <- re_locate(x, "w\u00f6r", bytes = TRUE)
+  expect_identical(rawToChar(charToRaw(x)[b[, "start"]:b[, "end"]]), "w\u00f6r")
+  all <- re_locate_all(x, "[\u00e9\u00f6]", bytes = TRUE)
   expect_identical(all$start, c(2L, 9L))
   expect_identical(all$end, c(3L, 10L))
 })
@@ -121,7 +121,7 @@ test_that("the js dialect steps past an empty match as JavaScript does", {
   expect_identical(re_count("aaa", re_compile("a*", dialect = "js")), 2L)
   # One character means one code point, not one byte.
   expect_identical(
-    re_locate_all("éé", re_compile("", dialect = "js"))$start,
+    re_locate_all("\u00e9\u00e9", re_compile("", dialect = "js"))$start,
     1:3
   )
 })
@@ -152,7 +152,7 @@ test_that("overlap finds every overlapping match", {
     1:2
   )
   # Overlap steps by characters: matches of two characters at each start.
-  wide <- re_locate_all("ééé", "..", overlap = TRUE)
+  wide <- re_locate_all("\u00e9\u00e9\u00e9", "..", overlap = TRUE)
   expect_identical(wide$start, 1:2)
   # Empty matches advance too, and the search ends after the last position.
   expect_identical(re_locate_all("ab", "", overlap = TRUE)$start, 1:3)
