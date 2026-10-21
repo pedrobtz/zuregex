@@ -15,5 +15,9 @@ SEXP zuregex_cache_stats_c(void);
 SEXP zuregex_detect_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
                       SEXP anchor, SEXP negate);
 SEXP zuregex_count_c(SEXP x, SEXP bytes, SEXP table, SEXP index);
+SEXP zuregex_locate_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
+                      SEXP char_offsets);
+SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
+                          SEXP n_max, SEXP overlap, SEXP char_offsets);
 
 #endif
