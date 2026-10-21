@@ -117,8 +117,9 @@ test_that("a replacement function stays aligned around a limited element", {
   x <- c("a1", case$x, "b2c3")
   lim <- re_limits(match = 1000, on_limit = "na")
   seen <- NULL
-  out <- expect_warning(
-    re_replace(
+  out <- NULL
+  expect_warning(
+    out <- re_replace(
       x,
       "(\\d)|^(a+)+$",
       function(m) {
