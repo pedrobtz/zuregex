@@ -178,13 +178,13 @@ test_that("re_match_all() numbers matches and marks NA input", {
 })
 
 test_that("strings come back in UTF-8, or as bytes from bytes", {
-  latin1 <- iconv("café au lait", "UTF-8", "latin1")
+  latin1 <- iconv("caf\u00e9 au lait", "UTF-8", "latin1")
   got <- re_extract(latin1, "caf.")
-  expect_identical(got, "café")
+  expect_identical(got, "caf\u00e9")
   expect_identical(Encoding(got), "UTF-8")
-  raw <- re_extract(charToRaw("café"), "caf..")
+  raw <- re_extract(charToRaw("caf\u00e9"), "caf..")
   expect_identical(Encoding(raw), "bytes")
-  expect_identical(charToRaw(raw), charToRaw("café"))
+  expect_identical(charToRaw(raw), charToRaw("caf\u00e9"))
   expect_identical(Encoding(re_extract(charToRaw("abc"), "b")), "unknown")
 })
 
