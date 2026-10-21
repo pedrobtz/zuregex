@@ -41,6 +41,8 @@
 <code><a href="../reference/re_compile.html">re_compile()</a></code> compiles patterns, with flag letters, a JavaScript dialect, literal patterns and JIT compilation, into <code>re</code> objects that survive <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code>. <code><a href="../reference/re_info.html">re_info()</a></code> describes them, and <code><a href="../reference/re_escape.html">re_escape()</a></code> quotes metacharacters.</li>
 <li>Compiled patterns are cached, 128 by default; <code><a href="../reference/re_cache_size.html">re_cache_size()</a></code> and <code><a href="../reference/re_cache_size.html">re_cache_clear()</a></code> manage the cache.</li>
 <li>Errors are classed conditions inheriting from <code>zuregex_error</code>. An invalid pattern raises <code>zuregex_error_compile</code>, which shows where PCRE2 found the error.</li>
+<li>
+<code><a href="../reference/re_detect.html">re_detect()</a></code> and <code><a href="../reference/re_detect.html">re_count()</a></code> match character vectors, raw vectors and lists of raw vectors, with one pattern for every element or one per element. <code>anchor</code> gives Python’s <code><a href="https://rdrr.io/r/base/match.html" class="external-link">match()</a></code> and <code>fullmatch()</code>. Invalid UTF-8 raises <code>zuregex_error_utf</code>, naming the element and byte.</li>
 </ul></div>
   </main></div>
 

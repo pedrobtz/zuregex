@@ -43,7 +43,7 @@
 </div>
 <div class="section level2">
 <h2 id="current-state">Current state<a class="anchor" aria-label="anchor" href="#current-state"></a></h2>
-<p>PCRE2 10.48 is vendored and builds on every platform (Stage 1). Patterns compile, with flags, dialects and a cache (Stage 2); no verb matches yet. The roadmap in <code>.agents/roadmap.md</code> takes it to v0.1.0; §11 of the design lists the stages it is expected to hold.</p>
+<p>PCRE2 10.48 is vendored and builds on every platform (Stage 1). Patterns compile, with flags, dialects and a cache (Stage 2). <code><a href="reference/re_detect.html">re_detect()</a></code> and <code><a href="reference/re_detect.html">re_count()</a></code> match, serially, through the three-phase core (Stage 3). The roadmap in <code>.agents/roadmap.md</code> takes it to v0.1.0; §11 of the design lists the stages it is expected to hold.</p>
 </div>
 <div class="section level2">
 <h2 id="stage-tracking">Stage tracking<a class="anchor" aria-label="anchor" href="#stage-tracking"></a></h2>
@@ -100,6 +100,10 @@
 <li>An <code>re</code> object is a list of external pointers, each holding one reference, with the pattern, flags, dialect, literal and jit as attributes. <code>re_restore()</code> recompiles pointers that <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code> nulled.</li>
 <li>
 <code>R/errors.R</code> has <code>zuregex_abort()</code> and the argument checks.</li>
+<li>
+<code>src/match.h</code> defines the three phases every verb shares. <code>zuregex_collect()</code> is phase 1: subjects become pointer and length pairs, translated to UTF-8 where needed, and patterns become a table plus a per-element index. Phase 2 loops in <code>src/match.c</code> read only those arrays. Phase 3 turns per-element status into R results or a condition.</li>
+<li>
+<code>R/match.R</code> applies the pairing rule (<code>patterns()</code>), decides between UTF-8 and bytes (<code>subjects()</code>), and raises match errors. <code>R/detect.R</code> has the first verbs.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="invariants-that-are-easy-to-break">Invariants that are easy to break<a class="anchor" aria-label="anchor" href="#invariants-that-are-easy-to-break"></a></h2>
@@ -119,6 +123,8 @@
 <li>
 <strong>A pattern’s reference count is main-thread only.</strong> The cache, each <code>re</code> external pointer and its finalizer own references. A worker thread may read a <code>zuregex_pattern</code>, never retain or release one.</li>
 <li>
+<strong>Bytes mode needs patterns compiled without <code>PCRE2_UTF</code>.</strong> The key’s <code>utf</code> field separates the two in the cache. An <code>re</code> object is always compiled for UTF-8 and is recompiled for bytes when a call needs it.</li>
+<li>
 <strong>PCRE2 is built with <code>LINK_SIZE 4</code></strong> (<code>src/pcre2-config/config.h</code>). With upstream’s 2, patterns well under the cache’s 65,536-character limit fail to compile.</li>
 <li>
 <strong>The C API uses opaque handles</strong> (design §7), so a PCRE2 upgrade never breaks a consumer’s build. Exposing a raw <code>pcre2_code</code> in <code>inst/include/zuregex.h</code> ties every consumer to one PCRE2 version.</li>
@@ -134,9 +140,9 @@
 <li>
 <strong>Order independence.</strong> <code>devtools::test(shuffle = TRUE)</code> is part of the definition of done.</li>
 <li>
-<strong>Borrow a conformance suite before writing one.</strong> Mainstream implementations in Python, Java, Go or Node usually ship a test corpus. Use it as an oracle rather than inventing cases by hand. The design (§9) names two oracles: PCRE2’s own <code>testdata/</code> through the C API, and base R’s <code>perl = TRUE</code> and stringr for parity, with every deliberate difference marked <code># GAP</code>. Neither is wired up yet.</li>
+<strong>Borrow a conformance suite before writing one.</strong> Mainstream implementations in Python, Java, Go or Node usually ship a test corpus. Use it as an oracle rather than inventing cases by hand. The design (§9) names two oracles: PCRE2’s own <code>testdata/</code> through the C API, and base R’s <code>perl = TRUE</code> and stringr for parity, with every deliberate difference marked <code># GAP</code>. Base R and stringr parity is wired up through <code>helper-corpus.R</code>; the <code>testdata/</code> oracle arrives with Stage 9.</li>
 <li>
-<strong>Helpers live in <code>tests/testthat/helper-*.R</code>.</strong> <code>helper-symbols.R</code> runs <code>nm</code> on the loaded shared object; <code>helper-types.R</code> has small predicates.</li>
+<strong>Helpers live in <code>tests/testthat/helper-*.R</code>.</strong> <code>helper-symbols.R</code> runs <code>nm</code> on the loaded shared object; <code>helper-types.R</code> has small predicates; <code>helper-cache.R</code> gives a test its own cache (<code>local_cache()</code>); <code>helper-corpus.R</code> is the parity corpus every verb is checked on.</li>
 <li>
 <strong>Timing tests are opt-in.</strong> <code>skip_unless_timing()</code> runs them only with <code>ZUREGEX_TIMING_TESTS=true</code>, which <code>R-CMD-check.yaml</code> sets. Coverage, sanitizers, valgrind and gctorture distort timings.</li>
 <li>

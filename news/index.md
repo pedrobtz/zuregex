@@ -23,3 +23,11 @@
 - Errors are classed conditions inheriting from `zuregex_error`. An
   invalid pattern raises `zuregex_error_compile`, which shows where
   PCRE2 found the error.
+- [`re_detect()`](https://pedrobtz.github.io/zuregex/reference/re_detect.md)
+  and
+  [`re_count()`](https://pedrobtz.github.io/zuregex/reference/re_detect.md)
+  match character vectors, raw vectors and lists of raw vectors, with
+  one pattern for every element or one per element. `anchor` gives
+  Python’s [`match()`](https://rdrr.io/r/base/match.html) and
+  `fullmatch()`. Invalid UTF-8 raises `zuregex_error_utf`, naming the
+  element and byte.

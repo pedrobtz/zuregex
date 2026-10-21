@@ -33,6 +33,9 @@ pak::pak("pedrobtz/zuregex")
   : The compiled-pattern cache
 - [`re_compile()`](https://pedrobtz.github.io/zuregex/reference/re_compile.md)
   : Compile regular expressions
+- [`re_detect()`](https://pedrobtz.github.io/zuregex/reference/re_detect.md)
+  [`re_count()`](https://pedrobtz.github.io/zuregex/reference/re_detect.md)
+  : Detect and count matches
 - [`re_escape()`](https://pedrobtz.github.io/zuregex/reference/re_escape.md)
   : Quote regular expression metacharacters
 - [`re_info()`](https://pedrobtz.github.io/zuregex/reference/re_info.md)
