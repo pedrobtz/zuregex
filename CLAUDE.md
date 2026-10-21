@@ -25,10 +25,11 @@ design decides. Its decisions (§13) are settled; its open questions
 
 ## Current state
 
-Scaffolded 2026-10-21 with `create-pkg.sh`; no functionality yet.
-`src/zuregex.c` is the empty C stub and the test suite is the
-placeholder test. The roadmap in `.agents/roadmap.md` takes it to
-v0.1.0; §11 of the design lists the stages it is expected to hold.
+PCRE2 10.48 is vendored and builds on every platform (Stage 1).
+[`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md)
+is the only exported function; no verb matches yet. The roadmap in
+`.agents/roadmap.md` takes it to v0.1.0; §11 of the design lists the
+stages it is expected to hold.
 
 ## Stage tracking
 
@@ -86,19 +87,28 @@ Rscript -e 'devtools::check()'                   # R CMD check
 air format .                                     # format R sources
 ```
 
-No package-specific commands yet. The vendor-verify script and the
-benchmark harness arrive with their stages; add them here when they do.
+``` sh
+tools/vendor/verify              # vendored tree = upstream + declared patches
+tools/vendor/verify --offline    # the same without re-deriving from upstream
+tools/vendor/fetch               # re-vendor from tools/vendor/manifest.tsv
+```
+
+The benchmark harness arrives with its stage; add it here when it does.
 
 ## Architecture
 
-To be written as stages land; see `.agents/design.md` §4 for the planned
+Written as stages land; see `.agents/design.md` §4 for the planned
 shape, a three-phase split where only the middle, OpenMP phase runs
-without the R API. The scaffold set up the native layer as C via
-`usethis::use_c()`: `src/zuregex.c` is the stub and
-`R/zuregex-package.R` carries the
-`@useDynLib zuregex, .registration = TRUE` directive. Vendored PCRE2
-goes under `src/vendor/` when the first stage vendors it, with
-`vectorscan`’s build as the starting point.
+without the R API.
+
+- `src/init.c` registers the `.Call` routines and is the only exported
+  symbol, `R_init_zuregex`, marked `attribute_visible`.
+- `src/zuregex.h` declares the first-party native routines.
+- `src/info.c` backs
+  [`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md).
+- `src/vendor/pcre2/` is PCRE2 with its upstream layout; `src/Makevars`
+  lists its 31 units in `PCRE2_OBJECTS` and builds it without CMake.
+  `src/pcre2-config/config.h` is the package’s own PCRE2 configuration.
 
 ## Invariants that are easy to break
 
@@ -147,7 +157,9 @@ when a stage establishes it.
   design (§9) names two oracles: PCRE2’s own `testdata/` through the C
   API, and base R’s `perl = TRUE` and stringr for parity, with every
   deliberate difference marked `# GAP`. Neither is wired up yet.
-- **Helpers live in `tests/testthat/helper-*.R`.** None yet.
+- **Helpers live in `tests/testthat/helper-*.R`.** `helper-symbols.R`
+  runs `nm` on the loaded shared object; `helper-types.R` has small
+  predicates.
 - **Keep the suite inside the CRAN time budget.** Only the placeholder
   test exists; record the runtime once the suite has one.
 
@@ -257,8 +269,22 @@ the main thing slowing roadmaps down, so:
 
 The design vendors PCRE2, 8-bit with JIT, BSD-3-Clause with the PCRE2
 binary-library exception, starting at 10.48 to match `vectorscan`
-(design D1). Nothing is vendored yet. Record the tag, commit and
-checksums here when the vendoring stage lands.
+(design D1). Vendored in Stage 1:
+
+|  |  |
+|----|----|
+| Tag | `pcre2-10.48` |
+| Commit | `7978954dbd2efc6f2196869290553cf1871b4ce6` |
+| Archive SHA-256 | `ebcc25aadf2a51fa1fefa9b8bc9e7a79b3dae86870a0f1152a22e42befd46888` |
+| Per-file checksums | `tools/vendor/checksums.sha256` |
+| Patches | `tools/patches/pcre2/`, listed in `src/vendor/PROVENANCE` |
+
+`src/vendor/PROVENANCE` holds the update procedure.
+`tools/vendor/verify` checks that the manifest, `PROVENANCE`,
+`inst/COPYRIGHTS`, `src/Makevars` and `tests/testthat/test-info.R`
+agree, so a bump that forgets one fails. `tests/testthat/test-abi.R` is
+the `nm` guard: it fails on any exported symbol but `R_init_zuregex` and
+on any linked stdio, exit, abort or RNG symbol, on every CI leg.
 
 - Pin a stable upstream release, never `master` or a release candidate.
 - Record the tag, the commit and the checksums, and write down the

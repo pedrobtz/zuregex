@@ -27,3 +27,15 @@ Useful links:
 Authors:
 
 - Pedro Baltazar <pedrobtz@gmail.com> \[copyright holder\]
+
+Other contributors:
+
+- Philip Hazel (PCRE2, bundled in src/vendor/pcre2) \[copyright holder\]
+
+- University of Cambridge (PCRE2, bundled in src/vendor/pcre2)
+  \[copyright holder\]
+
+- Zoltan Herczeg (PCRE2 JIT compiler and sljit, bundled in
+  src/vendor/pcre2) \[copyright holder\]
+
+- PCRE2 contributors (see inst/COPYRIGHTS) \[copyright holder\]

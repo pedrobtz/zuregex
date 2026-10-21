@@ -43,7 +43,7 @@
 </div>
 <div class="section level2">
 <h2 id="current-state">Current state<a class="anchor" aria-label="anchor" href="#current-state"></a></h2>
-<p>Scaffolded 2026-10-21 with <code>create-pkg.sh</code>; no functionality yet. <code>src/zuregex.c</code> is the empty C stub and the test suite is the placeholder test. The roadmap in <code>.agents/roadmap.md</code> takes it to v0.1.0; §11 of the design lists the stages it is expected to hold.</p>
+<p>PCRE2 10.48 is vendored and builds on every platform (Stage 1). <code><a href="reference/zuregex_info.html">zuregex_info()</a></code> is the only exported function; no verb matches yet. The roadmap in <code>.agents/roadmap.md</code> takes it to v0.1.0; §11 of the design lists the stages it is expected to hold.</p>
 </div>
 <div class="section level2">
 <h2 id="stage-tracking">Stage tracking<a class="anchor" aria-label="anchor" href="#stage-tracking"></a></h2>
@@ -77,12 +77,23 @@
 <span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test(shuffle = TRUE)'</span>      <span class="co"># order independence</span></span>
 <span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::check()'</span>                   <span class="co"># R CMD check</span></span>
 <span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="ex">air</span> format .                                     <span class="co"># format R sources</span></span></code></pre></div>
-<p>No package-specific commands yet. The vendor-verify script and the benchmark harness arrive with their stages; add them here when they do.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="ex">tools/vendor/verify</span>              <span class="co"># vendored tree = upstream + declared patches</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="ex">tools/vendor/verify</span> <span class="at">--offline</span>    <span class="co"># the same without re-deriving from upstream</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="ex">tools/vendor/fetch</span>               <span class="co"># re-vendor from tools/vendor/manifest.tsv</span></span></code></pre></div>
+<p>The benchmark harness arrives with its stage; add it here when it does.</p>
 </div>
 <div class="section level2">
 <h2 id="architecture">Architecture<a class="anchor" aria-label="anchor" href="#architecture"></a></h2>
-<p>To be written as stages land; see <code>.agents/design.md</code> §4 for the planned shape, a three-phase split where only the middle, OpenMP phase runs without the R API. The scaffold set up the native layer as C via <code>usethis::use_c()</code>: <code>src/zuregex.c</code> is the stub and <code>R/zuregex-package.R</code> carries the <code>@useDynLib zuregex, .registration = TRUE</code> directive. Vendored PCRE2 goes under <code>src/vendor/</code> when the first stage vendors it, with <code>vectorscan</code>’s build as the starting point.</p>
-</div>
+<p>Written as stages land; see <code>.agents/design.md</code> §4 for the planned shape, a three-phase split where only the middle, OpenMP phase runs without the R API.</p>
+<ul><li>
+<code>src/init.c</code> registers the <code>.Call</code> routines and is the only exported symbol, <code>R_init_zuregex</code>, marked <code>attribute_visible</code>.</li>
+<li>
+<code>src/zuregex.h</code> declares the first-party native routines.</li>
+<li>
+<code>src/info.c</code> backs <code><a href="reference/zuregex_info.html">zuregex_info()</a></code>.</li>
+<li>
+<code>src/vendor/pcre2/</code> is PCRE2 with its upstream layout; <code>src/Makevars</code> lists its 31 units in <code>PCRE2_OBJECTS</code> and builds it without CMake. <code>src/pcre2-config/config.h</code> is the package’s own PCRE2 configuration.</li>
+</ul></div>
 <div class="section level2">
 <h2 id="invariants-that-are-easy-to-break">Invariants that are easy to break<a class="anchor" aria-label="anchor" href="#invariants-that-are-easy-to-break"></a></h2>
 <p>These are the constraints the design already fixes. Add each new one when a stage establishes it.</p>
@@ -114,7 +125,7 @@
 <li>
 <strong>Borrow a conformance suite before writing one.</strong> Mainstream implementations in Python, Java, Go or Node usually ship a test corpus. Use it as an oracle rather than inventing cases by hand. The design (§9) names two oracles: PCRE2’s own <code>testdata/</code> through the C API, and base R’s <code>perl = TRUE</code> and stringr for parity, with every deliberate difference marked <code># GAP</code>. Neither is wired up yet.</li>
 <li>
-<strong>Helpers live in <code>tests/testthat/helper-*.R</code>.</strong> None yet.</li>
+<strong>Helpers live in <code>tests/testthat/helper-*.R</code>.</strong> <code>helper-symbols.R</code> runs <code>nm</code> on the loaded shared object; <code>helper-types.R</code> has small predicates.</li>
 <li>
 <strong>Keep the suite inside the CRAN time budget.</strong> Only the placeholder test exists; record the runtime once the suite has one.</li>
 </ul></div>
@@ -173,7 +184,20 @@
 </div>
 <div class="section level2">
 <h2 id="vendored-native-code">Vendored native code<a class="anchor" aria-label="anchor" href="#vendored-native-code"></a></h2>
-<p>The design vendors PCRE2, 8-bit with JIT, BSD-3-Clause with the PCRE2 binary-library exception, starting at 10.48 to match <code>vectorscan</code> (design D1). Nothing is vendored yet. Record the tag, commit and checksums here when the vendoring stage lands.</p>
+<p>The design vendors PCRE2, 8-bit with JIT, BSD-3-Clause with the PCRE2 binary-library exception, starting at 10.48 to match <code>vectorscan</code> (design D1). Vendored in Stage 1:</p>
+<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><tbody><tr><td>Tag</td>
+<td><code>pcre2-10.48</code></td>
+</tr><tr><td>Commit</td>
+<td><code>7978954dbd2efc6f2196869290553cf1871b4ce6</code></td>
+</tr><tr><td>Archive SHA-256</td>
+<td><code>ebcc25aadf2a51fa1fefa9b8bc9e7a79b3dae86870a0f1152a22e42befd46888</code></td>
+</tr><tr><td>Per-file checksums</td>
+<td><code>tools/vendor/checksums.sha256</code></td>
+</tr><tr><td>Patches</td>
+<td>
+<code>tools/patches/pcre2/</code>, listed in <code>src/vendor/PROVENANCE</code>
+</td>
+</tr></tbody></table><p><code>src/vendor/PROVENANCE</code> holds the update procedure. <code>tools/vendor/verify</code> checks that the manifest, <code>PROVENANCE</code>, <code>inst/COPYRIGHTS</code>, <code>src/Makevars</code> and <code>tests/testthat/test-info.R</code> agree, so a bump that forgets one fails. <code>tests/testthat/test-abi.R</code> is the <code>nm</code> guard: it fails on any exported symbol but <code>R_init_zuregex</code> and on any linked stdio, exit, abort or RNG symbol, on every CI leg.</p>
 <ul><li>Pin a stable upstream release, never <code>master</code> or a release candidate.</li>
 <li>Record the tag, the commit and the checksums, and write down the update procedure so the next bump is mechanical.</li>
 <li>Keep upstream <code>LICENSE</code> and <code>NOTICE</code> under <code>src/vendor/&lt;lib&gt;/</code>, declare the vendored code in <code>DESCRIPTION</code> and <code>inst/COPYRIGHTS</code>.</li>

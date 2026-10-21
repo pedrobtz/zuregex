@@ -24,5 +24,10 @@ You can install the development version of zuregex from
 pak::pak("pedrobtz/zuregex")
 ```
 
-# 
+# Package index
+
+## All functions
+
+- [`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md)
+  : Describe the bundled PCRE2 library
 
