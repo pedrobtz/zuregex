@@ -268,3 +268,14 @@ test_that("replace and split check their arguments", {
   )
   expect_error(re_split("a", "a", n = 1.5), class = "zuregex_error_argument")
 })
+
+test_that("a template marked as bytes needs bytes subjects", {
+  tmpl <- "\xff"
+  Encoding(tmpl) <- "bytes"
+  expect_error(re_replace("a", "a", tmpl), class = "zuregex_error_argument")
+  expect_error(re_expand("a", "a", tmpl), class = "zuregex_error_argument")
+  expect_identical(
+    charToRaw(re_replace(charToRaw("a"), "a", tmpl)),
+    as.raw(0xff)
+  )
+})

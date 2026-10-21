@@ -134,3 +134,110 @@ SEXP zuregex_capi_limit_c(SEXP pattern, SEXP subject, SEXP match_limit) {
   zr_free(p);
   return Rf_ScalarInteger(rc);
 }
+
+// The C API's edge cases, run in C and returned as a named list for
+// test-capi.R to assert: argument errors, status codes, foreign match
+// data, substitution with match data, and zr_strerror().
+SEXP zuregex_capi_edges_c(void) {
+  const char *names[] = {
+    "unknown_flags", "bad_dialect", "null_pattern", "zero_terminated_groups",
+    "offsets_bad_group", "offsets_unset", "foreign_md_rc", "notempty_atstart",
+    "substitute_bad_option", "substitute_with_md", "substitute_limit",
+    "depth_limit", "heap_limit", "jit_stack", "jit_stack_retry",
+    "strerror_match_limit", "strerror_unknown", ""
+  };
+  SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));
+  char err[128];
+  int k = 0;
+
+  SET_VECTOR_ELT(out, k++, Rf_ScalarLogical(
+    zr_compile("a", 1, 0x80000000u, ZR_DIALECT_PCRE, err, sizeof(err)) == NULL));
+  SET_VECTOR_ELT(out, k++, Rf_ScalarLogical(
+    zr_compile("a", 1, 0, 7, err, sizeof(err)) == NULL));
+  SET_VECTOR_ELT(out, k++, Rf_ScalarLogical(
+    zr_compile(NULL, 3, 0, ZR_DIALECT_PCRE, err, sizeof(err)) == NULL));
+
+  // SIZE_MAX, PCRE2_ZERO_TERMINATED, reads a NUL-terminated pattern.
+  zr_pattern *zt = zr_compile("(a)(b)", (size_t) -1, 0, ZR_DIALECT_PCRE, err, sizeof(err));
+  SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(zt != NULL ? zr_group_count(zt) : -99));
+
+  zr_pattern *p = zr_compile("(a)|(b)", 7, 0, ZR_DIALECT_PCRE, err, sizeof(err));
+  zr_match_data *md = zr_match_data_create(p);
+  const char *s = padded("b", 1);
+  zr_match(p, s, 1, 0, 0, md);
+  size_t a, b;
+  SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(zr_offsets(md, 9, &a, &b)));
+  SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(zr_offsets(md, 1, &a, &b)));
+
+  // Match data made for a pattern with fewer groups: the pairs it has.
+  zr_pattern *none = zr_compile("b", 1, 0, ZR_DIALECT_PCRE, err, sizeof(err));
+  zr_match_data *small = zr_match_data_create(none);
+  SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(zr_match(p, s, 1, 0, 0, small)));
+  zr_match_data_free(small);
+  zr_free(none);
+
+  zr_pattern *star = zr_compile("x*", 2, 0, ZR_DIALECT_PCRE, err, sizeof(err));
+  zr_match_data *smd = zr_match_data_create(star);
+  const char *ab = padded("ab", 2);
+  SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(
+    zr_match(star, ab, 2, 0, ZR_NOTEMPTY_ATSTART, smd)));
+  zr_match_data_free(smd);
+  zr_free(star);
+
+  char buf[64];
+  size_t size = sizeof(buf);
+  SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(
+    zr_substitute(p, s, 1, "x", 1, 0x80u, NULL, buf, &size)));
+  size = sizeof(buf);
+  int rc = zr_substitute(p, s, 1, "<$0>", 4, 0, md, buf, &size);
+  SET_VECTOR_ELT(out, k++, rc >= 0 ? Rf_mkString(buf) : Rf_ScalarInteger(rc));
+
+  // Limits during a substitution, through the match data.
+  zr_pattern *evil = zr_compile("^(a+)+$", 7, 0, ZR_DIALECT_PCRE, err, sizeof(err));
+  zr_match_data *emd = zr_match_data_create(evil);
+  zr_set_limits(emd, 1000, 0, 0);
+  const char *subj = padded("aaaaaaaaaaaaaaaaaaaaaaaaaaaa!", 29);
+  size = sizeof(buf);
+  SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(
+    zr_substitute(evil, subj, 29, "x", 1, 0, emd, buf, &size)));
+  zr_match_data_free(emd);
+  zr_free(evil);
+
+  // Depth and heap limits bind the interpreter.
+  zr_pattern *slow = zr_compile("^(a+)+$", 7, ZR_NO_JIT, ZR_DIALECT_PCRE, err, sizeof(err));
+  zr_match_data *dmd = zr_match_data_create(slow);
+  zr_set_limits(dmd, 0, 10, 0);
+  SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(zr_match(slow, subj, 29, 0, 0, dmd)));
+  zr_match_data_free(dmd);
+  zr_free(slow);
+  const char *deep_pat = "^(?:(a)|b)*$";
+  zr_pattern *deep = zr_compile(deep_pat, strlen(deep_pat), ZR_NO_JIT, ZR_DIALECT_PCRE, err, sizeof(err));
+  zr_match_data *hmd = zr_match_data_create(deep);
+  zr_set_limits(hmd, 0, 0, 1);
+  size_t dlen = 200000;
+  char *dsub = R_alloc(dlen + 64, 1);
+  for (size_t i = 0; i < dlen; i++) dsub[i] = (i % 2) ? 'b' : 'a';
+  memset(dsub + dlen, 0, 64);
+  SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(zr_match(deep, dsub, dlen, 0, 0, hmd)));
+  zr_match_data_free(hmd);
+  zr_free(deep);
+
+  // A JIT stack overflow, and the retry in the interpreter.
+  zr_pattern *jit = zr_compile(deep_pat, strlen(deep_pat), 0, ZR_DIALECT_PCRE, err, sizeof(err));
+  zr_match_data *jmd = zr_match_data_create(jit);
+  int jrc = zr_jit(jit) ? zr_match(jit, dsub, dlen, 0, 0, jmd) : NA_INTEGER;
+  SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(jrc));
+  int rrc = zr_jit(jit) ? zr_match(jit, dsub, dlen, 0, ZR_NO_JIT_MATCH, jmd) : NA_INTEGER;
+  SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(rrc));
+  zr_match_data_free(jmd);
+  zr_free(jit);
+
+  SET_VECTOR_ELT(out, k++, Rf_mkString(zr_strerror(ZR_ERROR_MATCH_LIMIT)));
+  SET_VECTOR_ELT(out, k++, Rf_mkString(zr_strerror(-1000)));
+
+  zr_match_data_free(md);
+  zr_free(p);
+  zr_free(zt);
+  UNPROTECT(1);
+  return out;
+}

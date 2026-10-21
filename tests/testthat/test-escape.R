@@ -6,6 +6,7 @@ test_that("re_escape() output matches the input literally", {
     "\u00e9t\u00e9 (\u2603)",
     "tab\there",
     "line\nbreak\rcr\fff\vvt",
+    "unicode \u0085 \u200e \u200f \u2028 \u2029 space",
     ""
   )
   escaped <- re_escape(x)

@@ -17,6 +17,7 @@ static const R_CallMethodDef call_methods[] = {
   {"zuregex_capi_substitute_c", (DL_FUNC) &zuregex_capi_substitute_c, 7},
   {"zuregex_capi_info_c", (DL_FUNC) &zuregex_capi_info_c, 4},
   {"zuregex_capi_limit_c", (DL_FUNC) &zuregex_capi_limit_c, 3},
+  {"zuregex_capi_edges_c", (DL_FUNC) &zuregex_capi_edges_c, 0},
   {"zuregex_compile_c", (DL_FUNC) &zuregex_compile_c, 7},
   {"zuregex_re_valid_c", (DL_FUNC) &zuregex_re_valid_c, 1},
   {"zuregex_re_info_c", (DL_FUNC) &zuregex_re_info_c, 1},

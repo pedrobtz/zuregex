@@ -1,8 +1,12 @@
 test_that("every verb stops a pathological match at the match limit", {
+  withr::local_options(zuregex.limits = NULL)
   case <- pathological()
   lim <- re_limits(match = 1000)
   for (name in names(every_verb())) {
     verb <- every_verb()[[name]]
+    # Under PCRE2's defaults the same call finishes, so only the limit
+    # passed here can stop it.
+    expect_no_error(verb(case$x, case$pattern), message = name)
     err <- expect_error(
       verb(case$x, case$pattern, limits = lim),
       class = "zuregex_error_limit"
@@ -51,6 +55,8 @@ test_that("on_limit = \"na\" gives NA and one warning per call", {
 
 test_that("the option and the argument behave the same; the argument wins", {
   case <- pathological()
+  withr::local_options(zuregex.limits = NULL)
+  expect_identical(re_detect(case$x, case$pattern), FALSE)
   withr::local_options(zuregex.limits = re_limits(match = 1000))
   expect_error(re_detect(case$x, case$pattern), class = "zuregex_error_limit")
   na <- re_limits(match = 1000, on_limit = "na")
@@ -63,10 +69,13 @@ test_that("the option and the argument behave the same; the argument wins", {
     re_detect(case$x, case$pattern),
     class = "zuregex_warning_limit"
   )
-  # A generous argument lets the match run to completion.
+  # A generous argument lets a match finish that the default limit stops.
+  long <- pathological_long()
+  withr::local_options(zuregex.limits = NULL)
+  expect_error(re_detect(long$x, long$pattern), class = "zuregex_error_limit")
   expect_identical(
-    re_detect("aaab", "^(a+)+b$", limits = re_limits(match = 1e7)),
-    TRUE
+    re_detect(long$x, long$pattern, limits = re_limits(match = 1e9)),
+    FALSE
   )
 })
 
@@ -88,9 +97,45 @@ test_that("the depth and heap limits are applied", {
 })
 
 test_that("PCRE2's default limits apply without any", {
-  case <- pathological()
+  case <- pathological_long()
   withr::local_options(zuregex.limits = NULL)
   expect_error(re_detect(case$x, case$pattern), class = "zuregex_error_limit")
+})
+
+test_that("a JIT stack overflow is the jit_stack limit", {
+  skip_if_not(zuregex_info()$jit_usable, "the JIT compiler is not usable here")
+  x <- strrep("ab", 2e5)
+  err <- expect_error(
+    re_detect(x, "^(?:(a)|b)*$"),
+    class = "zuregex_error_limit"
+  )
+  expect_identical(err$limit, "jit_stack")
+  expect_warning(
+    expect_identical(
+      re_detect(
+        c(x, "ab"),
+        "^(?:(a)|b)*$",
+        limits = re_limits(on_limit = "na")
+      ),
+      c(NA, TRUE)
+    ),
+    class = "zuregex_warning_limit"
+  )
+})
+
+test_that("an edited re_limits object is refused with a class", {
+  lim <- re_limits(match = 10)
+  lim$match <- -1
+  expect_error(
+    re_detect("a", "a", limits = lim),
+    class = "zuregex_error_argument"
+  )
+  lim <- re_limits()
+  lim$on_limit <- NULL
+  expect_error(
+    re_detect("a", "a", limits = lim),
+    class = "zuregex_error_argument"
+  )
 })
 
 test_that("re_limits() checks and prints its values", {

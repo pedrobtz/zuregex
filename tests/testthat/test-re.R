@@ -33,3 +33,35 @@ test_that("finalizers release patterns the cache no longer holds", {
   # in CI check that every pattern was freed exactly once.
   expect_identical(zuregex:::cache_stats()$size, 0L)
 })
+
+test_that("assignment and c() keep pointers and patterns in step", {
+  re <- re_compile(c("a", "b"))
+  re[1] <- re_compile("z")
+  expect_identical(as.character(re), c("z", "b"))
+  expect_identical(re_detect(c("z", "a"), re), c(TRUE, FALSE))
+  re[[2]] <- re_compile("y")
+  expect_identical(re_info(re)$pattern, c("z", "y"))
+  both <- c(re_compile("p"), re_compile(c("q", "r")))
+  expect_s3_class(both, "re")
+  expect_identical(as.character(both), c("p", "q", "r"))
+  expect_identical(re_detect(c("p", "q", "x"), both), c(TRUE, TRUE, FALSE))
+  expect_identical(as.character(rep(re_compile("s"), 2)), c("s", "s"))
+  expect_identical(as.character(re[[1]]), "z")
+  # Different settings cannot share one re vector.
+  expect_error(
+    re[1] <- re_compile("z", flags = "i"),
+    class = "zuregex_error_argument"
+  )
+  expect_error(
+    c(re_compile("a"), re_compile("a", literal = TRUE)),
+    class = "zuregex_error_argument"
+  )
+  expect_error(re[1] <- "z", class = "zuregex_error_argument")
+})
+
+test_that("an edited re object is refused with a class", {
+  re <- re_compile("a")
+  attr(re, "dialect") <- "perl"
+  expect_error(re_detect("a", re), class = "zuregex_error_argument")
+  expect_error(re_info(re), class = "zuregex_error_argument")
+})
