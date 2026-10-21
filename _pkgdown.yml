@@ -2,3 +2,29 @@ url: https://pedrobtz.github.io/zuregex/
 template:
   bootstrap: 5
 
+reference:
+  - title: Compiling and inspecting
+    contents:
+      - re_compile
+      - re_info
+      - re_escape
+  - title: Detecting and locating
+    contents:
+      - re_detect
+      - re_locate
+  - title: Extracting and capturing
+    contents:
+      - re_extract
+  - title: Replacing and splitting
+    contents:
+      - re_replace
+      - re_split
+  - title: Limits, threads and the cache
+    contents:
+      - re_limits
+      - re_threads
+      - re_cache_size
+  - title: The package
+    contents:
+      - zuregex_info
+      - zuregex-package
