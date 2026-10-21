@@ -1,0 +1,3 @@
+#!/bin/sh
+# Removes what ./configure and ./configure.win write.
+rm -f src/Makevars src/Makevars.win
