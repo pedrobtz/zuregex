@@ -18,6 +18,8 @@ static const R_CallMethodDef call_methods[] = {
   {"zuregex_count_c", (DL_FUNC) &zuregex_count_c, 4},
   {"zuregex_locate_c", (DL_FUNC) &zuregex_locate_c, 5},
   {"zuregex_locate_all_c", (DL_FUNC) &zuregex_locate_all_c, 7},
+  {"zuregex_extract_c", (DL_FUNC) &zuregex_extract_c, 7},
+  {"zuregex_match_c", (DL_FUNC) &zuregex_match_c, 8},
   {NULL, NULL, 0}
 };
 

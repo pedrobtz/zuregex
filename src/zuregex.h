@@ -19,5 +19,9 @@ SEXP zuregex_locate_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
                       SEXP char_offsets);
 SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
                           SEXP n_max, SEXP overlap, SEXP char_offsets);
+SEXP zuregex_extract_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
+                       SEXP group, SEXP all, SEXP n_max);
+SEXP zuregex_match_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
+                     SEXP colmap, SEXP ncol, SEXP all, SEXP n_max);
 
 #endif
