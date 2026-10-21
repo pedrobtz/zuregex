@@ -1,28 +1,33 @@
 
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
 # zuregex
 
 <!-- badges: start -->
+
 [![R-CMD-check](https://github.com/pedrobtz/zuregex/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pedrobtz/zuregex/actions/workflows/R-CMD-check.yaml)
-[![coverage](https://raw.githubusercontent.com/pedrobtz/zuregex/main/.github/badges/coverage.svg)](https://github.com/pedrobtz/zuregex/actions/workflows/coverage.yaml)
+[![coverage](https://raw.githubusercontent.com/pedrobtz/zuregex/gh-pages/badges/coverage.svg)](https://github.com/pedrobtz/zuregex/actions/workflows/coverage.yaml)
 <!-- badges: end -->
 
-The goal of zuregex is to ...
+zuregex is the PCRE2 regular expression library, packaged twice: as R
+functions that do what base R’s `perl = TRUE` engine cannot, and as a C
+library that other packages link to.
+
+- **For package authors:** PCRE2 through `LinkingTo`, one version on
+  every platform, with a JavaScript dialect.
+- **For speed:** a compiled-pattern cache, OpenMP matching and captures
+  filled in C.
+- **For what base R lacks:** PCRE2’s full replacement language and
+  per-call match limits.
+
+zuregex is under development and has no functions yet.
 
 ## Installation
 
-You can install the development version of zuregex from [GitHub](https://github.com/) with:
+You can install the development version of zuregex from
+[GitHub](https://github.com/pedrobtz/zuregex) with:
 
 ``` r
 # install.packages("pak")
 pak::pak("pedrobtz/zuregex")
 ```
-
-## Example
-
-This is a basic example which shows you how to solve a common problem:
-
-``` r
-library(zuregex)
-## basic example code
-```
-
