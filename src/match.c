@@ -1,11 +1,16 @@
 // Phase 1 subject collection, and re_detect() / re_count().
 
+#include <limits.h>
 #include <string.h>
 
 #include "zuregex.h"
 #include "match.h"
 
 static void set_subject(zuregex_subject *s, const char *ptr, size_t len) {
+  // Offsets are returned as R integers.
+  if (len > (size_t) INT_MAX) {
+    Rf_error("subjects longer than %d bytes are not supported", INT_MAX);
+  }
   // R gives a zero-length vector a dummy data pointer (0x1), and PCRE2
   // computes with the subject pointer even for an empty subject; UBSan
   // reports that arithmetic. An empty subject points at a real "".
@@ -24,6 +29,10 @@ void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index,
     call->n = 1;
   } else {
     call->n = XLENGTH(x);
+  }
+  // Element numbers are returned as R integers too.
+  if (call->n > INT_MAX) {
+    Rf_error("inputs longer than %d elements are not supported", INT_MAX);
   }
   call->subjects = (zuregex_subject *) R_alloc(
     call->n > 0 ? (size_t) call->n : 1, sizeof(zuregex_subject));
@@ -105,11 +114,9 @@ SEXP zuregex_status_error(const zuregex_call *call,
   return R_NilValue;
 }
 
-// One pcre2_match(). Returns 1 for a match, 0 for none, and records any
-// other outcome in *st.
-static int match_once(const zuregex_pattern *p, const zuregex_subject *s,
-                      size_t start, uint32_t options, pcre2_match_data *md,
-                      zuregex_status *st) {
+int zuregex_match_once(const zuregex_pattern *p, const zuregex_subject *s,
+                       size_t start, uint32_t options, pcre2_match_data *md,
+                       zuregex_status *st) {
   int rc = pcre2_match(p->code, (PCRE2_SPTR) s->ptr, s->len, start, options,
                        md, NULL);
   if (rc >= 0) return 1;
@@ -121,6 +128,56 @@ static int match_once(const zuregex_pattern *p, const zuregex_subject *s,
   return -1;
 }
 
+// The byte offset one character after `at`.
+static size_t step_char(const zuregex_subject *s, size_t at, int utf) {
+  if (at >= s->len) return s->len + 1;
+  at++;
+  if (utf) {
+    while (at < s->len && ((unsigned char) s->ptr[at] & 0xC0) == 0x80) at++;
+  }
+  return at;
+}
+
+int zuregex_next_start(const zuregex_pattern *p, const zuregex_subject *s,
+                       pcre2_match_data *md, int overlap, size_t *start,
+                       uint32_t *options) {
+  PCRE2_SIZE *ov = pcre2_get_ovector_pointer(md);
+  int utf = p->key.utf;
+  if (overlap) {
+    size_t next = step_char(s, ov[0], utf);
+    if (next > s->len) return 0;
+    *start = next;
+    *options = PCRE2_NO_UTF_CHECK * (uint32_t) utf;
+    return 1;
+  }
+  if (p->key.dialect == ZUREGEX_DIALECT_JS) {
+    // ECMA-262 RegExp.prototype[@@match]: lastIndex is the match end, and
+    // after an empty match it advances by one character.
+    size_t next = ov[1];
+    if (ov[1] <= ov[0]) next = step_char(s, ov[1], utf);
+    if (next > s->len) return 0;
+    *start = next;
+    *options = PCRE2_NO_UTF_CHECK * (uint32_t) utf;
+    return 1;
+  }
+  PCRE2_SIZE next = 0;
+  uint32_t opts = 0;
+  if (!pcre2_next_match(md, &next, &opts)) return 0;
+  *start = next;
+  // After the first search the subject has been checked as UTF-8.
+  *options = opts | (PCRE2_NO_UTF_CHECK * (uint32_t) utf);
+  return 1;
+}
+
+size_t zuregex_chars(const char *s, size_t bytes, int utf) {
+  if (!utf) return bytes;
+  size_t chars = 0;
+  for (size_t i = 0; i < bytes; i++) {
+    if (((unsigned char) s[i] & 0xC0) != 0x80) chars++;
+  }
+  return chars;
+}
+
 static uint32_t anchor_options(int anchor) {
   switch (anchor) {
   case 1: return PCRE2_ANCHORED;
@@ -129,7 +186,7 @@ static uint32_t anchor_options(int anchor) {
   }
 }
 
-static SEXP result(SEXP value, SEXP error) {
+SEXP zuregex_result(SEXP value, SEXP error) {
   const char *names[] = {"value", "error", ""};
   SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));
   SET_VECTOR_ELT(out, 0, value);
@@ -161,14 +218,14 @@ SEXP zuregex_detect_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
       res[i] = NA_LOGICAL;
       continue;
     }
-    int m = match_once(p, &call.subjects[i], 0, options, md, &status[i]);
+    int m = zuregex_match_once(p, &call.subjects[i], 0, options, md, &status[i]);
     res[i] = m < 0 ? NA_LOGICAL : (neg ? !m : m);
   }
   pcre2_match_data_free(md);
 
   // Phase 3.
   SEXP err = PROTECT(zuregex_status_error(&call, status));
-  SEXP ans = result(Rf_isNull(err) ? out : R_NilValue, err);
+  SEXP ans = zuregex_result(Rf_isNull(err) ? out : R_NilValue, err);
   UNPROTECT(2);
   return ans;
 }
@@ -185,35 +242,34 @@ SEXP zuregex_count_c(SEXP x, SEXP bytes, SEXP table, SEXP index) {
   pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
   if (md == NULL) Rf_error("out of memory allocating match data");
 
-  // Phase 2. Successive matches follow PCRE2's own rule for where the next
-  // search starts after an empty match (pcre2_next_match()).
+  // Phase 2. Successive matches follow the pattern's dialect
+  // (zuregex_next_start()).
   for (R_xlen_t i = 0; i < call.n; i++) {
     const zuregex_pattern *p = zuregex_pattern_for(&call, i);
     if (p == NULL) {
       res[i] = NA_INTEGER;
       continue;
     }
-    PCRE2_SIZE start = 0;
+    const zuregex_subject *s = &call.subjects[i];
+    size_t start = 0;
     uint32_t options = 0;
     int count = 0;
     for (;;) {
-      int m = match_once(p, &call.subjects[i], start, options, md, &status[i]);
+      int m = zuregex_match_once(p, s, start, options, md, &status[i]);
       if (m < 0) {
         count = NA_INTEGER;
         break;
       }
       if (m == 0) break;
       count++;
-      if (!pcre2_next_match(md, &start, &options)) break;
-      // After the first search the subject has been checked as UTF-8.
-      options |= PCRE2_NO_UTF_CHECK;
+      if (!zuregex_next_start(p, s, md, 0, &start, &options)) break;
     }
     res[i] = count;
   }
   pcre2_match_data_free(md);
 
   SEXP err = PROTECT(zuregex_status_error(&call, status));
-  SEXP ans = result(Rf_isNull(err) ? out : R_NilValue, err);
+  SEXP ans = zuregex_result(Rf_isNull(err) ? out : R_NilValue, err);
   UNPROTECT(2);
   return ans;
 }

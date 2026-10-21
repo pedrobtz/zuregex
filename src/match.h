@@ -43,10 +43,32 @@ void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index,
 // The pattern for element i, or NULL for an NA pattern or subject.
 zuregex_pattern *zuregex_pattern_for(const zuregex_call *call, R_xlen_t i);
 
+// One pcre2_match(). Returns 1 for a match, 0 for none, -1 for an error
+// recorded in *st.
+int zuregex_match_once(const zuregex_pattern *p, const zuregex_subject *s,
+                       size_t start, uint32_t options, pcre2_match_data *md,
+                       zuregex_status *st);
+
+// Where the next search starts after a match, by the pattern's dialect:
+// PCRE2's rule (pcre2_next_match()) or JavaScript's, which steps one
+// character past an empty match instead of retrying it as non-empty. With
+// overlap, the next search starts one character after this match's start.
+// Returns 0 when there is nothing left to search.
+int zuregex_next_start(const zuregex_pattern *p, const zuregex_subject *s,
+                       pcre2_match_data *md, int overlap, size_t *start,
+                       uint32_t *options);
+
+// Characters in s[0, bytes), counting UTF-8 lead bytes; in bytes mode a
+// byte is a character.
+size_t zuregex_chars(const char *s, size_t bytes, int utf);
+
 // Raises the first element error in `status`, if any, as an R condition
 // description for the R side: list(kind, element, rc, offset, message).
 // Returns R_NilValue when every element succeeded.
 SEXP zuregex_status_error(const zuregex_call *call,
                           const zuregex_status *status);
+
+// list(value, error), as every verb returns to R.
+SEXP zuregex_result(SEXP value, SEXP error);
 
 #endif

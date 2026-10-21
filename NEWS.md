@@ -17,3 +17,7 @@
   lists of raw vectors, with one pattern for every element or one per
   element. `anchor` gives Python's `match()` and `fullmatch()`. Invalid
   UTF-8 raises `zuregex_error_utf`, naming the element and byte.
+* `re_locate()` and `re_locate_all()` return one-based, inclusive offsets in
+  characters or bytes, so `substr()` extracts each match. `re_locate_all()`
+  takes `n` and `overlap`, and follows JavaScript's rule for empty matches
+  with `dialect = "js"`, as `re_count()` now does.
