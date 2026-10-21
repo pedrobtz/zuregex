@@ -17,3 +17,4 @@
 ^README\.Rmd$
 ^src/Makevars$
 ^src/Makevars\.win$
+^tools/.*\.(o|so|dll|dylib)$
