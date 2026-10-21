@@ -168,6 +168,9 @@ stage establishes it.
   marked `# GAP`. Neither is wired up yet.
 - **Helpers live in `tests/testthat/helper-*.R`.** `helper-symbols.R` runs
   `nm` on the loaded shared object; `helper-types.R` has small predicates.
+- **Timing tests are opt-in.** `skip_unless_timing()` runs them only with
+  `ZUREGEX_TIMING_TESTS=true`, which `R-CMD-check.yaml` sets. Coverage,
+  sanitizers, valgrind and gctorture distort timings.
 - **Keep the suite inside the CRAN time budget.** Only the placeholder test
   exists; record the runtime once the suite has one.
 

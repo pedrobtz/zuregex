@@ -22,6 +22,10 @@ jobs:
       # Quick on each push to a pull request, full after merge. The
       # `full-ci` label runs the full set on a pull request before merging.
       profile: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci') && 'quick' || 'full' }}
+      # Timing bounds hold only on uninstrumented builds, so this workflow
+      # alone asks for them (tests/testthat/helper-timing.R).
+      env: |
+        ZUREGEX_TIMING_TESTS=true
       # The default runners plus Windows on R-devel. The containers job is
       # R-devel on Linux, and no other leg is the combination CRAN's incoming
       # pretest runs (r-devel-windows-x86_64). Full profile only.

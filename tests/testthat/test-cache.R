@@ -113,7 +113,7 @@ test_that("cached and uncached patterns report the same re_info()", {
 })
 
 test_that("a cache hit costs under 5% of a compile", {
-  skip_on_cran()
+  skip_unless_timing()
   local_cache()
   # A pattern whose compilation and JIT compilation are not trivial, and
   # enough repetitions that the timer's resolution does not decide.
