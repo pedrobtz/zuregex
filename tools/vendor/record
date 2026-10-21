@@ -1,0 +1,19 @@
+#!/bin/sh
+# Regenerate tools/vendor/checksums.sha256 from the vendored tree on disk.
+# Run only after a deliberate tools/vendor/fetch; tools/vendor/verify is what
+# checks it afterwards.
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+cd "$ROOT"
+MANIFEST=tools/vendor/manifest.tsv
+. tools/vendor/common.sh
+
+out=tools/vendor/checksums.sha256
+: > "$out"
+for src in $(manifest_sources); do
+    for f in $(vendored_files "$src"); do
+        printf '%s  %s\n' "$(sha256_of "$f")" "$f" >> "$out"
+    done
+done
+printf 'wrote %s (%s files)\n' "$out" "$(wc -l < "$out" | tr -d ' ')"

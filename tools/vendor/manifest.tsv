@@ -1,0 +1,2 @@
+source	repo	tag	commit	version_string	archive	archive_sha256	license	defines	patches
+pcre2	https://github.com/PCRE2Project/pcre2	pcre2-10.48	7978954dbd2efc6f2196869290553cf1871b4ce6	10.48	https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.48/pcre2-10.48.tar.gz	ebcc25aadf2a51fa1fefa9b8bc9e7a79b3dae86870a0f1152a22e42befd46888	BSD-3-Clause WITH PCRE2-exception	HAVE_CONFIG_H,PCRE2_CODE_UNIT_WIDTH,PCRE2_STATIC	0001-split-compile-error-texts.patch
