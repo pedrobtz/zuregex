@@ -3,7 +3,7 @@ test_that("re_escape() output matches the input literally", {
   x <- c(
     ascii,
     "a.b*c",
-    "été (☃)",
+    "\u00e9t\u00e9 (\u2603)",
     "tab\there",
     "line\nbreak\rcr\fff\vvt",
     ""
@@ -30,7 +30,7 @@ test_that("re_escape() output matches the input literally", {
 })
 
 test_that("re_escape() leaves letters, digits and non-ASCII alone", {
-  expect_identical(re_escape("abcXYZ019_é"), "abcXYZ019_é")
+  expect_identical(re_escape("abcXYZ019_\u00e9"), "abcXYZ019_\u00e9")
   expect_identical(re_escape("a+b"), "a\\+b")
   expect_identical(re_escape("a b"), "a\\ b")
 })

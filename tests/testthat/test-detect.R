@@ -37,7 +37,7 @@ test_that("re_count() counts empty matches as PCRE2 and Python do", {
   expect_identical(re_count("abab", "a*"), 5L)
   expect_identical(re_count("abc", ""), 4L)
   expect_identical(re_count("", ""), 1L)
-  expect_identical(re_count("éé", ""), 3L)
+  expect_identical(re_count("\u00e9\u00e9", ""), 3L)
 })
 
 test_that("an NA subject gives NA", {
@@ -53,7 +53,7 @@ test_that("\\w, \\d and POSIX classes are ASCII, as in base R", {
   # GAP: ICU, and so stringr, gives \w, \d and [[:alpha:]] Unicode meaning.
   # zuregex follows base R's perl = TRUE (design D2); the `u` flag of
   # re_compile() turns Unicode meaning on.
-  x <- c("é", "٣", "a")
+  x <- c("\u00e9", "\u0663", "a")
   expect_identical(re_detect(x, "^\\w$"), grepl("^\\w$", x, perl = TRUE))
   expect_identical(re_detect(x, "^\\w$"), c(FALSE, FALSE, TRUE))
   skip_if_not_installed("stringr")
@@ -173,22 +173,22 @@ test_that("a raw vector matches like the same bytes as a string", {
 })
 
 test_that("bytes are matched without UTF-8: . is one byte", {
-  e <- charToRaw("é") # two bytes
+  e <- charToRaw("\u00e9") # two bytes
   expect_true(re_detect(e, "^..$"))
-  expect_false(re_detect("é", "^..$"))
+  expect_false(re_detect("\u00e9", "^..$"))
   expect_true(re_detect(as.raw(c(0x61, 0xff, 0x62)), "a\\xffb"))
   expect_identical(re_detect(list(NULL, as.raw(0x61)), "a"), c(NA, TRUE))
   # An re compiled for UTF-8 is recompiled for bytes.
   expect_true(re_detect(e, re_compile("^..$")))
-  bytes <- "é"
+  bytes <- "\u00e9"
   Encoding(bytes) <- "bytes"
   expect_true(re_detect(bytes, "^..$"))
 })
 
 test_that("strings in other encodings are translated to UTF-8", {
-  latin1 <- iconv(c("café", "naïve"), "UTF-8", "latin1")
+  latin1 <- iconv(c("caf\u00e9", "na\u00efve"), "UTF-8", "latin1")
   expect_identical(Encoding(latin1), c("latin1", "latin1"))
-  expect_identical(re_detect(latin1, "é$"), c(TRUE, FALSE))
+  expect_identical(re_detect(latin1, "\u00e9$"), c(TRUE, FALSE))
   expect_identical(re_detect(latin1, "^.{4}$"), c(TRUE, FALSE))
 })
 
