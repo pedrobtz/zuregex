@@ -1,0 +1,32 @@
+# Builds each consumer in tools/revdep/consumers.txt against this checkout
+# and runs its tests. Unlike a header-only provider, consumers here call
+# zuregex's compiled C API at run time, so the implementation counts as
+# much as the headers.
+on:
+  pull_request:
+    paths:
+      - inst/include/**
+      - src/capi.c
+      - src/capi.h
+      - src/pattern.c
+      - src/pattern.h
+      - src/init.c
+      - tools/revdep/**
+      - .github/workflows/revdep.yaml
+  # Weekly: a consumer whose own branch has moved on can break against this
+  # one without a pull request on either side.
+  schedule:
+    - cron: "37 5 * * 3"
+  workflow_dispatch:
+
+name: revdep
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  revdep:
+    uses: pedrobtz/r-actions/.github/workflows/revdep.yml@v1
+    permissions:
+      contents: read
