@@ -26,7 +26,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 | 5 | [Extract and match](#stage-5--extract-and-match) | quick | [#7](https://github.com/pedrobtz/zuregex/issues/7) | [#21](https://github.com/pedrobtz/zuregex/pull/21) | 2026-10-21 |
 | 6 | [Replace, expand and split](#stage-6--replace-expand-and-split) | quick | [#8](https://github.com/pedrobtz/zuregex/issues/8) | [#22](https://github.com/pedrobtz/zuregex/pull/22) | 2026-10-21 |
 | 7 | [Limits](#stage-7--limits) | quick | [#9](https://github.com/pedrobtz/zuregex/issues/9) | [#23](https://github.com/pedrobtz/zuregex/pull/23) | 2026-10-21 |
-| 8 | [OpenMP](#stage-8--openmp) | full | [#10](https://github.com/pedrobtz/zuregex/issues/10) | | 2026-10-21 |
+| 8 | [OpenMP](#stage-8--openmp) | full | [#10](https://github.com/pedrobtz/zuregex/issues/10) | [#24](https://github.com/pedrobtz/zuregex/pull/24) | 2026-10-21 |
 | 9 | [C API and consumers](#stage-9--c-api-and-consumers) | quick | [#11](https://github.com/pedrobtz/zuregex/issues/11) | | |
 | 10 | [Full CI](#stage-10--full-ci) | full | [#12](https://github.com/pedrobtz/zuregex/issues/12) | | |
 | 11 | [v0.1.0 readiness](#stage-11--v010-readiness) | full | [#13](https://github.com/pedrobtz/zuregex/issues/13) | | |
