@@ -564,9 +564,12 @@ pattern where `ZUREGEX_TIMING_TESTS=true` and four threads are available.
   the template.
 - An internal `serial_bytes()` sets the threshold, so the tests run the
   parallel path on small inputs too.
-- The speedup test runs only with four physical cores. GitHub's four-vCPU
-  Ubuntu runners have two, and four threads measured 1.99× one there
-  (run 39678103610); the 3.32× above is from four cores.
+- The speedup test runs only with `ZUREGEX_BENCH_THREADS=true`, on a
+  machine with four free cores. GitHub's shared runners measured 1.99×
+  and 2.19× (runs 39678103610 and 39681039948), whatever their reported
+  core count; the 3.32× above is from four dedicated cores. The 2.5×
+  bound is unchanged. The single-thread ratios (Stages 2 and 5) still run
+  in CI.
 - Phase 2 matches a copy of each subject followed by 64 zero bytes. PCRE2's
   JIT code reads past the end of the subject with wide loads, and past an R
   string valgrind saw those bytes as uninitialised (run 39678103829). The

@@ -225,7 +225,9 @@ stage establishes it.
   `helper-corpus.R` is the parity corpus every verb is checked on.
 - **Timing tests are opt-in.** `skip_unless_timing()` runs them only with
   `ZUREGEX_TIMING_TESTS=true`, which `R-CMD-check.yaml` sets. Coverage,
-  sanitizers, valgrind and gctorture distort timings.
+  sanitizers, valgrind and gctorture distort timings. The thread speedup
+  test also needs `ZUREGEX_BENCH_THREADS=true` and four free cores, which
+  GitHub's shared runners do not have.
 - **Keep the suite inside the CRAN time budget.** About 4 seconds on a
   2026 laptop at Stage 4, timing tests off. Re-measure when a stage adds a
   large corpus.

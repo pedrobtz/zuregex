@@ -26,7 +26,6 @@ Copyright: file inst/COPYRIGHTS
 URL: https://github.com/pedrobtz/zuregex, https://pedrobtz.github.io/zuregex/
 BugReports: https://github.com/pedrobtz/zuregex/issues
 Suggests: 
-    parallel,
     stringr,
     testthat (>= 3.0.0),
     withr
