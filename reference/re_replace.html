@@ -45,9 +45,16 @@ first match, as Python's <code>Match.expand()</code> does.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">re_replace</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, <span class="va">replacement</span>, n <span class="op">=</span> <span class="cn">Inf</span>, syntax <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"extended"</span>, <span class="st">"literal"</span><span class="op">)</span><span class="op">)</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">re_replace</span><span class="op">(</span></span>
+<span>  <span class="va">x</span>,</span>
+<span>  <span class="va">pattern</span>,</span>
+<span>  <span class="va">replacement</span>,</span>
+<span>  n <span class="op">=</span> <span class="cn">Inf</span>,</span>
+<span>  syntax <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"extended"</span>, <span class="st">"literal"</span><span class="op">)</span>,</span>
+<span>  limits <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">re_expand</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, <span class="va">template</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">re_expand</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, <span class="va">template</span>, limits <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -75,6 +82,11 @@ An <code>NA</code> template gives <code>NA</code>.</p></dd>
 
 <dt id="arg-syntax">syntax<a class="anchor" aria-label="anchor" href="#arg-syntax"></a></dt>
 <dd><p><code>"extended"</code> or <code>"literal"</code>; see Templates.</p></dd>
+
+
+<dt id="arg-limits">limits<a class="anchor" aria-label="anchor" href="#arg-limits"></a></dt>
+<dd><p>A <code><a href="re_limits.html">re_limits()</a></code> object, or <code>NULL</code> for
+<code>getOption("zuregex.limits")</code> and then PCRE2's defaults.</p></dd>
 
 
 <dt id="arg-template">template<a class="anchor" aria-label="anchor" href="#arg-template"></a></dt>

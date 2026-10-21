@@ -6,9 +6,16 @@
 ## Usage
 
 ``` r
-re_locate(x, pattern, bytes = FALSE)
+re_locate(x, pattern, bytes = FALSE, limits = NULL)
 
-re_locate_all(x, pattern, n = Inf, overlap = FALSE, bytes = FALSE)
+re_locate_all(
+  x,
+  pattern,
+  n = Inf,
+  overlap = FALSE,
+  bytes = FALSE,
+  limits = NULL
+)
 ```
 
 ## Arguments
@@ -25,6 +32,13 @@ re_locate_all(x, pattern, n = Inf, overlap = FALSE, bytes = FALSE)
 - bytes:
 
   If `TRUE`, offsets count bytes instead of characters.
+
+- limits:
+
+  A
+  [`re_limits()`](https://pedrobtz.github.io/zuregex/reference/re_limits.md)
+  object, or `NULL` for `getOption("zuregex.limits")` and then PCRE2's
+  defaults.
 
 - n:
 

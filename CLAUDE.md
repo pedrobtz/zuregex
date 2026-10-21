@@ -39,7 +39,9 @@ locate (Stage 4), and the extract and match verbs capture (Stage 5).
 [`re_expand()`](https://pedrobtz.github.io/zuregex/reference/re_replace.md)
 and
 [`re_split()`](https://pedrobtz.github.io/zuregex/reference/re_split.md)
-complete the v0.1.0 verbs (Stage 6). The roadmap in `.agents/roadmap.md`
+complete the v0.1.0 verbs (Stage 6), and
+[`re_limits()`](https://pedrobtz.github.io/zuregex/reference/re_limits.md)
+bounds every one of them (Stage 7). The roadmap in `.agents/roadmap.md`
 takes it to v0.1.0; §11 of the design lists the stages it is expected to
 hold.
 
@@ -161,6 +163,12 @@ without the R API.
   is a builder over the capture scan in `src/capture.c`.
 - `tools/oracles/python-re.py` records Python’s results for
   `tests/testthat/test-python.R`.
+- Limits reach C as one double vector (match, depth, heap, on_limit),
+  made by `call_limits()` in `R/limits.R`. `zuregex_collect()` turns it
+  into a PCRE2 match context whose memory comes from `R_alloc()`, so it
+  needs no freeing. A replacement function makes two passes; R passes
+  each element’s first row to the second, so a limited element cannot
+  misalign the strings.
 - `src/locate.c` converts byte offsets to one-based characters in
   phase 2. Per-element match lists are `malloc()`ed, and phase 3 runs
   under `R_ExecWithCleanup()` so they are freed even if an R allocation

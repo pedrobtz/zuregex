@@ -61,3 +61,8 @@
   [`re_split()`](https://pedrobtz.github.io/zuregex/reference/re_split.md)
   splits as Python’s `re.split()` does. Template errors raise
   `zuregex_error_template`.
+- [`re_limits()`](https://pedrobtz.github.io/zuregex/reference/re_limits.md)
+  bounds the work of a match, through `limits =` on every verb or the
+  `zuregex.limits` option. An element that hits a limit raises
+  `zuregex_error_limit`, or gives `NA` and one warning per call with
+  `on_limit = "na"`.

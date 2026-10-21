@@ -8,7 +8,7 @@ pieces.
 ## Usage
 
 ``` r
-re_split(x, pattern, n = Inf, keep_groups = FALSE)
+re_split(x, pattern, n = Inf, keep_groups = FALSE, limits = NULL)
 ```
 
 ## Arguments
@@ -32,6 +32,13 @@ re_split(x, pattern, n = Inf, keep_groups = FALSE)
 
   If `TRUE`, the groups of each separator are inserted after the piece
   before it, `NA` for a group that did not take part.
+
+- limits:
+
+  A
+  [`re_limits()`](https://pedrobtz.github.io/zuregex/reference/re_limits.md)
+  object, or `NULL` for `getOption("zuregex.limits")` and then PCRE2's
+  defaults.
 
 ## Value
 

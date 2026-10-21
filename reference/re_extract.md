@@ -11,13 +11,13 @@ without the per-match R overhead of
 ## Usage
 
 ``` r
-re_extract(x, pattern, group = 0)
+re_extract(x, pattern, group = 0, limits = NULL)
 
-re_extract_all(x, pattern, group = 0, n = Inf)
+re_extract_all(x, pattern, group = 0, n = Inf, limits = NULL)
 
-re_match(x, pattern, proto = NULL)
+re_match(x, pattern, proto = NULL, limits = NULL)
 
-re_match_all(x, pattern, n = Inf)
+re_match_all(x, pattern, n = Inf, limits = NULL)
 ```
 
 ## Arguments
@@ -35,6 +35,13 @@ re_match_all(x, pattern, n = Inf)
 
   The group to extract: a number, 0 for the whole match, or a group
   name.
+
+- limits:
+
+  A
+  [`re_limits()`](https://pedrobtz.github.io/zuregex/reference/re_limits.md)
+  object, or `NULL` for `getOption("zuregex.limits")` and then PCRE2's
+  defaults.
 
 - n:
 

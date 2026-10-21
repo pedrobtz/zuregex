@@ -49,6 +49,8 @@
 <code><a href="../reference/re_extract.html">re_extract()</a></code>, <code><a href="../reference/re_extract.html">re_extract_all()</a></code>, <code><a href="../reference/re_extract.html">re_match()</a></code> and <code><a href="../reference/re_extract.html">re_match_all()</a></code> return matches and capture groups as vectors and data frames built in C. <code><a href="../reference/re_extract.html">re_match()</a></code> takes a <code>proto</code> for typed columns, as <code><a href="https://rdrr.io/r/utils/strcapture.html" class="external-link">utils::strcapture()</a></code> does, and is about 17 times faster than it on 100,000 strings.</li>
 <li>
 <code><a href="../reference/re_replace.html">re_replace()</a></code> replaces matches with PCRE2’s extended templates (<code>$1</code>, <code>${name}</code>, <code>${1:-default}</code>, <code>${1:+yes:no}</code>, case forcing), literal text, or a function called once with every match. <code><a href="../reference/re_replace.html">re_expand()</a></code> expands a template with the first match, and <code><a href="../reference/re_split.html">re_split()</a></code> splits as Python’s <code>re.split()</code> does. Template errors raise <code>zuregex_error_template</code>.</li>
+<li>
+<code><a href="../reference/re_limits.html">re_limits()</a></code> bounds the work of a match, through <code>limits =</code> on every verb or the <code>zuregex.limits</code> option. An element that hits a limit raises <code>zuregex_error_limit</code>, or gives <code>NA</code> and one warning per call with <code>on_limit = "na"</code>.</li>
 </ul></div>
   </main></div>
 

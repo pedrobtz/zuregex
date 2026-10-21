@@ -19,6 +19,8 @@
   : Extract matches and capture groups
 - [`re_info()`](https://pedrobtz.github.io/zuregex/reference/re_info.md)
   : Describe compiled patterns
+- [`re_limits()`](https://pedrobtz.github.io/zuregex/reference/re_limits.md)
+  : Bound the work a match may do
 - [`re_locate()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
   [`re_locate_all()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
   : Locate matches

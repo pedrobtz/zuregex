@@ -6,9 +6,15 @@
 ## Usage
 
 ``` r
-re_detect(x, pattern, anchor = c("none", "start", "full"), negate = FALSE)
+re_detect(
+  x,
+  pattern,
+  anchor = c("none", "start", "full"),
+  negate = FALSE,
+  limits = NULL
+)
 
-re_count(x, pattern)
+re_count(x, pattern, limits = NULL)
 ```
 
 ## Arguments
@@ -32,6 +38,13 @@ re_count(x, pattern)
 - negate:
 
   If `TRUE`, return `TRUE` for elements that do not match.
+
+- limits:
+
+  A
+  [`re_limits()`](https://pedrobtz.github.io/zuregex/reference/re_limits.md)
+  object, or `NULL` for `getOption("zuregex.limits")` and then PCRE2's
+  defaults.
 
 ## Value
 

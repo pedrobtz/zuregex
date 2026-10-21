@@ -45,7 +45,7 @@ keep_groups = TRUE each separator's groups are kept between the pieces."></head>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">re_split</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, n <span class="op">=</span> <span class="cn">Inf</span>, keep_groups <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">re_split</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, n <span class="op">=</span> <span class="cn">Inf</span>, keep_groups <span class="op">=</span> <span class="cn">FALSE</span>, limits <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -70,6 +70,11 @@ pieces.</p></dd>
 <dt id="arg-keep-groups">keep_groups<a class="anchor" aria-label="anchor" href="#arg-keep-groups"></a></dt>
 <dd><p>If <code>TRUE</code>, the groups of each separator are inserted
 after the piece before it, <code>NA</code> for a group that did not take part.</p></dd>
+
+
+<dt id="arg-limits">limits<a class="anchor" aria-label="anchor" href="#arg-limits"></a></dt>
+<dd><p>A <code><a href="re_limits.html">re_limits()</a></code> object, or <code>NULL</code> for
+<code>getOption("zuregex.limits")</code> and then PCRE2's defaults.</p></dd>
 
 </dl></div>
     <div class="section level2">

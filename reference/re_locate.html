@@ -42,9 +42,16 @@ re_locate_all() finds every match."></head><body>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">re_locate</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, bytes <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">re_locate</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, bytes <span class="op">=</span> <span class="cn">FALSE</span>, limits <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">re_locate_all</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, n <span class="op">=</span> <span class="cn">Inf</span>, overlap <span class="op">=</span> <span class="cn">FALSE</span>, bytes <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">re_locate_all</span><span class="op">(</span></span>
+<span>  <span class="va">x</span>,</span>
+<span>  <span class="va">pattern</span>,</span>
+<span>  n <span class="op">=</span> <span class="cn">Inf</span>,</span>
+<span>  overlap <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  bytes <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  limits <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -62,6 +69,11 @@ re_locate_all() finds every match."></head><body>
 
 <dt id="arg-bytes">bytes<a class="anchor" aria-label="anchor" href="#arg-bytes"></a></dt>
 <dd><p>If <code>TRUE</code>, offsets count bytes instead of characters.</p></dd>
+
+
+<dt id="arg-limits">limits<a class="anchor" aria-label="anchor" href="#arg-limits"></a></dt>
+<dd><p>A <code><a href="re_limits.html">re_limits()</a></code> object, or <code>NULL</code> for
+<code>getOption("zuregex.limits")</code> and then PCRE2's defaults.</p></dd>
 
 
 <dt id="arg-n">n<a class="anchor" aria-label="anchor" href="#arg-n"></a></dt>

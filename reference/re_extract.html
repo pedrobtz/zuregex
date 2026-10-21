@@ -54,13 +54,13 @@ without the per-match R overhead of <code><a href="https://rdrr.io/r/base/regmat
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">re_extract</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, group <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">re_extract</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, group <span class="op">=</span> <span class="fl">0</span>, limits <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">re_extract_all</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, group <span class="op">=</span> <span class="fl">0</span>, n <span class="op">=</span> <span class="cn">Inf</span><span class="op">)</span></span>
+<span><span class="fu">re_extract_all</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, group <span class="op">=</span> <span class="fl">0</span>, n <span class="op">=</span> <span class="cn">Inf</span>, limits <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">re_match</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, proto <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
+<span><span class="fu">re_match</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, proto <span class="op">=</span> <span class="cn">NULL</span>, limits <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">re_match_all</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, n <span class="op">=</span> <span class="cn">Inf</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">re_match_all</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, n <span class="op">=</span> <span class="cn">Inf</span>, limits <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -79,6 +79,11 @@ without the per-match R overhead of <code><a href="https://rdrr.io/r/base/regmat
 <dt id="arg-group">group<a class="anchor" aria-label="anchor" href="#arg-group"></a></dt>
 <dd><p>The group to extract: a number, 0 for the whole match, or a
 group name.</p></dd>
+
+
+<dt id="arg-limits">limits<a class="anchor" aria-label="anchor" href="#arg-limits"></a></dt>
+<dd><p>A <code><a href="re_limits.html">re_limits()</a></code> object, or <code>NULL</code> for
+<code>getOption("zuregex.limits")</code> and then PCRE2's defaults.</p></dd>
 
 
 <dt id="arg-n">n<a class="anchor" aria-label="anchor" href="#arg-n"></a></dt>

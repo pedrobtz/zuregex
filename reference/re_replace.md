@@ -7,9 +7,16 @@ first match, as Python's `Match.expand()` does.
 ## Usage
 
 ``` r
-re_replace(x, pattern, replacement, n = Inf, syntax = c("extended", "literal"))
+re_replace(
+  x,
+  pattern,
+  replacement,
+  n = Inf,
+  syntax = c("extended", "literal"),
+  limits = NULL
+)
 
-re_expand(x, pattern, template)
+re_expand(x, pattern, template, limits = NULL)
 ```
 
 ## Arguments
@@ -36,6 +43,13 @@ re_expand(x, pattern, template)
 - syntax:
 
   `"extended"` or `"literal"`; see Templates.
+
+- limits:
+
+  A
+  [`re_limits()`](https://pedrobtz.github.io/zuregex/reference/re_limits.md)
+  object, or `NULL` for `getOption("zuregex.limits")` and then PCRE2's
+  defaults.
 
 - template:
 
