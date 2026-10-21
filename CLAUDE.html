@@ -43,7 +43,7 @@
 </div>
 <div class="section level2">
 <h2 id="current-state">Current state<a class="anchor" aria-label="anchor" href="#current-state"></a></h2>
-<p>PCRE2 10.48 is vendored and builds on every platform (Stage 1). Patterns compile, with flags, dialects and a cache (Stage 2). <code><a href="reference/re_detect.html">re_detect()</a></code> and <code><a href="reference/re_detect.html">re_count()</a></code> match, serially, through the three-phase core (Stage 3). The roadmap in <code>.agents/roadmap.md</code> takes it to v0.1.0; §11 of the design lists the stages it is expected to hold.</p>
+<p>PCRE2 10.48 is vendored and builds on every platform (Stage 1). Patterns compile, with flags, dialects and a cache (Stage 2). <code><a href="reference/re_detect.html">re_detect()</a></code> and <code><a href="reference/re_detect.html">re_count()</a></code> match, serially, through the three-phase core (Stage 3), and <code><a href="reference/re_locate.html">re_locate()</a></code> and <code><a href="reference/re_locate.html">re_locate_all()</a></code> locate (Stage 4). The roadmap in <code>.agents/roadmap.md</code> takes it to v0.1.0; §11 of the design lists the stages it is expected to hold.</p>
 </div>
 <div class="section level2">
 <h2 id="stage-tracking">Stage tracking<a class="anchor" aria-label="anchor" href="#stage-tracking"></a></h2>
@@ -103,7 +103,11 @@
 <li>
 <code>src/match.h</code> defines the three phases every verb shares. <code>zuregex_collect()</code> is phase 1: subjects become pointer and length pairs, translated to UTF-8 where needed, and patterns become a table plus a per-element index. Phase 2 loops in <code>src/match.c</code> read only those arrays. Phase 3 turns per-element status into R results or a condition.</li>
 <li>
-<code>R/match.R</code> applies the pairing rule (<code>patterns()</code>), decides between UTF-8 and bytes (<code>subjects()</code>), and raises match errors. <code>R/detect.R</code> has the first verbs.</li>
+<code>R/match.R</code> applies the pairing rule (<code>patterns()</code>), decides between UTF-8 and bytes (<code>subjects()</code>), and raises match errors. <code>R/detect.R</code> and <code>R/locate.R</code> hold the verbs.</li>
+<li>
+<code>zuregex_next_start()</code> in <code>src/match.c</code> is the one place that decides where the next search starts: PCRE2’s empty-match rule, JavaScript’s, or one character on for <code>overlap</code>. Every iterating verb uses it.</li>
+<li>
+<code>src/locate.c</code> converts byte offsets to one-based characters in phase 2. Per-element match lists are <code>malloc()</code>ed, and phase 3 runs under <code>R_ExecWithCleanup()</code> so they are freed even if an R allocation fails.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="invariants-that-are-easy-to-break">Invariants that are easy to break<a class="anchor" aria-label="anchor" href="#invariants-that-are-easy-to-break"></a></h2>
@@ -146,7 +150,7 @@
 <li>
 <strong>Timing tests are opt-in.</strong> <code>skip_unless_timing()</code> runs them only with <code>ZUREGEX_TIMING_TESTS=true</code>, which <code>R-CMD-check.yaml</code> sets. Coverage, sanitizers, valgrind and gctorture distort timings.</li>
 <li>
-<strong>Keep the suite inside the CRAN time budget.</strong> Only the placeholder test exists; record the runtime once the suite has one.</li>
+<strong>Keep the suite inside the CRAN time budget.</strong> About 4 seconds on a 2026 laptop at Stage 4, timing tests off. Re-measure when a stage adds a large corpus.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="definition-of-done">Definition of done<a class="anchor" aria-label="anchor" href="#definition-of-done"></a></h2>

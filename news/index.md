@@ -31,3 +31,13 @@
   Python’s [`match()`](https://rdrr.io/r/base/match.html) and
   `fullmatch()`. Invalid UTF-8 raises `zuregex_error_utf`, naming the
   element and byte.
+- [`re_locate()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
+  and
+  [`re_locate_all()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
+  return one-based, inclusive offsets in characters or bytes, so
+  [`substr()`](https://rdrr.io/r/base/substr.html) extracts each match.
+  [`re_locate_all()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
+  takes `n` and `overlap`, and follows JavaScript’s rule for empty
+  matches with `dialect = "js"`, as
+  [`re_count()`](https://pedrobtz.github.io/zuregex/reference/re_detect.md)
+  now does.

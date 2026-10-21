@@ -30,9 +30,12 @@ compile, with flags, dialects and a cache (Stage 2).
 [`re_detect()`](https://pedrobtz.github.io/zuregex/reference/re_detect.md)
 and
 [`re_count()`](https://pedrobtz.github.io/zuregex/reference/re_detect.md)
-match, serially, through the three-phase core (Stage 3). The roadmap in
-`.agents/roadmap.md` takes it to v0.1.0; §11 of the design lists the
-stages it is expected to hold.
+match, serially, through the three-phase core (Stage 3), and
+[`re_locate()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
+and
+[`re_locate_all()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
+locate (Stage 4). The roadmap in `.agents/roadmap.md` takes it to
+v0.1.0; §11 of the design lists the stages it is expected to hold.
 
 ## Stage tracking
 
@@ -134,7 +137,14 @@ without the R API.
   condition.
 - `R/match.R` applies the pairing rule (`patterns()`), decides between
   UTF-8 and bytes (`subjects()`), and raises match errors. `R/detect.R`
-  has the first verbs.
+  and `R/locate.R` hold the verbs.
+- `zuregex_next_start()` in `src/match.c` is the one place that decides
+  where the next search starts: PCRE2’s empty-match rule, JavaScript’s,
+  or one character on for `overlap`. Every iterating verb uses it.
+- `src/locate.c` converts byte offsets to one-based characters in
+  phase 2. Per-element match lists are `malloc()`ed, and phase 3 runs
+  under `R_ExecWithCleanup()` so they are freed even if an R allocation
+  fails.
 
 ## Invariants that are easy to break
 
@@ -202,8 +212,9 @@ when a stage establishes it.
 - **Timing tests are opt-in.** `skip_unless_timing()` runs them only
   with `ZUREGEX_TIMING_TESTS=true`, which `R-CMD-check.yaml` sets.
   Coverage, sanitizers, valgrind and gctorture distort timings.
-- **Keep the suite inside the CRAN time budget.** Only the placeholder
-  test exists; record the runtime once the suite has one.
+- **Keep the suite inside the CRAN time budget.** About 4 seconds on a
+  2026 laptop at Stage 4, timing tests off. Re-measure when a stage adds
+  a large corpus.
 
 ## Definition of done
 

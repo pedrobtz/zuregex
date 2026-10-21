@@ -14,5 +14,8 @@
   : Quote regular expression metacharacters
 - [`re_info()`](https://pedrobtz.github.io/zuregex/reference/re_info.md)
   : Describe compiled patterns
+- [`re_locate()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
+  [`re_locate_all()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
+  : Locate matches
 - [`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md)
   : Describe the bundled PCRE2 library
