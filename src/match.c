@@ -103,7 +103,10 @@ SEXP zuregex_status_error(const zuregex_call *call,
     }
     const char *names[] = {"kind", "element", "rc", "offset", "message", ""};
     SEXP err = PROTECT(Rf_mkNamed(VECSXP, names));
-    SET_VECTOR_ELT(err, 0, Rf_mkString(is_utf_error(status[i].rc) ? "utf" : "match"));
+    const char *kind = status[i].in_template ? "template"
+                       : is_utf_error(status[i].rc) ? "utf"
+                       : "match";
+    SET_VECTOR_ELT(err, 0, Rf_mkString(kind));
     SET_VECTOR_ELT(err, 1, Rf_ScalarReal((double) i + 1));
     SET_VECTOR_ELT(err, 2, Rf_ScalarInteger(status[i].rc));
     SET_VECTOR_ELT(err, 3, Rf_ScalarReal((double) status[i].offset + 1));
