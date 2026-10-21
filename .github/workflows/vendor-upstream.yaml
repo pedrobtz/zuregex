@@ -1,0 +1,19 @@
+# Opens an issue when PCRE2 publishes a release newer than the vendored one.
+on:
+  schedule:
+    # Weekly. A new upstream release is not urgent.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+name: vendor-upstream
+
+jobs:
+  upstream:
+    uses: pedrobtz/r-actions/.github/workflows/vendor-upstream.yml@v1
+    permissions:
+      contents: read
+      issues: write
+    with:
+      upstream-repo: PCRE2Project/pcre2
+      current-version: awk -F'\t' 'NR > 1 { print $3 }' tools/vendor/manifest.tsv
+      tag-pattern: '^pcre2-[0-9]+\.[0-9]+$'
