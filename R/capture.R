@@ -191,7 +191,8 @@ match_groups <- function(x, pattern, all, n, call) {
       layout$colmap,
       length(layout$names),
       all,
-      as.double(n)
+      as.double(n),
+      FALSE
     ),
     call
   )
