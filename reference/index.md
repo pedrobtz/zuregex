@@ -22,5 +22,10 @@
 - [`re_locate()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
   [`re_locate_all()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
   : Locate matches
+- [`re_replace()`](https://pedrobtz.github.io/zuregex/reference/re_replace.md)
+  [`re_expand()`](https://pedrobtz.github.io/zuregex/reference/re_replace.md)
+  : Replace matches
+- [`re_split()`](https://pedrobtz.github.io/zuregex/reference/re_split.md)
+  : Split strings
 - [`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md)
   : Describe the bundled PCRE2 library

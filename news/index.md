@@ -52,3 +52,12 @@
   takes a `proto` for typed columns, as
   [`utils::strcapture()`](https://rdrr.io/r/utils/strcapture.html) does,
   and is about 17 times faster than it on 100,000 strings.
+- [`re_replace()`](https://pedrobtz.github.io/zuregex/reference/re_replace.md)
+  replaces matches with PCRE2’s extended templates (`$1`, `${name}`,
+  `${1:-default}`, `${1:+yes:no}`, case forcing), literal text, or a
+  function called once with every match.
+  [`re_expand()`](https://pedrobtz.github.io/zuregex/reference/re_replace.md)
+  expands a template with the first match, and
+  [`re_split()`](https://pedrobtz.github.io/zuregex/reference/re_split.md)
+  splits as Python’s `re.split()` does. Template errors raise
+  `zuregex_error_template`.

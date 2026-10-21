@@ -34,9 +34,14 @@ match, serially, through the three-phase core (Stage 3), and
 [`re_locate()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
 and
 [`re_locate_all()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
-locate (Stage 4), and the extract and match verbs capture (Stage 5). The
-roadmap in `.agents/roadmap.md` takes it to v0.1.0; §11 of the design
-lists the stages it is expected to hold.
+locate (Stage 4), and the extract and match verbs capture (Stage 5).
+[`re_replace()`](https://pedrobtz.github.io/zuregex/reference/re_replace.md),
+[`re_expand()`](https://pedrobtz.github.io/zuregex/reference/re_replace.md)
+and
+[`re_split()`](https://pedrobtz.github.io/zuregex/reference/re_split.md)
+complete the v0.1.0 verbs (Stage 6). The roadmap in `.agents/roadmap.md`
+takes it to v0.1.0; §11 of the design lists the stages it is expected to
+hold.
 
 ## Stage tracking
 
@@ -146,6 +151,16 @@ without the R API.
   `make_string()` there is the one place a match becomes a CHARSXP,
   marked UTF-8 for character input and bytes for bytes. `group_layout()`
   in `R/capture.R` builds the column union for per-element patterns.
+- `src/replace.c` builds each replacement from the match just found,
+  with `pcre2_substitute()` and `PCRE2_SUBSTITUTE_MATCHED`, so `n`, both
+  empty-match rules and
+  [`re_expand()`](https://pedrobtz.github.io/zuregex/reference/re_replace.md)
+  share one loop. A replacement function’s strings are spliced in by the
+  same loop, in match order.
+  [`re_split()`](https://pedrobtz.github.io/zuregex/reference/re_split.md)
+  is a builder over the capture scan in `src/capture.c`.
+- `tools/oracles/python-re.py` records Python’s results for
+  `tests/testthat/test-python.R`.
 - `src/locate.c` converts byte offsets to one-based characters in
   phase 2. Per-element match lists are `malloc()`ed, and phase 3 runs
   under `R_ExecWithCleanup()` so they are freed even if an R allocation
