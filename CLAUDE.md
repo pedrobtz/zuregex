@@ -31,7 +31,8 @@ compile, with flags, dialects and a cache (Stage 2). `re_detect()` and
 match verbs capture (Stage 5). `re_replace()`, `re_expand()` and
 `re_split()` complete the v0.1.0 verbs (Stage 6), and `re_limits()`
 bounds every one of them (Stage 7). Phase 2 runs on OpenMP threads
-(Stage 8). The
+(Stage 8). Other packages use it from C through `<zuregex-r.h>`
+(Stage 9). The
 roadmap in `.agents/roadmap.md` takes it to v0.1.0; §11 of the
 design lists the stages it is expected to hold.
 
@@ -157,6 +158,19 @@ API.
   loop: per-thread match data inside the parallel block, dynamic
   scheduling, and the thread count in a variable named `nt`.
   `src/threads.c` holds the cap and the serial threshold.
+- The C API: `inst/include/zuregex.h` is plain C99 with the types, flags,
+  status codes and function types, naming neither R nor PCRE2;
+  `inst/include/zuregex-r.h` adds the versioned table `zuregex_api_v1`,
+  fetched with `R_GetCCallable("zuregex", "zuregex_api_v1")`, and `zr_*()`
+  wrappers. `src/capi.c` implements it without the R API, so the fuzz
+  target builds it alone; `src/init.c` registers the table.
+  `src/capi_test.c` has internal `.Call` entry points that use the API as a
+  consumer does, for the tests.
+- `tools/consumer/zuregexlink` is the consumer fixture; `consumer.yaml`
+  installs and tests it. `tools/fuzz/` holds the libFuzzer harness and
+  seeds; `tools/pcre2-testdata/convert.py` turns PCRE2's own test results
+  into `tests/testthat/fixtures/pcre2-testdata.tsv.gz`, with every case it
+  leaves out in `tools/pcre2-testdata/skipped.tsv`.
 - `src/locate.c` converts byte offsets to one-based characters in phase 2.
   Per-element match lists are `malloc()`ed, and phase 3 runs under
   `R_ExecWithCleanup()` so they are freed even if an R allocation fails.
@@ -197,6 +211,10 @@ stage establishes it.
 - **PCRE2 is built with `LINK_SIZE 4`** (`src/pcre2-config/config.h`).
   With upstream's 2, patterns well under the cache's 65,536-character
   limit fail to compile.
+- **The C API table only grows.** Fields of `zuregex_api_v1` are appended,
+  never removed or changed; a change to an existing one is a new callable
+  (`zuregex_api_v2`). `zuregex.h` must compile alone as C99 and C++ with
+  `-Werror`, which `consumer.yaml` checks.
 - **The C API uses opaque handles** (design §7), so a PCRE2 upgrade never
   breaks a consumer's build. Exposing a raw `pcre2_code` in
   `inst/include/zuregex.h` ties every consumer to one PCRE2 version.
@@ -217,8 +235,9 @@ stage establishes it.
   Use it as an oracle rather than inventing cases by hand. The design (§9)
   names two oracles: PCRE2's own `testdata/` through the C API, and base R's
   `perl = TRUE` and stringr for parity, with every deliberate difference
-  marked `# GAP`. Base R and stringr parity is wired up through
-  `helper-corpus.R`; the `testdata/` oracle arrives with Stage 9.
+  marked `# GAP`. Both are wired up: base R and stringr through
+  `helper-corpus.R`, PCRE2's `testdata/` through the C API in
+  `test-pcre2-testdata.R`.
 - **Helpers live in `tests/testthat/helper-*.R`.** `helper-symbols.R` runs
   `nm` on the loaded shared object; `helper-types.R` has small predicates;
   `helper-cache.R` gives a test its own cache (`local_cache()`);

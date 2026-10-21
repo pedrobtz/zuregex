@@ -1,5 +1,5 @@
-#ifndef ZUREGEX_H
-#define ZUREGEX_H
+#ifndef ZUREGEX_INTERNAL_H
+#define ZUREGEX_INTERNAL_H
 
 #define R_NO_REMAP
 #include <Rinternals.h>
@@ -8,6 +8,13 @@ SEXP zuregex_info_c(void);
 SEXP zuregex_threads_c(SEXP n);
 SEXP zuregex_openmp_c(void);
 SEXP zuregex_serial_bytes_c(SEXP n);
+SEXP zuregex_capi_match_c(SEXP pattern, SEXP flags, SEXP dialect,
+                          SEXP subjects, SEXP options);
+SEXP zuregex_capi_substitute_c(SEXP pattern, SEXP flags, SEXP dialect,
+                               SEXP subject, SEXP tmpl, SEXP options,
+                               SEXP bufsize);
+SEXP zuregex_capi_info_c(SEXP pattern, SEXP flags, SEXP dialect, SEXP name);
+SEXP zuregex_capi_limit_c(SEXP pattern, SEXP subject, SEXP match_limit);
 SEXP zuregex_compile_c(SEXP pattern, SEXP flags, SEXP dialect, SEXP literal,
                        SEXP jit, SEXP utf, SEXP use_cache);
 SEXP zuregex_re_valid_c(SEXP re);

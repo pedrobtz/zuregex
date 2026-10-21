@@ -1,0 +1,8 @@
+# Packages that use zuregex's C API, built against this checkout by
+# .github/workflows/revdep.yaml. One GitHub repository per line, then the
+# ref to test.
+#
+# vectorscan's switch to zuregex lives on a branch until zuregex is on CRAN
+# (design D9); that branch is vectorscan's pull request, not this
+# package's.
+pedrobtz/vectorscan zuregex-c-api

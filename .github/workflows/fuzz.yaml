@@ -1,0 +1,31 @@
+# Coverage-guided fuzzing of the C API: zr_compile(), zr_match() over every
+# match, and zr_substitute() (tools/fuzz/harness.c). The target is built
+# without R from the C API, the pattern code and the vendored PCRE2, which
+# is what a consumer's untrusted pattern and subject reach.
+on:
+  pull_request:
+  schedule:
+    # A long run nightly. The corpus cache is what makes the short pull
+    # request runs and this one add up to a single campaign.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+name: fuzz
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz:
+    uses: pedrobtz/r-actions/.github/workflows/fuzz.yml@v1
+    with:
+      harness: tools/fuzz/harness.c
+      sources: src/capi.c src/pattern.c src/vendor/pcre2/src/*.c
+      cflags: >-
+        -g -O1 -fno-omit-frame-pointer
+        -Isrc/pcre2-config -Isrc/vendor/pcre2/src
+        -DHAVE_CONFIG_H -DPCRE2_CODE_UNIT_WIDTH=8 -DPCRE2_STATIC
+      seed-corpus: tools/fuzz/corpus
+      dictionary: tools/fuzz/regex.dict
+      max-total-time: ${{ github.event_name == 'schedule' && 1800 || 120 }}

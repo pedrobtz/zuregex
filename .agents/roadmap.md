@@ -27,7 +27,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 | 6 | [Replace, expand and split](#stage-6--replace-expand-and-split) | quick | [#8](https://github.com/pedrobtz/zuregex/issues/8) | [#22](https://github.com/pedrobtz/zuregex/pull/22) | 2026-10-21 |
 | 7 | [Limits](#stage-7--limits) | quick | [#9](https://github.com/pedrobtz/zuregex/issues/9) | [#23](https://github.com/pedrobtz/zuregex/pull/23) | 2026-10-21 |
 | 8 | [OpenMP](#stage-8--openmp) | full | [#10](https://github.com/pedrobtz/zuregex/issues/10) | [#24](https://github.com/pedrobtz/zuregex/pull/24) | 2026-10-21 |
-| 9 | [C API and consumers](#stage-9--c-api-and-consumers) | quick | [#11](https://github.com/pedrobtz/zuregex/issues/11) | | |
+| 9 | [C API and consumers](#stage-9--c-api-and-consumers) | quick | [#11](https://github.com/pedrobtz/zuregex/issues/11) | [#64](https://github.com/pedrobtz/zuregex/pull/64) | 2026-10-21 |
 | 10 | [Full CI](#stage-10--full-ci) | full | [#12](https://github.com/pedrobtz/zuregex/issues/12) | | |
 | 11 | [v0.1.0 readiness](#stage-11--v010-readiness) | full | [#13](https://github.com/pedrobtz/zuregex/issues/13) | | |
 
@@ -626,6 +626,34 @@ consumer proves it in CI, and PCRE2's own test corpus runs through that API.
 - Quick profile green.
 
 **Design.** §3, §7, §9, §12, §13 D9, D10.
+
+**Deviations (2026-10-21).**
+
+- The consumer fixture runs with zuregex installed, not absent from
+  `.libPaths()`. Rule R10.4 proves a header-only provider, where nothing
+  of the provider is needed at run time. zuregex's C API is a function
+  table registered with `R_RegisterCCallable()`, as design §7 and D9 have
+  it, so a consumer needs zuregex loaded. The fixture proves the other
+  half instead: it links no PCRE2 symbol of its own, and its results equal
+  the R verbs'.
+- The API is a versioned table, `zuregex_api_v1`, behind `zr_*()`
+  wrappers in `<zuregex-r.h>`, as zucrypt's is, rather than separate
+  callables per function. `zr_version()` reports PCRE2's version.
+- Beyond the functions §7 lists: `zr_group_count()`, `zr_group_number()`,
+  `zr_group_name()`, `zr_jit()`, `zr_match_data_create()` and `_free()`,
+  `zr_set_limits()`, `zr_offsets()` and `zr_strerror()`. Each limit has its
+  own status code, so a consumer can show PCRE2's message and retry a JIT
+  stack overflow in the interpreter (`ZR_NO_JIT_MATCH`), as vectorscan
+  does.
+- The `testdata/` subset is testoutput1 (Perl-compatible, no UTF) and
+  testoutput4 (with UTF): 3,760 cases pass, and 349 are skipped, each with
+  its reason in `tools/pcre2-testdata/skipped.tsv`. Most use pcre2test
+  modifiers zuregex has no flag for (`g`, `mark`, `aftertext`).
+- The fuzz harness is `tools/fuzz/harness.c`, a libFuzzer target that
+  r-actions' `fuzz.yml` builds from the C API and the vendored PCRE2, not a
+  zufuzz harness: zufuzz instruments R code, and everything a consumer's
+  pattern and subject reach here is C that libFuzzer instruments
+  directly.
 
 ## Stage 10 — Full CI
 
