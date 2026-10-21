@@ -49,24 +49,24 @@
 #' re_match(x, "(?<year>\\d{4})-(?<month>\\d{2})")
 #' re_match(x, "(\\d{4})-(\\d{2})", proto = data.frame(year = 0L, month = 0L))
 #' re_match_all(x, "(?<year>\\d{4})")
-re_extract <- function(x, pattern, group = 0) {
+re_extract <- function(x, pattern, group = 0, limits = NULL) {
   call <- sys.call()
-  extract(x, pattern, group, all = FALSE, n = 1, call = call)
+  extract(x, pattern, group, all = FALSE, n = 1, limits, call = call)
 }
 
 #' @rdname re_extract
 #' @export
-re_extract_all <- function(x, pattern, group = 0, n = Inf) {
+re_extract_all <- function(x, pattern, group = 0, n = Inf, limits = NULL) {
   call <- sys.call()
   check_n(n, call)
-  extract(x, pattern, group, all = TRUE, n = n, call = call)
+  extract(x, pattern, group, all = TRUE, n = n, limits, call = call)
 }
 
 #' @rdname re_extract
 #' @export
-re_match <- function(x, pattern, proto = NULL) {
+re_match <- function(x, pattern, proto = NULL, limits = NULL) {
   call <- sys.call()
-  out <- match_groups(x, pattern, all = FALSE, n = 1, call = call)
+  out <- match_groups(x, pattern, all = FALSE, n = 1, limits, call = call)
   if (!is.null(proto)) {
     out <- conform_to_proto(out, proto, call)
   }
@@ -75,10 +75,10 @@ re_match <- function(x, pattern, proto = NULL) {
 
 #' @rdname re_extract
 #' @export
-re_match_all <- function(x, pattern, n = Inf) {
+re_match_all <- function(x, pattern, n = Inf, limits = NULL) {
   call <- sys.call()
   check_n(n, call)
-  match_groups(x, pattern, all = TRUE, n = n, call = call)
+  match_groups(x, pattern, all = TRUE, n = n, limits, call = call)
 }
 
 check_n <- function(n, call) {
@@ -105,7 +105,7 @@ table_groups <- function(table) {
   .Call(zuregex_re_info_c, table)$group_names
 }
 
-extract <- function(x, pattern, group, all, n, call) {
+extract <- function(x, pattern, group, all, n, limits, call) {
   s <- subjects(x, call)
   p <- patterns(pattern, s$n, s$bytes, call)
   groups <- table_groups(p$table)
@@ -117,6 +117,7 @@ extract <- function(x, pattern, group, all, n, call) {
       s$bytes,
       p$table,
       p$index,
+      call_limits(limits, call),
       idx,
       all,
       as.double(n)
@@ -177,7 +178,7 @@ group_index <- function(group, groups, call) {
   )
 }
 
-match_groups <- function(x, pattern, all, n, call) {
+match_groups <- function(x, pattern, all, n, limits, call) {
   s <- subjects(x, call)
   p <- patterns(pattern, s$n, s$bytes, call)
   layout <- group_layout(table_groups(p$table))
@@ -188,6 +189,7 @@ match_groups <- function(x, pattern, all, n, call) {
       s$bytes,
       p$table,
       p$index,
+      call_limits(limits, call),
       layout$colmap,
       length(layout$names),
       all,

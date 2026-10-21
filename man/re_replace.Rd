@@ -5,9 +5,16 @@
 \alias{re_expand}
 \title{Replace matches}
 \usage{
-re_replace(x, pattern, replacement, n = Inf, syntax = c("extended", "literal"))
+re_replace(
+  x,
+  pattern,
+  replacement,
+  n = Inf,
+  syntax = c("extended", "literal"),
+  limits = NULL
+)
 
-re_expand(x, pattern, template)
+re_expand(x, pattern, template, limits = NULL)
 }
 \arguments{
 \item{x}{A character vector, a raw vector, or a list of raw vectors.
@@ -22,6 +29,9 @@ An \code{NA} template gives \code{NA}.}
 \item{n}{The most matches to replace per element, \code{Inf} for all.}
 
 \item{syntax}{\code{"extended"} or \code{"literal"}; see Templates.}
+
+\item{limits}{A \code{\link[=re_limits]{re_limits()}} object, or \code{NULL} for
+\code{getOption("zuregex.limits")} and then PCRE2's defaults.}
 
 \item{template}{A character vector of templates, of length 1 or the
 length of \code{x}.}

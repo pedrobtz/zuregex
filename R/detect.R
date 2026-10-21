@@ -27,6 +27,8 @@
 #'   subject (Python's `re.fullmatch()`). Anchoring is done by PCRE2, so it
 #'   holds for every branch of a top-level alternation.
 #' @param negate If `TRUE`, return `TRUE` for elements that do not match.
+#' @param limits A [re_limits()] object, or `NULL` for
+#'   `getOption("zuregex.limits")` and then PCRE2's defaults.
 #' @return `re_detect()`: a logical vector, one per subject. `re_count()`:
 #'   an integer vector, one per subject.
 #' @export
@@ -42,7 +44,8 @@ re_detect <- function(
   x,
   pattern,
   anchor = c("none", "start", "full"),
-  negate = FALSE
+  negate = FALSE,
+  limits = NULL
 ) {
   call <- sys.call()
   if (missing(anchor)) {
@@ -59,6 +62,7 @@ re_detect <- function(
       s$bytes,
       p$table,
       p$index,
+      call_limits(limits, call),
       match(anchor, c("none", "start", "full")) - 1L,
       negate
     ),
@@ -68,9 +72,19 @@ re_detect <- function(
 
 #' @rdname re_detect
 #' @export
-re_count <- function(x, pattern) {
+re_count <- function(x, pattern, limits = NULL) {
   call <- sys.call()
   s <- subjects(x, call)
   p <- patterns(pattern, s$n, s$bytes, call)
-  run_verb(.Call(zuregex_count_c, s$x, s$bytes, p$table, p$index), call)
+  run_verb(
+    .Call(
+      zuregex_count_c,
+      s$x,
+      s$bytes,
+      p$table,
+      p$index,
+      call_limits(limits, call)
+    ),
+    call
+  )
 }

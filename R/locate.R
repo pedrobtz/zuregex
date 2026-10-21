@@ -38,13 +38,21 @@
 #'
 #' re_locate_all(x, "[aeiou]")
 #' re_locate_all("aaaa", "aa", overlap = TRUE)
-re_locate <- function(x, pattern, bytes = FALSE) {
+re_locate <- function(x, pattern, bytes = FALSE, limits = NULL) {
   call <- sys.call()
   check_flag(bytes, "bytes", call)
   s <- subjects(x, call)
   p <- patterns(pattern, s$n, s$bytes, call)
   out <- run_verb(
-    .Call(zuregex_locate_c, s$x, s$bytes, p$table, p$index, !bytes),
+    .Call(
+      zuregex_locate_c,
+      s$x,
+      s$bytes,
+      p$table,
+      p$index,
+      call_limits(limits, call),
+      !bytes
+    ),
     call
   )
   colnames(out) <- c("start", "end")
@@ -58,7 +66,8 @@ re_locate_all <- function(
   pattern,
   n = Inf,
   overlap = FALSE,
-  bytes = FALSE
+  bytes = FALSE,
+  limits = NULL
 ) {
   call <- sys.call()
   if (
@@ -88,6 +97,7 @@ re_locate_all <- function(
       s$bytes,
       p$table,
       p$index,
+      call_limits(limits, call),
       as.double(n),
       overlap,
       !bytes

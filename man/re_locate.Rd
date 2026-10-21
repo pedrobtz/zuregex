@@ -5,9 +5,16 @@
 \alias{re_locate_all}
 \title{Locate matches}
 \usage{
-re_locate(x, pattern, bytes = FALSE)
+re_locate(x, pattern, bytes = FALSE, limits = NULL)
 
-re_locate_all(x, pattern, n = Inf, overlap = FALSE, bytes = FALSE)
+re_locate_all(
+  x,
+  pattern,
+  n = Inf,
+  overlap = FALSE,
+  bytes = FALSE,
+  limits = NULL
+)
 }
 \arguments{
 \item{x}{A character vector, a raw vector, or a list of raw vectors.
@@ -16,6 +23,9 @@ re_locate_all(x, pattern, n = Inf, overlap = FALSE, bytes = FALSE)
 \item{pattern}{A character vector or an \code{re} vector; see Patterns.}
 
 \item{bytes}{If \code{TRUE}, offsets count bytes instead of characters.}
+
+\item{limits}{A \code{\link[=re_limits]{re_limits()}} object, or \code{NULL} for
+\code{getOption("zuregex.limits")} and then PCRE2's defaults.}
 
 \item{n}{The most matches to return per element, \code{Inf} for all.}
 
