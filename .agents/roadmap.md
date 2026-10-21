@@ -19,7 +19,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 | Stage | Title | CI | Issue | Pull request | Done |
 | --- | --- | --- | --- | --- | --- |
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zuregex/issues/2) | [#16](https://github.com/pedrobtz/zuregex/pull/16) | 2026-10-21 |
-| 1 | [Vendor PCRE2](#stage-1--vendor-pcre2) | full | [#3](https://github.com/pedrobtz/zuregex/issues/3) | | 2026-10-21 |
+| 1 | [Vendor PCRE2](#stage-1--vendor-pcre2) | full | [#3](https://github.com/pedrobtz/zuregex/issues/3) | [#17](https://github.com/pedrobtz/zuregex/pull/17) | 2026-10-21 |
 | 2 | [Compile, flags and the cache](#stage-2--compile-flags-and-the-cache) | full | [#4](https://github.com/pedrobtz/zuregex/issues/4) | | |
 | 3 | [Detect and count](#stage-3--detect-and-count) | quick | [#5](https://github.com/pedrobtz/zuregex/issues/5) | | |
 | 4 | [Locate](#stage-4--locate) | quick | [#6](https://github.com/pedrobtz/zuregex/issues/6) | | |
