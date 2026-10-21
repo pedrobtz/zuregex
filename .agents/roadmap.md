@@ -18,7 +18,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 
 | Stage | Title | CI | Issue | Pull request | Done |
 | --- | --- | --- | --- | --- | --- |
-| 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zuregex/issues/2) | | |
+| 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zuregex/issues/2) | | 2026-10-21 |
 | 1 | [Vendor PCRE2](#stage-1--vendor-pcre2) | full | [#3](https://github.com/pedrobtz/zuregex/issues/3) | | |
 | 2 | [Compile, flags and the cache](#stage-2--compile-flags-and-the-cache) | full | [#4](https://github.com/pedrobtz/zuregex/issues/4) | | |
 | 3 | [Detect and count](#stage-3--detect-and-count) | quick | [#5](https://github.com/pedrobtz/zuregex/issues/5) | | |
@@ -73,6 +73,19 @@ minutes.
 - `DESCRIPTION` has no placeholder text.
 
 **Design.** §1.3, §2.
+
+**Deviations (2026-10-21).**
+
+- The README pitch keeps only what v0.1.0 ships (§2): "files scanned
+  without `readLines()`", the lexer and callouts are left out until they
+  land, so the README promises nothing the package does not do.
+- `src/zuregex.c` gained `R_init_zuregex()` registering an empty routine
+  table. Without it every CI leg raised the compiled-code NOTE about
+  `R_registerRoutines` and `R_useDynamicSymbols`, against this stage's
+  0-notes criterion.
+- `coverage.yaml` sends the badge to `gh-pages` and `pkgdown.yaml` stops
+  force-pushing. The ruleset on `main` rejected every badge commit, so
+  coverage was red on each push to `main`.
 
 ## Stage 1 — Vendor PCRE2
 
