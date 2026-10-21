@@ -199,6 +199,12 @@ with the `quick`/`full` profile chosen by event and the `full-ci` label, and
 built by `.github/workflows/pkgdown.yaml`, the `r-lib/actions` example
 workflow.
 
+A ruleset requires pull requests on `main`, so the coverage badge cannot be
+committed there. `coverage.yaml` sets `badge-branch: gh-pages`, and the
+pkgdown deploy sets `force: false` so it rebases over the badge commit
+instead of overwriting it. Keep both, and keep the README badge pointing at
+`gh-pages/badges/coverage.svg`.
+
 Small edits get a small run. The shared workflows look at the files a pull
 request changes, compared with its merge base:
 
