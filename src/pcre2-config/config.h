@@ -48,10 +48,17 @@
 #define HAVE_BUILTIN_MUL_OVERFLOW 1
 #endif
 
+/* Four-byte internal links instead of upstream's two, so a compiled
+ * pattern may exceed 64 KiB. The cache holds patterns of up to 65,536
+ * characters and compiles longer ones for the call (design section 6.4);
+ * with two-byte links, much shorter patterns already fail with "regular
+ * expression is too large". The cost is a slightly larger compiled
+ * pattern. */
+#define LINK_SIZE 4
+
 /* Upstream's defaults, written out so a reader does not have to look them
  * up. LF is base R's newline convention for perl = TRUE. */
 #define NEWLINE_DEFAULT 2
-#define LINK_SIZE 2
 #define HEAP_LIMIT 20000000
 #define MATCH_LIMIT 10000000
 #define MATCH_LIMIT_DEPTH MATCH_LIMIT
