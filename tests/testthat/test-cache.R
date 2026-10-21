@@ -117,7 +117,11 @@ test_that("a cache hit costs under 5% of a compile", {
   local_cache()
   # A pattern whose compilation and JIT compilation are not trivial, and
   # enough repetitions that the timer's resolution does not decide.
-  p <- paste0("(?<w", 1:40, ">[a-z]+\\d{2,4}(?:foo|bar|baz))?", collapse = "")
+  # 120 groups: the R code around a cache hit costs about 14 microseconds
+  # on any machine, so the compile it is compared with must be well above
+  # 280 for the ratio to measure the cache (R oldrel on CI compiled the
+  # 40-group version in 216).
+  p <- paste0("(?<w", 1:120, ">[a-z]+\\d{2,4}(?:foo|bar|baz))?", collapse = "")
   n <- 2000L
   uncached <- system.time(
     for (i in seq_len(n)) {
