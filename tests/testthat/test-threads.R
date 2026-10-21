@@ -90,6 +90,11 @@ test_that("re_detect() on four threads is at least 2.5 times faster than one", {
   old <- re_threads(0)
   withr::defer(re_threads(old))
   skip_if(re_threads() < 4L, "fewer than four threads available")
+  # Four physical cores, not four logical CPUs: GitHub's four-vCPU runners
+  # have two cores, where four threads measured 1.99 times one. The
+  # roadmap records the measurement this asserts, on four cores.
+  cores <- parallel::detectCores(logical = FALSE)
+  skip_if(is.na(cores) || cores < 4L, "fewer than four physical cores")
   withr::local_seed(1)
   x <- vapply(
     seq_len(2e5),
