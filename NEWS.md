@@ -21,3 +21,7 @@
   characters or bytes, so `substr()` extracts each match. `re_locate_all()`
   takes `n` and `overlap`, and follows JavaScript's rule for empty matches
   with `dialect = "js"`, as `re_count()` now does.
+* `re_extract()`, `re_extract_all()`, `re_match()` and `re_match_all()`
+  return matches and capture groups as vectors and data frames built in C.
+  `re_match()` takes a `proto` for typed columns, as `utils::strcapture()`
+  does, and is about 17 times faster than it on 100,000 strings.

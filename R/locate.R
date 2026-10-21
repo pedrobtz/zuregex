@@ -99,8 +99,10 @@ re_locate_all <- function(
 
 # A data frame from a named list of equal-length columns, without the
 # checks data.frame() spends time on.
-as_data_frame <- function(cols) {
-  n <- if (length(cols)) length(cols[[1L]]) else 0L
+as_data_frame <- function(cols, n = NULL) {
+  if (is.null(n)) {
+    n <- if (length(cols)) length(cols[[1L]]) else 0L
+  }
   attr(cols, "row.names") <- .set_row_names(n)
   class(cols) <- "data.frame"
   cols
