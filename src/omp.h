@@ -42,8 +42,9 @@
 #endif
 
 // Below this many subject bytes in a call, phase 2 runs on one thread:
-// starting threads costs more than the matching. Measured in Stage 8; see
-// the roadmap.
-#define ZUREGEX_SERIAL_BYTES ((double) 262144)
+// starting threads costs more than the matching. Measured in Stage 8 with
+// the cheapest pattern, the worst case for threading: four threads first
+// beat one at 16 KiB (see the roadmap).
+#define ZUREGEX_SERIAL_BYTES ((double) 16384)
 
 #endif

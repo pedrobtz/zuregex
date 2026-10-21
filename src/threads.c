@@ -10,6 +10,11 @@
 // OMP_THREAD_LIMIT.
 static int thread_cap = 0;
 
+// The serial threshold, in total subject bytes. Settable internally so the
+// tests and the measurement behind ZUREGEX_SERIAL_BYTES can run the
+// parallel path on small inputs.
+static double serial_bytes = ZUREGEX_SERIAL_BYTES;
+
 static int max_threads(void) {
 #ifdef ZUREGEX_OPENMP
   int max = omp_get_max_threads();
@@ -20,7 +25,7 @@ static int max_threads(void) {
 }
 
 int zuregex_threads_for(const zuregex_call *call) {
-  if (call->n < 2 || call->total_bytes < ZUREGEX_SERIAL_BYTES) return 1;
+  if (call->n < 2 || call->total_bytes < serial_bytes) return 1;
   return max_threads();
 }
 
@@ -40,4 +45,11 @@ SEXP zuregex_openmp_c(void) {
 #else
   return Rf_ScalarLogical(0);
 #endif
+}
+
+// Sets the serial threshold and returns the previous one; NULL queries.
+SEXP zuregex_serial_bytes_c(SEXP n) {
+  double previous = serial_bytes;
+  if (!Rf_isNull(n)) serial_bytes = Rf_asReal(n);
+  return Rf_ScalarReal(previous);
 }

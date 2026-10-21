@@ -45,3 +45,9 @@ re_threads <- function(n = NULL) {
   }
   invisible(.Call(zuregex_threads_c, as.integer(n)))
 }
+
+# The serial threshold in total subject bytes; NULL queries, a number sets
+# it and returns the previous value. Internal: for tests and measurement.
+serial_bytes <- function(n = NULL) {
+  .Call(zuregex_serial_bytes_c, if (is.null(n)) NULL else as.double(n))
+}
