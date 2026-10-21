@@ -9,6 +9,15 @@
 #include "zuregex.h"
 #include "../inst/include/zuregex-r.h"
 
+// A copy of `len` bytes followed by 64 zero bytes, so JIT code's reads past
+// the end stay initialised under valgrind (see zr_match() in zuregex.h).
+static const char *padded(const char *s, size_t len) {
+  char *copy = R_alloc(len + 64, 1);
+  memcpy(copy, s, len);
+  memset(copy + len, 0, 64);
+  return copy;
+}
+
 static zr_pattern *compile_or_error(SEXP pattern, SEXP flags, SEXP dialect) {
   // A "bytes" string is passed as it is: the PCRE2 testdata corpus has
   // patterns that are not UTF-8.
@@ -38,8 +47,8 @@ SEXP zuregex_capi_match_c(SEXP pattern, SEXP flags, SEXP dialect,
   SEXP out = PROTECT(Rf_allocVector(VECSXP, n));
   for (R_xlen_t i = 0; i < n; i++) {
     SEXP s = STRING_ELT(subjects, i);
-    const char *subj = CHAR(s);
     size_t len = (size_t) LENGTH(s);
+    const char *subj = padded(CHAR(s), len);
     int rc = zr_match(p, subj, len, 0, (uint32_t) Rf_asInteger(options), md);
     if (rc < 0) {
       SET_VECTOR_ELT(out, i, Rf_ScalarInteger(rc));
@@ -69,7 +78,8 @@ SEXP zuregex_capi_substitute_c(SEXP pattern, SEXP flags, SEXP dialect,
                                SEXP subject, SEXP tmpl, SEXP options,
                                SEXP bufsize) {
   zr_pattern *p = compile_or_error(pattern, flags, dialect);
-  const char *subj = Rf_translateCharUTF8(STRING_ELT(subject, 0));
+  const char *subj0 = Rf_translateCharUTF8(STRING_ELT(subject, 0));
+  const char *subj = padded(subj0, strlen(subj0));
   const char *t = Rf_translateCharUTF8(STRING_ELT(tmpl, 0));
   size_t size = (size_t) Rf_asReal(bufsize);
   char *buf = R_alloc(size > 0 ? size : 1, 1);
@@ -114,8 +124,9 @@ SEXP zuregex_capi_limit_c(SEXP pattern, SEXP subject, SEXP match_limit) {
   zr_pattern *p = compile_or_error(pattern, Rf_ScalarReal(0), Rf_ScalarInteger(0));
   zr_match_data *md = zr_match_data_create(p);
   zr_set_limits(md, (uint32_t) Rf_asReal(match_limit), 0, 0);
-  const char *subj = CHAR(STRING_ELT(subject, 0));
-  int rc = zr_match(p, subj, strlen(subj), 0, 0, md);
+  const char *subj0 = CHAR(STRING_ELT(subject, 0));
+  const char *subj = padded(subj0, strlen(subj0));
+  int rc = zr_match(p, subj, strlen(subj0), 0, 0, md);
   zr_match_data_free(md);
   zr_free(p);
   return Rf_ScalarInteger(rc);
