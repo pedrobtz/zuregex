@@ -25,7 +25,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 | 4 | [Locate](#stage-4--locate) | quick | [#6](https://github.com/pedrobtz/zuregex/issues/6) | [#20](https://github.com/pedrobtz/zuregex/pull/20) | 2026-10-21 |
 | 5 | [Extract and match](#stage-5--extract-and-match) | quick | [#7](https://github.com/pedrobtz/zuregex/issues/7) | [#21](https://github.com/pedrobtz/zuregex/pull/21) | 2026-10-21 |
 | 6 | [Replace, expand and split](#stage-6--replace-expand-and-split) | quick | [#8](https://github.com/pedrobtz/zuregex/issues/8) | [#22](https://github.com/pedrobtz/zuregex/pull/22) | 2026-10-21 |
-| 7 | [Limits](#stage-7--limits) | quick | [#9](https://github.com/pedrobtz/zuregex/issues/9) | | |
+| 7 | [Limits](#stage-7--limits) | quick | [#9](https://github.com/pedrobtz/zuregex/issues/9) | | 2026-10-21 |
 | 8 | [OpenMP](#stage-8--openmp) | full | [#10](https://github.com/pedrobtz/zuregex/issues/10) | | |
 | 9 | [C API and consumers](#stage-9--c-api-and-consumers) | quick | [#11](https://github.com/pedrobtz/zuregex/issues/11) | | |
 | 10 | [Full CI](#stage-10--full-ci) | full | [#12](https://github.com/pedrobtz/zuregex/issues/12) | | |
@@ -488,6 +488,15 @@ limit is a classed error or an `NA` the caller asked for.
 - Quick profile green.
 
 **Design.** §5.5, §6.7, §8, §13 D11.
+
+**Deviations (2026-10-21).**
+
+- `heap` is in kibibytes, PCRE2's unit. The JIT compiler honours only
+  `match`; `depth` and `heap` bound the interpreter, as PCRE2 documents.
+  A JIT stack overflow is reported as the `jit_stack` limit.
+- The warning has class `zuregex_warning_limit` and a `count` field.
+- With `on_limit = "na"`, an element that hits a limit after some matches
+  gives `NA`, not the matches found before the limit.
 
 ## Stage 8 — OpenMP
 

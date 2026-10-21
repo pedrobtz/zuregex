@@ -30,3 +30,7 @@
   or a function called once with every match. `re_expand()` expands a
   template with the first match, and `re_split()` splits as Python's
   `re.split()` does. Template errors raise `zuregex_error_template`.
+* `re_limits()` bounds the work of a match, through `limits =` on every
+  verb or the `zuregex.limits` option. An element that hits a limit raises
+  `zuregex_error_limit`, or gives `NA` and one warning per call with
+  `on_limit = "na"`.
