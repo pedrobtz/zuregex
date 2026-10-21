@@ -54,7 +54,8 @@ re_replace <- function(
   pattern,
   replacement,
   n = Inf,
-  syntax = c("extended", "literal")
+  syntax = c("extended", "literal"),
+  limits = NULL
 ) {
   call <- sys.call()
   check_n(n, call)
@@ -64,13 +65,15 @@ re_replace <- function(
   check_choice(syntax, c("extended", "literal"), "syntax", call)
   s <- subjects(x, call)
   p <- patterns(pattern, s$n, s$bytes, call)
+  lim <- call_limits(limits, call)
   if (is.function(replacement)) {
-    return(replace_with_function(s, p, pattern, replacement, n, call))
+    return(replace_with_function(s, p, replacement, n, lim, call))
   }
   check_templates(replacement, "replacement", s$n, call)
   run_replace(
     s,
     p,
+    lim,
     enc2utf8(replacement),
     0L,
     syntax == "literal",
@@ -82,12 +85,22 @@ re_replace <- function(
 
 #' @rdname re_replace
 #' @export
-re_expand <- function(x, pattern, template) {
+re_expand <- function(x, pattern, template, limits = NULL) {
   call <- sys.call()
   s <- subjects(x, call)
   p <- patterns(pattern, s$n, s$bytes, call)
   check_templates(template, "template", s$n, call)
-  run_replace(s, p, enc2utf8(template), 0L, FALSE, 1, TRUE, call)
+  run_replace(
+    s,
+    p,
+    call_limits(limits, call),
+    enc2utf8(template),
+    0L,
+    FALSE,
+    1,
+    TRUE,
+    call
+  )
 }
 
 check_templates <- function(x, arg, n, call) {
@@ -116,18 +129,31 @@ check_templates <- function(x, arg, n, call) {
   }
 }
 
-run_replace <- function(s, p, repl, mode, literal, n, expand, call) {
+run_replace <- function(
+  s,
+  p,
+  lim,
+  repl,
+  mode,
+  literal,
+  n,
+  expand,
+  call,
+  first = NULL
+) {
   res <- .Call(
     zuregex_replace_c,
     s$x,
     s$bytes,
     p$table,
     p$index,
+    lim,
     repl,
     mode,
     literal,
     as.double(n),
-    expand
+    expand,
+    first
   )
   if (!is.null(res$error) && res$error$kind == "template") {
     raise_template_error(res$error, repl, call)
@@ -167,30 +193,48 @@ raise_template_error <- function(err, repl, call) {
   )
 }
 
-replace_with_function <- function(s, p, pattern, fun, n, call) {
+replace_with_function <- function(s, p, fun, n, lim, call) {
   layout <- group_layout(table_groups(p$table))
-  # The matches with the whole match as group 0: the same iteration as the
-  # replacement pass below, so row i is the i-th match replaced.
+  # The matches with the whole match as group 0, from the same iteration as
+  # the replacement pass below. Elements that hit a limit here are NA and
+  # skipped there, so this pass's limit warning is the call's one warning,
+  # raised once the replacement is done.
+  limit_warning <- NULL
   zero <- lapply(layout$colmap, function(m) c(1L, m + 1L))
-  cols <- run_verb(
-    .Call(
-      zuregex_match_c,
-      s$x,
-      s$bytes,
-      p$table,
-      p$index,
-      zero,
-      length(layout$names) + 1L,
-      TRUE,
-      as.double(n),
-      TRUE
+  cols <- withCallingHandlers(
+    run_verb(
+      .Call(
+        zuregex_match_c,
+        s$x,
+        s$bytes,
+        p$table,
+        p$index,
+        lim,
+        zero,
+        length(layout$names) + 1L,
+        TRUE,
+        as.double(n),
+        TRUE
+      ),
+      call
     ),
-    call
+    zuregex_warning_limit = function(w) {
+      limit_warning <<- w
+      invokeRestart("muffleWarning")
+    }
   )
   names(cols) <- c("element", "match", "0", layout$names)
   matches <- as_data_frame(cols)
-  matches <- matches[!is.na(matches$match), , drop = FALSE]
+  # Each element's first row, 0-based, for the replacement pass; NA where
+  # the element gives NA (an NA subject or pattern, or a limit).
+  na_rows <- is.na(matches$match)
+  first <- rep(0L, s$n)
+  first[matches$element[na_rows]] <- NA_integer_
+  matches <- matches[!na_rows, , drop = FALSE]
   rownames(matches) <- NULL
+  counts <- tabulate(matches$element, nbins = s$n)
+  ok <- !is.na(first)
+  first[ok] <- c(0L, cumsum(counts))[seq_len(s$n)][ok]
   repl <- character()
   if (nrow(matches) > 0L) {
     repl <- fun(matches)
@@ -206,7 +250,22 @@ replace_with_function <- function(s, p, pattern, fun, n, call) {
       )
     }
   }
-  run_replace(s, p, enc2utf8(repl), 1L, TRUE, n, FALSE, call)
+  out <- run_replace(
+    s,
+    p,
+    lim,
+    enc2utf8(repl),
+    1L,
+    TRUE,
+    n,
+    FALSE,
+    call,
+    first = as.integer(first)
+  )
+  if (!is.null(limit_warning)) {
+    warning(limit_warning)
+  }
+  out
 }
 
 #' Split strings
@@ -230,7 +289,7 @@ replace_with_function <- function(s, p, pattern, fun, n, call) {
 #' re_split(c("a, b,c", "d"), ",\\s*")
 #' re_split("a1b22c", "(\\d+)", keep_groups = TRUE)
 #' re_split("a-b-c-d", "-", n = 2)
-re_split <- function(x, pattern, n = Inf, keep_groups = FALSE) {
+re_split <- function(x, pattern, n = Inf, keep_groups = FALSE, limits = NULL) {
   call <- sys.call()
   check_n(n, call)
   check_flag(keep_groups, "keep_groups", call)
@@ -243,6 +302,7 @@ re_split <- function(x, pattern, n = Inf, keep_groups = FALSE) {
       s$bytes,
       p$table,
       p$index,
+      call_limits(limits, call),
       as.double(max(n - 1, 0)),
       keep_groups
     ),

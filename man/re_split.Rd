@@ -4,7 +4,7 @@
 \alias{re_split}
 \title{Split strings}
 \usage{
-re_split(x, pattern, n = Inf, keep_groups = FALSE)
+re_split(x, pattern, n = Inf, keep_groups = FALSE, limits = NULL)
 }
 \arguments{
 \item{x}{A character vector, a raw vector, or a list of raw vectors.
@@ -18,6 +18,9 @@ pieces.}
 
 \item{keep_groups}{If \code{TRUE}, the groups of each separator are inserted
 after the piece before it, \code{NA} for a group that did not take part.}
+
+\item{limits}{A \code{\link[=re_limits]{re_limits()}} object, or \code{NULL} for
+\code{getOption("zuregex.limits")} and then PCRE2's defaults.}
 }
 \value{
 A list as long as \code{x} of character vectors; \code{NA} for an \code{NA}

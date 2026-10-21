@@ -5,9 +5,15 @@
 \alias{re_count}
 \title{Detect and count matches}
 \usage{
-re_detect(x, pattern, anchor = c("none", "start", "full"), negate = FALSE)
+re_detect(
+  x,
+  pattern,
+  anchor = c("none", "start", "full"),
+  negate = FALSE,
+  limits = NULL
+)
 
-re_count(x, pattern)
+re_count(x, pattern, limits = NULL)
 }
 \arguments{
 \item{x}{A character vector, a raw vector, or a list of raw vectors.
@@ -21,6 +27,9 @@ subject (Python's \code{re.fullmatch()}). Anchoring is done by PCRE2, so it
 holds for every branch of a top-level alternation.}
 
 \item{negate}{If \code{TRUE}, return \code{TRUE} for elements that do not match.}
+
+\item{limits}{A \code{\link[=re_limits]{re_limits()}} object, or \code{NULL} for
+\code{getOption("zuregex.limits")} and then PCRE2's defaults.}
 }
 \value{
 \code{re_detect()}: a logical vector, one per subject. \code{re_count()}:

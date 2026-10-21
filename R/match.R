@@ -119,6 +119,29 @@ raise_match_error <- function(err, call) {
       call = call
     )
   }
+  if (err$kind == "limit") {
+    limit <- switch(
+      as.character(err$rc),
+      "-47" = "match",
+      "-53" = "depth",
+      "-63" = "heap",
+      "-46" = "jit_stack",
+      "unknown"
+    )
+    zuregex_abort(
+      "limit",
+      sprintf(
+        "Element %s of `x` hit the %s limit: %s. See `?re_limits`.",
+        format(element, scientific = FALSE),
+        limit,
+        err$message
+      ),
+      element = element,
+      limit = limit,
+      pcre2_message = err$message,
+      call = call
+    )
+  }
   zuregex_abort(
     "match",
     sprintf(
@@ -136,6 +159,22 @@ raise_match_error <- function(err, call) {
 run_verb <- function(res, call) {
   if (!is.null(res$error)) {
     raise_match_error(res$error, call)
+  }
+  if (isTRUE(res$limited > 0)) {
+    n <- res$limited
+    warning(structure(
+      class = c("zuregex_warning_limit", "warning", "condition"),
+      list(
+        message = sprintf(
+          "%s element%s of `x` hit a match limit and %s `NA`.",
+          format(n, scientific = FALSE),
+          if (n == 1) "" else "s",
+          if (n == 1) "is" else "are"
+        ),
+        call = call,
+        count = n
+      )
+    ))
   }
   res$value
 }

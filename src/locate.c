@@ -24,10 +24,10 @@ static zuregex_status *new_status(R_xlen_t n) {
   return st;
 }
 
-SEXP zuregex_locate_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
+SEXP zuregex_locate_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                       SEXP char_offsets) {
   zuregex_call call;
-  zuregex_collect(x, Rf_asLogical(bytes), table, index, &call);
+  zuregex_collect(x, Rf_asLogical(bytes), table, index, limits, &call);
   int chars = Rf_asLogical(char_offsets);
 
   SEXP out = PROTECT(Rf_allocMatrix(INTSXP, (int) call.n, 2));
@@ -43,7 +43,7 @@ SEXP zuregex_locate_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
     start_col[i] = end_col[i] = NA_INTEGER;
     if (p == NULL) continue;
     const zuregex_subject *s = &call.subjects[i];
-    if (zuregex_match_once(p, s, 0, 0, md, &status[i]) != 1) continue;
+    if (zuregex_match_once(&call, p, s, 0, 0, md, &status[i]) != 1) continue;
     PCRE2_SIZE *ov = pcre2_get_ovector_pointer(md);
     start_col[i] = to_offset(s, ov[0], chars, p->key.utf) + 1;
     end_col[i] = to_offset(s, ov[1], chars, p->key.utf);
@@ -51,7 +51,7 @@ SEXP zuregex_locate_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
   pcre2_match_data_free(md);
 
   SEXP err = PROTECT(zuregex_status_error(&call, status));
-  SEXP ans = zuregex_result(Rf_isNull(err) ? out : R_NilValue, err);
+  SEXP ans = zuregex_result(&call, status, Rf_isNull(err) ? out : R_NilValue, err);
   UNPROTECT(2);
   return ans;
 }
@@ -133,10 +133,10 @@ static SEXP build_frame(void *data) {
 
 // n: the most matches per element (R_PosInf for all). overlap: start each
 // search one character after the previous match's start.
-SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
+SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                           SEXP n_max, SEXP overlap, SEXP char_offsets) {
   zuregex_call call;
-  zuregex_collect(x, Rf_asLogical(bytes), table, index, &call);
+  zuregex_collect(x, Rf_asLogical(bytes), table, index, limits, &call);
   double limit = Rf_asReal(n_max);
   int ov_flag = Rf_asLogical(overlap);
   int chars = Rf_asLogical(char_offsets);
@@ -164,8 +164,13 @@ SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
     size_t start = 0;
     uint32_t options = 0;
     while (e->count < limit) {
-      int m = zuregex_match_once(p, s, start, options, md, &status[i]);
-      if (m != 1) break;
+      int m = zuregex_match_once(&call, p, s, start, options, md, &status[i]);
+      if (m < 0) {
+        // An error or a limit: the element is NA, not a partial result.
+        e->count = -1;
+        break;
+      }
+      if (m == 0) break;
       PCRE2_SIZE *ov = pcre2_get_ovector_pointer(md);
       if (!push_match(e, to_offset(s, ov[0], chars, p->key.utf) + 1,
                       to_offset(s, ov[1], chars, p->key.utf))) {
@@ -189,7 +194,7 @@ SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index,
     free_matches(&t);
   }
   PROTECT(frame);
-  SEXP ans = zuregex_result(frame, err);
+  SEXP ans = zuregex_result(&call, status, frame, err);
   UNPROTECT(2);
   return ans;
 }

@@ -7,13 +7,13 @@
 \alias{re_match_all}
 \title{Extract matches and capture groups}
 \usage{
-re_extract(x, pattern, group = 0)
+re_extract(x, pattern, group = 0, limits = NULL)
 
-re_extract_all(x, pattern, group = 0, n = Inf)
+re_extract_all(x, pattern, group = 0, n = Inf, limits = NULL)
 
-re_match(x, pattern, proto = NULL)
+re_match(x, pattern, proto = NULL, limits = NULL)
 
-re_match_all(x, pattern, n = Inf)
+re_match_all(x, pattern, n = Inf, limits = NULL)
 }
 \arguments{
 \item{x}{A character vector, a raw vector, or a list of raw vectors.
@@ -23,6 +23,9 @@ re_match_all(x, pattern, n = Inf)
 
 \item{group}{The group to extract: a number, 0 for the whole match, or a
 group name.}
+
+\item{limits}{A \code{\link[=re_limits]{re_limits()}} object, or \code{NULL} for
+\code{getOption("zuregex.limits")} and then PCRE2's defaults.}
 
 \item{n}{The most matches to return per element, \code{Inf} for all.}
 
