@@ -19,7 +19,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 | Stage | Title | CI | Issue | Pull request | Done |
 | --- | --- | --- | --- | --- | --- |
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zuregex/issues/2) | [#16](https://github.com/pedrobtz/zuregex/pull/16) | 2026-10-21 |
-| 1 | [Vendor PCRE2](#stage-1--vendor-pcre2) | full | [#3](https://github.com/pedrobtz/zuregex/issues/3) | | |
+| 1 | [Vendor PCRE2](#stage-1--vendor-pcre2) | full | [#3](https://github.com/pedrobtz/zuregex/issues/3) | | 2026-10-21 |
 | 2 | [Compile, flags and the cache](#stage-2--compile-flags-and-the-cache) | full | [#4](https://github.com/pedrobtz/zuregex/issues/4) | | |
 | 3 | [Detect and count](#stage-3--detect-and-count) | quick | [#5](https://github.com/pedrobtz/zuregex/issues/5) | | |
 | 4 | [Locate](#stage-4--locate) | quick | [#6](https://github.com/pedrobtz/zuregex/issues/6) | | |
@@ -144,6 +144,24 @@ reports what was built.
   as **(M)** in `design.md` §13 when this stage merges.
 
 **Design.** §4 (hidden symbols, JIT failure), §11 stage 0, §13 D1.
+
+**Deviations (2026-10-21).**
+
+- The `nm` gate is `tests/testthat/test-abi.R`, run by R CMD check on
+  every CI leg, rather than a separate workflow step. It fails on any
+  exported symbol but `R_init_zuregex` and on any linked stdio, exit,
+  abort or RNG symbol. Windows is skipped, as in zucrypt: a DLL exports
+  only its export table, and modules cannot bind to each other's copies.
+- No stdio, abort or exit patch was needed: PCRE2 10.48's library links
+  none. One patch was: `0001-split-compile-error-texts.patch` splits a
+  5,686-character string literal, because clang `-pedantic` warns that it
+  exceeds ISO C99's 4,095 and R CMD check reports that warning.
+- The keep list is `tools/vendor/keep/pcre2.txt`, and
+  `vendor-upstream.yaml` watches PCRE2 releases weekly. Neither was named
+  in the work list.
+- The vendored tree keeps upstream's `src/` and `deps/sljit/` layout, since
+  `pcre2_jit_compile.c` includes `../deps/sljit/sljit_src/sljitLir.c`. The
+  longest tarball path is 90 bytes, under the 100-byte limit.
 
 ## Stage 2 — Compile, flags and the cache
 
