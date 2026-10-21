@@ -25,3 +25,8 @@
   return matches and capture groups as vectors and data frames built in C.
   `re_match()` takes a `proto` for typed columns, as `utils::strcapture()`
   does, and is about 17 times faster than it on 100,000 strings.
+* `re_replace()` replaces matches with PCRE2's extended templates (`$1`,
+  `${name}`, `${1:-default}`, `${1:+yes:no}`, case forcing), literal text,
+  or a function called once with every match. `re_expand()` expands a
+  template with the first match, and `re_split()` splits as Python's
+  `re.split()` does. Template errors raise `zuregex_error_template`.
