@@ -6,7 +6,10 @@
 #include "match.h"
 
 static void set_subject(zuregex_subject *s, const char *ptr, size_t len) {
-  s->ptr = ptr;
+  // R gives a zero-length vector a dummy data pointer (0x1), and PCRE2
+  // computes with the subject pointer even for an empty subject; UBSan
+  // reports that arithmetic. An empty subject points at a real "".
+  s->ptr = len > 0 ? ptr : "";
   s->len = len;
   s->na = 0;
 }

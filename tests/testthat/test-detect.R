@@ -233,3 +233,11 @@ test_that("re_detect() checks its arguments", {
     class = "zuregex_error_argument"
   )
 })
+
+test_that("empty raw subjects match like empty strings", {
+  # R gives raw(0) a dummy data pointer; UBSan caught PCRE2 doing pointer
+  # arithmetic on it.
+  expect_identical(re_detect(raw(0), "^$"), TRUE)
+  expect_identical(re_count(list(raw(0), as.raw(0x61)), "a*"), c(1L, 2L))
+  expect_identical(re_detect(raw(0), "a"), FALSE)
+})
