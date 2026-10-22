@@ -97,7 +97,12 @@ tools/vendor/verify --offline    # the same without re-deriving from upstream
 tools/vendor/fetch               # re-vendor from tools/vendor/manifest.tsv
 ```
 
-The benchmark harness arrives with its stage; add it here when it does.
+```sh
+ZUREGEX_TIMING_TESTS=true Rscript -e 'devtools::test(filter = "bench")'  # benchmark
+```
+
+`tests/testthat/test-bench.R` is the benchmark against base R and stringi
+(#66), as timing tests on `bench_corpus()` from `helper-bench.R`.
 
 ## Architecture
 
@@ -179,10 +184,14 @@ API.
   `ZUREGEX_THREAD_NUM`. A thread appends one element at a time, so each
   element is contiguous and records its arena and offset. A `malloc()` per
   element cost a third of `re_replace()`'s time (#68).
-- The R wrappers are on every call's path, so they stay lean: one pattern
-  string skips `unique()`, `match()` and the `re` attributes in
-  `patterns()`, `subjects()` asks C whether any string is bytes, and
-  `native()` uses a calling handler, a third of the cost of `tryCatch()`.
+- The R wrappers are on every call's path, so they stay lean. Every verb
+  starts with `prepare()` in `R/match.R`: for a character vector and one
+  pattern string, `zuregex_prepare_c()` scans for bytes and looks up the
+  cache in one `.Call`; anything else falls back to `subjects()` and
+  `patterns()`. `prepare()` runs inside the verb's `run_verb()`, so a call
+  pays for one calling handler (about 2 µs), not two; a calling handler is
+  a third of the cost of `tryCatch()`. `verb_result()` reads a result that
+  is already evaluated.
 
 ## Invariants that are easy to break
 
@@ -264,7 +273,10 @@ stage establishes it.
   `ZUREGEX_TIMING_TESTS=true`, which `R-CMD-check.yaml` sets. Coverage,
   sanitizers, valgrind and gctorture distort timings. The thread speedup
   test also needs `ZUREGEX_BENCH_THREADS=true` and four free cores, which
-  GitHub's shared runners do not have.
+  GitHub's shared runners do not have. `test-bench.R` checks results before
+  it times, asserts a speedup only where the measured margin is wide, and
+  "no slower" with room for noise where it is close. Timing tests add about
+  18 seconds to the suite.
 - **Keep the suite inside the CRAN time budget.** About 4 seconds on a
   2026 laptop at Stage 4, timing tests off. Re-measure when a stage adds a
   large corpus.
