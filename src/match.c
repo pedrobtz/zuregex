@@ -128,6 +128,28 @@ static int is_utf_error(int rc) {
   return rc <= PCRE2_ERROR_UTF8_ERR1 && rc >= PCRE2_ERROR_UTF8_ERR21;
 }
 
+static SEXP describe(const char *kind, R_xlen_t element, const char *msg) {
+  const char *names[] = {"kind", "element", "rc", "offset", "message", ""};
+  SEXP err = PROTECT(Rf_mkNamed(VECSXP, names));
+  SET_VECTOR_ELT(err, 0, Rf_mkString(kind));
+  SET_VECTOR_ELT(err, 1, Rf_ScalarReal((double) element));
+  SET_VECTOR_ELT(err, 2, Rf_ScalarInteger(0));
+  SET_VECTOR_ELT(err, 3, Rf_ScalarReal(0));
+  SET_VECTOR_ELT(err, 4, Rf_mkString(msg));
+  UNPROTECT(1);
+  return err;
+}
+
+SEXP zuregex_nul_error(R_xlen_t element) {
+  return describe("match", element,
+                  "the result contains a NUL byte, which an R string cannot hold");
+}
+
+SEXP zuregex_too_long_error(R_xlen_t element) {
+  return describe("match", element,
+                  "the result is longer than 2^31 - 1 bytes, the most an R string can hold");
+}
+
 int zuregex_is_limit(int rc) {
   return rc == PCRE2_ERROR_MATCHLIMIT || rc == PCRE2_ERROR_DEPTHLIMIT ||
          rc == PCRE2_ERROR_HEAPLIMIT || rc == PCRE2_ERROR_JIT_STACKLIMIT;

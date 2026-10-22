@@ -103,6 +103,11 @@ SEXP zuregex_status_error(const zuregex_call *call,
                           const zuregex_status *status);
 
 int zuregex_is_limit(int rc);
+
+// The error description for a result that would hold a NUL byte, or be
+// longer than an R string can be, at 1-based `element`.
+SEXP zuregex_nul_error(R_xlen_t element);
+SEXP zuregex_too_long_error(R_xlen_t element);
 double zuregex_limited(const zuregex_call *call, const zuregex_status *status);
 
 // list(value, error, limited), as every verb returns to R.

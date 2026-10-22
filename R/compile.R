@@ -63,6 +63,7 @@ re_compile <- function(
   if (
     !is.character(pattern) ||
       !is_string(flags) ||
+      Encoding(flags) == "bytes" ||
       !is_string(dialect) ||
       !(dialect == "pcre" || dialect == "js") ||
       !is_bool(literal) ||
@@ -80,6 +81,13 @@ re_compile <- function(
       )
     }
     check_string(flags, "flags", call)
+    if (Encoding(flags) == "bytes") {
+      zuregex_abort(
+        "argument",
+        "`flags` must not be marked as \"bytes\".",
+        call = call
+      )
+    }
     check_choice(dialect, c("pcre", "js"), "dialect", call)
     check_flag(literal, "literal", call)
     check_flag(jit, "jit", call)
@@ -105,15 +113,18 @@ compile_patterns <- function(
   utf = TRUE,
   use_cache = TRUE
 ) {
-  res <- .Call(
-    zuregex_compile_c,
-    pattern,
-    flags,
-    if (dialect == "js") 1L else 0L,
-    literal,
-    jit,
-    utf,
-    use_cache
+  res <- native(
+    .Call(
+      zuregex_compile_c,
+      pattern,
+      flags,
+      if (dialect == "js") 1L else 0L,
+      literal,
+      jit,
+      utf,
+      use_cache
+    ),
+    call
   )
   if (!is.null(res$error)) {
     raise_compile_error(res$error, pattern, flags, literal, call)
@@ -228,6 +239,26 @@ re_restore <- function(re) {
   re
 }
 
+# An `re` object's attributes are read by C and by re_restore(); an object
+# edited by hand is refused with a class rather than failing inside.
+check_re_attributes <- function(re, call) {
+  a <- attributes(re)
+  ok <- is.character(a$pattern) &&
+    length(a$pattern) == length(re) &&
+    is_string(a$flags) &&
+    is_string(a$dialect) &&
+    a$dialect %in% c("pcre", "js") &&
+    is_bool(a$literal) &&
+    is_bool(a$jit)
+  if (!ok) {
+    zuregex_abort(
+      "argument",
+      "This `re` object has been modified: its attributes are not what `re_compile()` makes.",
+      call = call
+    )
+  }
+}
+
 check_re <- function(re, arg, call) {
   if (!inherits(re, "re")) {
     zuregex_abort(
@@ -274,6 +305,82 @@ as.character.re <- function(x, ...) {
   attr(x, "pattern")
 }
 
+# The attributes two re vectors must share to be combined: one set of
+# flags, dialect, literal and jit applies to every element.
+re_settings <- function(x) {
+  attributes(x)[c("flags", "dialect", "literal", "jit")]
+}
+
+check_same_settings <- function(x, value, call) {
+  if (!inherits(value, "re")) {
+    zuregex_abort(
+      "argument",
+      sprintf(
+        "Only an `re` object can go into an `re` vector, not %s.",
+        describe(value)
+      ),
+      call = call
+    )
+  }
+  if (!identical(re_settings(x), re_settings(value))) {
+    zuregex_abort(
+      "argument",
+      "`re` objects can be combined only when they share flags, dialect, `literal` and `jit`.",
+      call = call
+    )
+  }
+}
+
+#' @export
+`[<-.re` <- function(x, i, value) {
+  check_same_settings(x, value, sys.call())
+  attrs <- attributes(x)
+  pattern <- attrs$pattern
+  ptrs <- unclass(x)
+  idx <- seq_along(pattern)[i]
+  ptrs[idx] <- rep_len(unclass(value), length(idx))
+  pattern[idx] <- rep_len(attr(value, "pattern"), length(idx))
+  attrs$pattern <- pattern
+  attributes(ptrs) <- attrs
+  ptrs
+}
+
+#' @export
+`[[.re` <- function(x, i) {
+  x[i]
+}
+
+#' @export
+`[[<-.re` <- function(x, i, value) {
+  if (length(value) != 1L) {
+    zuregex_abort(
+      "argument",
+      "`[[<-` takes an `re` object of length 1.",
+      call = sys.call()
+    )
+  }
+  x[i] <- value
+  x
+}
+
+#' @export
+c.re <- function(...) {
+  parts <- list(...)
+  for (p in parts[-1]) {
+    check_same_settings(parts[[1L]], p, sys.call())
+  }
+  out <- unlist(lapply(parts, unclass), recursive = FALSE)
+  attrs <- attributes(parts[[1L]])
+  attrs$pattern <- unlist(lapply(parts, attr, "pattern"), use.names = FALSE)
+  attributes(out) <- attrs
+  out
+}
+
+#' @export
+rep.re <- function(x, ...) {
+  x[rep(seq_along(x), ...)]
+}
+
 #' @export
 `[.re` <- function(x, i) {
   attrs <- attributes(x)
@@ -311,6 +418,7 @@ as.character.re <- function(x, ...) {
 #' re_info(re_compile(c("(?<year>\\d{4})-(\\d{2})", "abc+")))
 re_info <- function(re) {
   check_re(re, "re", sys.call())
+  check_re_attributes(re, sys.call())
   re <- re_restore(re)
   cols <- .Call(zuregex_re_info_c, re)
   prefix <- mapply(

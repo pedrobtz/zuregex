@@ -1,14 +1,14 @@
 test_that("zr_match() gives zero-based, half-open byte offsets", {
-  m <- capi_match("(\\d+)-(?<b>\\d+)(x)?", c("a 12-34", "none", "é 1-2"))
+  m <- capi_match("(\\d+)-(?<b>\\d+)(x)?", c("a 12-34", "none", "\u00e9 1-2"))
   # Rows are groups 0 to 3, columns start and end; -1 for an unset group.
   expect_identical(m[[1]], matrix(c(2L, 2L, 5L, -1L, 7L, 4L, 7L, -1L), 4, 2))
   expect_identical(m[[2]], zr()$NOMATCH)
-  # "é" is two bytes, so "1-2" starts at byte 3.
+  # "\u00e9" is two bytes, so "1-2" starts at byte 3.
   expect_identical(m[[3]][1, ], c(3L, 6L))
 })
 
 test_that("the R verbs and the C API agree on offsets", {
-  x <- c("a 12-34", "éé 5-6", "x")
+  x <- c("a 12-34", "\u00e9\u00e9 5-6", "x")
   loc <- re_locate(x, "\\d+-\\d+", bytes = TRUE)
   m <- capi_match("\\d+-\\d+", x)
   for (i in 1:2) {
@@ -50,10 +50,10 @@ test_that("flags, dialects and match options reach PCRE2", {
   )
   # Bytes: "." is one byte, so two dots match one two-byte character.
   expect_identical(
-    capi_match("^..$", "é", flags = zr()$BYTES)[[1]][1, ],
+    capi_match("^..$", "\u00e9", flags = zr()$BYTES)[[1]][1, ],
     c(0L, 2L)
   )
-  expect_identical(capi_match("^..$", "é")[[1]], zr()$NOMATCH)
+  expect_identical(capi_match("^..$", "\u00e9")[[1]], zr()$NOMATCH)
 })
 
 test_that("invalid UTF-8 and bad arguments are status codes", {
@@ -112,12 +112,40 @@ test_that("group counts, names and numbers", {
   expect_identical(capi_info("a", flags = zr()$NO_JIT)$jit, FALSE)
 })
 
-test_that("zr_set_limits() bounds a match", {
-  rc <- .Call(
-    zuregex:::zuregex_capi_limit_c,
-    "^(a+)+$",
-    paste0(strrep("a", 28), "!"),
-    1000
+test_that("zr_set_limits() bounds a match that the default lets finish", {
+  x <- paste0(strrep("a", 16), "!")
+  expect_identical(
+    .Call(zuregex:::zuregex_capi_limit_c, "^(a+)+$", x, 0),
+    zr()$NOMATCH
   )
-  expect_identical(rc, zr()$ERROR_MATCH_LIMIT)
+  expect_identical(
+    .Call(zuregex:::zuregex_capi_limit_c, "^(a+)+$", x, 1000),
+    zr()$ERROR_MATCH_LIMIT
+  )
+})
+
+test_that("the C API's argument checks, status codes and edge cases", {
+  e <- .Call(zuregex:::zuregex_capi_edges_c)
+  expect_true(e$unknown_flags)
+  expect_true(e$bad_dialect)
+  expect_true(e$null_pattern)
+  # SIZE_MAX, PCRE2_ZERO_TERMINATED, reads a NUL-terminated pattern.
+  expect_identical(e$zero_terminated_groups, 2L)
+  expect_identical(e$offsets_bad_group, zr()$ERROR_GROUP)
+  expect_identical(e$offsets_unset, zr()$NOMATCH)
+  # Match data made for a pattern with fewer groups holds the pairs it can.
+  expect_identical(e$foreign_md_rc, 1L)
+  # "x*" on "ab": no empty match at the start, so the empty match at 1.
+  expect_identical(e$notempty_atstart, 1L)
+  expect_identical(e$substitute_bad_option, zr()$ERROR_ARGUMENT)
+  expect_identical(e$substitute_with_md, "<b>")
+  expect_identical(e$substitute_limit, zr()$ERROR_MATCH_LIMIT)
+  expect_identical(e$depth_limit, zr()$ERROR_DEPTH_LIMIT)
+  expect_identical(e$heap_limit, zr()$ERROR_HEAP_LIMIT)
+  expect_identical(e$strerror_match_limit, "match limit exceeded")
+  expect_identical(e$strerror_unknown, "PCRE2 error")
+  skip_if_not(zuregex_info()$jit_usable, "the JIT compiler is not usable here")
+  expect_identical(e$jit_stack, zr()$ERROR_JIT_STACK)
+  # The interpreter, which has no such stack, finishes the match.
+  expect_identical(e$jit_stack_retry, 2L)
 })

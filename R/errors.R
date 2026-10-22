@@ -21,6 +21,18 @@ user_call <- function(n = 2L) {
   sys.call(-n)
 }
 
+# Evaluates `expr`, a .Call, so that any error native code raises without
+# a class (R's own, such as running out of memory) reaches the user as a
+# zuregex_error_native.
+native <- function(expr, call) {
+  tryCatch(expr, error = function(e) {
+    if (inherits(e, "zuregex_error")) {
+      stop(e)
+    }
+    zuregex_abort("native", conditionMessage(e), parent = e, call = call)
+  })
+}
+
 check_string <- function(x, arg, call) {
   if (!is.character(x) || length(x) != 1L || is.na(x)) {
     zuregex_abort(

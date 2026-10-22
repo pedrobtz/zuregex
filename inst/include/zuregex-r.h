@@ -67,9 +67,14 @@ typedef struct {
   zr_strerror_fn strerror;
 } zuregex_api_v1;
 
-/* The table, looked up once. Raises an R error if zuregex is not loaded
- * or implements a different version, so call it from R-facing code first
- * (your R_init_ or the .Call entry), not from a worker thread. */
+/* The table, looked up on first use. Raises an R error if zuregex is not
+ * loaded or implements a different version.
+ *
+ * The rule for threads: the lookup is cached per C file (this is a static
+ * inline function), and the first lookup calls into R. So in every C file
+ * that calls zr_*() from a worker thread, call zuregex_api() once on the
+ * main thread first, for example at the top of that file's .Call entry.
+ * After that, the zr_*() wrappers in the file are safe on any thread. */
 static inline const zuregex_api_v1 *zuregex_api(void) {
   static const zuregex_api_v1 *api = NULL;
   if (api == NULL) {

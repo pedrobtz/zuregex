@@ -1,7 +1,15 @@
 # A subject on which "^(a+)+$" backtracks exponentially: no match, and no
-# required character PCRE2 could check for first.
+# required character PCRE2 could check for first. Under PCRE2's default
+# limits it finishes (FALSE); at re_limits(match = 1000) it does not, so a
+# test can tell an applied limit from the default.
 pathological <- function() {
-  list(x = paste0(strrep("a", 28), "!"), pattern = "^(a+)+$")
+  list(x = paste0(strrep("a", 16), "!"), pattern = "^(a+)+$")
+}
+
+# Long enough that PCRE2's default match limit stops it too, and short
+# enough that re_limits(match = 1e9) lets it finish.
+pathological_long <- function() {
+  list(x = paste0(strrep("a", 24), "!"), pattern = "^(a+)+$")
 }
 
 # Every matching verb, called on x and pattern with ... passed through.

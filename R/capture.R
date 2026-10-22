@@ -126,14 +126,18 @@ extract <- function(x, pattern, group, all, n, limits, call) {
   )
 }
 
-# The group to extract, per pattern in the table: its number, or -1 where
-# that pattern does not have it. A group no pattern has is an error.
+# The groups to extract, per pattern in the table: a list of integer
+# vectors, the candidates in order (several for a name J shares), empty
+# where that pattern does not have the group. A group no pattern has is an
+# error.
 group_index <- function(group, groups, call) {
   if (
     is.character(group) && length(group) == 1L && !is.na(group) && nzchar(group)
   ) {
-    idx <- vapply(groups, function(g) match(group, g, nomatch = 0L), 1L)
-    if (length(groups) > 0L && all(idx == 0L)) {
+    # Every group with the name, in order: with the J flag, groups may share
+    # a name, and the first one that took part is the one read.
+    idx <- lapply(groups, function(g) which(g == group))
+    if (length(groups) > 0L && all(lengths(idx) == 0L)) {
       zuregex_abort(
         "group",
         sprintf("No pattern has a group named \"%s\".", group),
@@ -141,8 +145,7 @@ group_index <- function(group, groups, call) {
         call = call
       )
     }
-    idx[idx == 0L] <- -1L
-    return(as.integer(idx))
+    return(idx)
   }
   if (
     is.numeric(group) &&
@@ -166,7 +169,9 @@ group_index <- function(group, groups, call) {
         call = call
       )
     }
-    return(ifelse(group <= counts, as.integer(group), -1L))
+    return(lapply(counts, function(n) {
+      if (group <= n) as.integer(group) else integer()
+    }))
   }
   zuregex_abort(
     "argument",

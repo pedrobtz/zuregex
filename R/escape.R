@@ -29,7 +29,13 @@ re_escape <- function(x) {
     "\t" = "\\t",
     "\r" = "\\r",
     "\f" = "\\f",
-    "\v" = "\\x0b"
+    "\v" = "\\x0b",
+    # The Unicode white space PCRE2 also skips under `x` in UTF mode.
+    "\u0085" = "\\x{85}",
+    "\u200e" = "\\x{200e}",
+    "\u200f" = "\\x{200f}",
+    "\u2028" = "\\x{2028}",
+    "\u2029" = "\\x{2029}"
   )
   for (ch in names(controls)) {
     out <- gsub(ch, controls[[ch]], out, fixed = TRUE)

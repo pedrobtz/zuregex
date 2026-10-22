@@ -128,6 +128,12 @@ test_that("re_compile() checks its arguments", {
     class = "zuregex_error_argument"
   )
   expect_error(re_info("a"), class = "zuregex_error_argument")
+  bytes_flags <- "i\xff"
+  Encoding(bytes_flags) <- "bytes"
+  expect_error(
+    re_compile("a", flags = bytes_flags),
+    class = "zuregex_error_argument"
+  )
 })
 
 test_that("patterns in other encodings are compiled as UTF-8", {

@@ -9,7 +9,8 @@
  * and in bytes. Strings are UTF-8 unless a pattern is compiled with
  * ZR_BYTES. No function raises an R error, allocates an R object or calls
  * back into R, so all of them are safe to call from any thread, as long as
- * one zr_match_data is used by one thread at a time.
+ * one zr_match_data is used by one thread at a time. (The zr_*() wrappers
+ * in <zuregex-r.h> add one rule: see zuregex_api() there.)
  *
  * Copyright (c) 2026 Pedro Baltazar. MIT licence; see the LICENSE file.
  */
@@ -83,10 +84,11 @@ typedef struct zr_match_data zr_match_data;
 #define ZR_ERROR_JIT_STACK   -11  /* JIT code ran out of stack: retry with
                                      ZR_NO_JIT_MATCH */
 
-/* "PCRE2 x.y yyyy-mm-dd / zuregex a.b.c": both versions, for diagnostics. */
+/* "PCRE2 x.y yyyy-mm-dd", the bundled PCRE2's version: a constant. */
 typedef const char *(*zr_version_fn)(void);
 
-/* Compiles `pattern` (`len` bytes, not necessarily NUL-terminated) with
+/* Compiles `pattern` (`len` bytes, not necessarily NUL-terminated; a `len`
+ * of SIZE_MAX, PCRE2's PCRE2_ZERO_TERMINATED, means NUL-terminated) with
  * `flags` and `dialect`. Returns NULL on failure and, when errbuf is not
  * NULL, writes a message there with the byte offset of the error. Free the
  * result with zr_free(). */

@@ -8,6 +8,7 @@
 // from the strings it returned. The output is assembled in phase 2 in
 // malloc()ed buffers and turned into R strings in phase 3.
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -26,6 +27,8 @@ typedef struct {
   out_buf *out;
   SEXP x;     // to return unmatched elements unchanged
   int expand;
+  R_xlen_t nul_element;  // first result with a NUL byte, 1-based
+  R_xlen_t long_element;  // first result over INT_MAX bytes, 1-based
 } replace_job;
 
 // Room for n more bytes after o->len.
@@ -108,8 +111,19 @@ static SEXP build(void *data) {
         SET_STRING_ELT(res, i, STRING_ELT(job->x, i));
       } else {
         const zuregex_subject *s = &call->subjects[i];
-        SET_STRING_ELT(res, i, Rf_mkCharLenCE(s->ptr, (int) s->len, CE_BYTES));
+        if (memchr(s->ptr, 0, s->len) != NULL) {
+          if (job->nul_element == 0) job->nul_element = i + 1;
+          SET_STRING_ELT(res, i, NA_STRING);
+        } else {
+          SET_STRING_ELT(res, i, Rf_mkCharLenCE(s->ptr, (int) s->len, CE_BYTES));
+        }
       }
+    } else if (o->len > (size_t) INT_MAX) {
+      if (job->long_element == 0) job->long_element = i + 1;
+      SET_STRING_ELT(res, i, NA_STRING);
+    } else if (memchr(o->buf, 0, o->len) != NULL) {
+      if (job->nul_element == 0) job->nul_element = i + 1;
+      SET_STRING_ELT(res, i, NA_STRING);
     } else {
       const zuregex_pattern *p = zuregex_pattern_for(call, i);
       int utf = p != NULL ? p->key.utf : 1;
@@ -159,7 +173,7 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   size_t n = call.n > 0 ? (size_t) call.n : 1;
   zuregex_status *status = (zuregex_status *) R_alloc(n, sizeof(zuregex_status));
   memset(status, 0, n * sizeof(zuregex_status));
-  replace_job job = {&call, NULL, x, expand_flag};
+  replace_job job = {&call, NULL, x, expand_flag, 0, 0};
   job.out = calloc(n, sizeof(out_buf));
   if (job.out == NULL) Rf_error("out of memory allocating replacement buffers");
 
@@ -260,6 +274,12 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   SEXP value = R_NilValue;
   if (Rf_isNull(err)) {
     value = R_ExecWithCleanup(build, &job, free_out, &job);
+    if (job.long_element > 0 || job.nul_element > 0) {
+      UNPROTECT(1);
+      err = PROTECT(job.long_element > 0 ? zuregex_too_long_error(job.long_element)
+                                         : zuregex_nul_error(job.nul_element));
+      value = R_NilValue;
+    }
   } else {
     free_out(&job);
   }

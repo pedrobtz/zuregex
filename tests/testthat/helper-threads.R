@@ -2,7 +2,7 @@
 # phase 2 runs on several threads where the build has OpenMP.
 big_subjects <- function() {
   withr::local_seed(42)
-  base <- c(parity_subjects(), "x=1; y=22; z=333 foo123bar 2026-10-21 café")
+  base <- c(parity_subjects(), "x=1; y=22; z=333 foo123bar 2026-10-21 caf\u00e9")
   words <- vapply(
     seq_len(3000),
     function(i) {

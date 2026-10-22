@@ -69,7 +69,7 @@ re_replace <- function(
   if (is.function(replacement)) {
     return(replace_with_function(s, p, replacement, n, lim, call))
   }
-  check_templates(replacement, "replacement", s$n, call)
+  check_templates(replacement, "replacement", s$n, call, s$bytes)
   run_replace(
     s,
     p,
@@ -89,7 +89,7 @@ re_expand <- function(x, pattern, template, limits = NULL) {
   call <- sys.call()
   s <- subjects(x, call)
   p <- patterns(pattern, s$n, s$bytes, call)
-  check_templates(template, "template", s$n, call)
+  check_templates(template, "template", s$n, call, s$bytes)
   run_replace(
     s,
     p,
@@ -103,7 +103,7 @@ re_expand <- function(x, pattern, template, limits = NULL) {
   )
 }
 
-check_templates <- function(x, arg, n, call) {
+check_templates <- function(x, arg, n, call, bytes = FALSE) {
   if (!is.character(x)) {
     zuregex_abort(
       "argument",
@@ -111,6 +111,16 @@ check_templates <- function(x, arg, n, call) {
         "`%s` must be a character vector or a function, not %s.",
         arg,
         describe(x)
+      ),
+      call = call
+    )
+  }
+  if (any(Encoding(x) == "bytes") && !bytes) {
+    zuregex_abort(
+      "argument",
+      sprintf(
+        "`%s` is marked as \"bytes\", so `x` must be bytes too: a raw vector, or strings marked as \"bytes\".",
+        arg
       ),
       call = call
     )
@@ -141,19 +151,22 @@ run_replace <- function(
   call,
   first = NULL
 ) {
-  res <- .Call(
-    zuregex_replace_c,
-    s$x,
-    s$bytes,
-    p$table,
-    p$index,
-    lim,
-    repl,
-    mode,
-    literal,
-    as.double(n),
-    expand,
-    first
+  res <- native(
+    .Call(
+      zuregex_replace_c,
+      s$x,
+      s$bytes,
+      p$table,
+      p$index,
+      lim,
+      repl,
+      mode,
+      literal,
+      as.double(n),
+      expand,
+      first
+    ),
+    call
   )
   if (!is.null(res$error) && res$error$kind == "template") {
     raise_template_error(res$error, repl, call)

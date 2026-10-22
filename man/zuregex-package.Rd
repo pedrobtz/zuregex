@@ -4,7 +4,7 @@
 \name{zuregex-package}
 \alias{zuregex}
 \alias{zuregex-package}
-\title{zuregex: 'PCRE2' Regular Expressions for R and for C Code}
+\title{zuregex: Bundled 'PCRE2' Regular Expressions with a C Interface}
 \description{
 Matches regular expressions with a bundled copy of the 'PCRE2' library (\url{https://github.com/PCRE2Project/pcre2}), so that every platform runs the same version with its just-in-time compiler. Patterns are compiled once and cached, matching runs on several threads, and capture groups are returned as character vectors and data frames built in C. Replacements use the full 'PCRE2' substitution language, and each call can bound its work with match, depth and heap limits. Other packages reach the same library from C through 'LinkingTo', instead of bundling their own copy.
 }
@@ -30,6 +30,7 @@ Other contributors:
   \item Philip Hazel (PCRE2, bundled in src/vendor/pcre2) [copyright holder]
   \item University of Cambridge (PCRE2, bundled in src/vendor/pcre2) [copyright holder]
   \item Zoltan Herczeg (PCRE2 JIT compiler and sljit, bundled in src/vendor/pcre2) [copyright holder]
+  \item Nicholas Wilson (PCRE2 maintainer, bundled in src/vendor/pcre2) [contributor]
   \item PCRE2 contributors (see inst/COPYRIGHTS) [copyright holder]
 }
 

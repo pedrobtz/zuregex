@@ -73,6 +73,7 @@ test_that("re_extract() takes a group by number or name", {
     re_extract_all("1-2 3-4", "(\\d)-(\\d)", group = 2),
     list(c("2", "4"))
   )
+  skip_if_not_installed("stringr")
   expect_identical(stringr::str_match(x, p)[, 3], re_extract(x, p, group = 2))
 })
 
@@ -217,4 +218,52 @@ test_that("re_match() is at least 10 times faster than strcapture()", {
   ]]
   expect_identical(a, b)
   expect_gt(theirs / ours, 10)
+})
+
+test_that("re_extract_all(n =) limits the matches per element", {
+  x <- c("a1b2c3", NA, "none")
+  expect_identical(
+    re_extract_all(x, "\\d", n = 0),
+    list(character(), NA_character_, character())
+  )
+  expect_identical(
+    re_extract_all(x, "\\d", n = 1),
+    list("1", NA_character_, character())
+  )
+  expect_identical(re_extract_all(x, "\\d", n = Inf), re_extract_all(x, "\\d"))
+  for (bad in list(-1, 1.5, NA, "2")) {
+    expect_error(
+      re_extract_all(x, "\\d", n = bad),
+      class = "zuregex_error_argument"
+    )
+  }
+})
+
+test_that("groups that share a name give the first one that took part", {
+  # PCRE2's own rule for ${name}, applied to every verb (the J flag).
+  re <- re_compile("(?<a>x)|(?<a>y)", flags = "J")
+  x <- c("x", "y", "z")
+  expect_identical(re_match(x, re)$a, c("x", "y", NA))
+  expect_identical(re_extract(x, re, group = "a"), c("x", "y", NA))
+  expect_identical(
+    re_extract_all("xyx", re, group = "a"),
+    list(c("x", "y", "x"))
+  )
+  expect_identical(re_match_all("xy", re)$a, c("x", "y"))
+  expect_identical(
+    re_replace(x, re, function(m) toupper(m$a)),
+    c("X", "Y", "z")
+  )
+  expect_identical(re_replace(x, re, "<${a}>"), c("<x>", "<y>", "z"))
+})
+
+test_that("text with a NUL byte is a classed error, not R's", {
+  x <- as.raw(c(0x61, 0x00, 0x62))
+  expect_error(re_extract(x, "a.b"), class = "zuregex_error_match")
+  expect_error(re_match(x, "(a.)b"), class = "zuregex_error_match")
+  expect_error(re_split(x, "b"), class = "zuregex_error_match")
+  expect_error(re_replace(x, "a", "z"), class = "zuregex_error_match")
+  # Matches that do not include the NUL are fine.
+  expect_identical(re_extract(x, "a"), "a")
+  expect_identical(re_extract_all(x, "[ab]"), list(c("a", "b")))
 })
