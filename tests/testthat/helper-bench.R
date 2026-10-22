@@ -31,11 +31,27 @@ bench_corpus <- function(n = 50000) {
   x
 }
 
-# Median elapsed seconds of `reps` runs of f(), each after a gc().
+# Median seconds per call of f() over `reps` measurements, each after a
+# gc(). A measurement repeats f() until it lasts at least 0.1 s, because
+# Windows' timer moves in steps of 10 ms and reads a fast call as 0.
 median_time <- function(f, reps = 3) {
+  once <- system.time(f(), gcFirst = TRUE)[["elapsed"]]
+  times <- if (once >= 0.1) {
+    1L
+  } else {
+    as.integer(min(1000, ceiling(0.1 / max(once, 0.001))))
+  }
   stats::median(vapply(
     seq_len(reps),
-    function(i) system.time(f(), gcFirst = TRUE)[["elapsed"]],
+    function(i) {
+      system.time(
+        for (k in seq_len(times)) {
+          f()
+        },
+        gcFirst = TRUE
+      )[["elapsed"]] /
+        times
+    },
     0
   ))
 }
