@@ -1,4 +1,4 @@
-# zuregex: 'PCRE2' Regular Expressions for R and for C Code
+# zuregex: Bundled 'PCRE2' Regular Expressions with a C Interface
 
 Matches regular expressions with a bundled copy of the 'PCRE2' library
 (<https://github.com/PCRE2Project/pcre2>), so that every platform runs
@@ -37,5 +37,8 @@ Other contributors:
 
 - Zoltan Herczeg (PCRE2 JIT compiler and sljit, bundled in
   src/vendor/pcre2) \[copyright holder\]
+
+- Nicholas Wilson (PCRE2 maintainer, bundled in src/vendor/pcre2)
+  \[contributor\]
 
 - PCRE2 contributors (see inst/COPYRIGHTS) \[copyright holder\]

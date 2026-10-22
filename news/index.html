@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">zuregex</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,28 +33,38 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="development version" id="zuregex-development-version">zuregex (development version)<a class="anchor" aria-label="anchor" href="#zuregex-development-version"></a></h2>
-<ul><li>Bundles PCRE2 10.48, the 8-bit library with its JIT compiler, built without CMake and with every PCRE2 symbol hidden from R’s own copy.</li>
-<li>
-<code><a href="../reference/zuregex_info.html">zuregex_info()</a></code> reports the bundled PCRE2 version and whether its JIT compiler works on this machine.</li>
-<li>
-<code><a href="../reference/re_compile.html">re_compile()</a></code> compiles patterns, with flag letters, a JavaScript dialect, literal patterns and JIT compilation, into <code>re</code> objects that survive <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code>. <code><a href="../reference/re_info.html">re_info()</a></code> describes them, and <code><a href="../reference/re_escape.html">re_escape()</a></code> quotes metacharacters.</li>
-<li>Compiled patterns are cached, 128 by default; <code><a href="../reference/re_cache_size.html">re_cache_size()</a></code> and <code><a href="../reference/re_cache_size.html">re_cache_clear()</a></code> manage the cache.</li>
-<li>Errors are classed conditions inheriting from <code>zuregex_error</code>. An invalid pattern raises <code>zuregex_error_compile</code>, which shows where PCRE2 found the error.</li>
-<li>
-<code><a href="../reference/re_detect.html">re_detect()</a></code> and <code><a href="../reference/re_detect.html">re_count()</a></code> match character vectors, raw vectors and lists of raw vectors, with one pattern for every element or one per element. <code>anchor</code> gives Python’s <code><a href="https://rdrr.io/r/base/match.html" class="external-link">match()</a></code> and <code>fullmatch()</code>. Invalid UTF-8 raises <code>zuregex_error_utf</code>, naming the element and byte.</li>
-<li>
-<code><a href="../reference/re_locate.html">re_locate()</a></code> and <code><a href="../reference/re_locate.html">re_locate_all()</a></code> return one-based, inclusive offsets in characters or bytes, so <code><a href="https://rdrr.io/r/base/substr.html" class="external-link">substr()</a></code> extracts each match. <code><a href="../reference/re_locate.html">re_locate_all()</a></code> takes <code>n</code> and <code>overlap</code>, and follows JavaScript’s rule for empty matches with <code>dialect = "js"</code>, as <code><a href="../reference/re_detect.html">re_count()</a></code> now does.</li>
-<li>
-<code><a href="../reference/re_extract.html">re_extract()</a></code>, <code><a href="../reference/re_extract.html">re_extract_all()</a></code>, <code><a href="../reference/re_extract.html">re_match()</a></code> and <code><a href="../reference/re_extract.html">re_match_all()</a></code> return matches and capture groups as vectors and data frames built in C. <code><a href="../reference/re_extract.html">re_match()</a></code> takes a <code>proto</code> for typed columns, as <code><a href="https://rdrr.io/r/utils/strcapture.html" class="external-link">utils::strcapture()</a></code> does, and is about 17 times faster than it on 100,000 strings.</li>
-<li>
-<code><a href="../reference/re_replace.html">re_replace()</a></code> replaces matches with PCRE2’s extended templates (<code>$1</code>, <code>${name}</code>, <code>${1:-default}</code>, <code>${1:+yes:no}</code>, case forcing), literal text, or a function called once with every match. <code><a href="../reference/re_replace.html">re_expand()</a></code> expands a template with the first match, and <code><a href="../reference/re_split.html">re_split()</a></code> splits as Python’s <code>re.split()</code> does. Template errors raise <code>zuregex_error_template</code>.</li>
-<li>
-<code><a href="../reference/re_limits.html">re_limits()</a></code> bounds the work of a match, through <code>limits =</code> on every verb or the <code>zuregex.limits</code> option. An element that hits a limit raises <code>zuregex_error_limit</code>, or gives <code>NA</code> and one warning per call with <code>on_limit = "na"</code>.</li>
-<li>Matching runs on several threads with OpenMP when a call’s subjects pass an internal size threshold, with identical results at any thread count. <code><a href="../reference/re_threads.html">re_threads()</a></code> caps the threads; <code><a href="../reference/zuregex_info.html">zuregex_info()</a></code> reports <code>openmp</code>, <code>threads</code> and <code>cache_size</code>.</li>
-<li>A C API for other packages (<code>LinkingTo: zuregex</code> and <code>&lt;zuregex-r.h&gt;</code>): compile, match, read offsets, substitute and set limits through opaque <code>zr_pattern</code> and <code>zr_match_data</code> handles, so a PCRE2 upgrade never changes a consumer’s build. Offsets there are zero-based, half-open and in bytes.</li>
+<h2 class="pkg-version" data-toc-text="0.1.0" id="zuregex-010">zuregex 0.1.0<a class="anchor" aria-label="anchor" href="#zuregex-010"></a></h2>
+<ul><li>Initial CRAN submission.</li>
+</ul><div class="section level3">
+<h3 id="the-engine-0-1-0">The engine<a class="anchor" aria-label="anchor" href="#the-engine-0-1-0"></a></h3>
+<ul><li>Bundles PCRE2 10.48, the 8-bit library with its JIT compiler, built without CMake and with every PCRE2 symbol hidden from R’s own copy. <code><a href="../reference/zuregex_info.html">zuregex_info()</a></code> reports the version, whether the JIT compiler works on this machine, OpenMP, the thread cap and the cache size.</li>
 </ul></div>
-  </main></div>
+<div class="section level3">
+<h3 id="compiling-0-1-0">Compiling<a class="anchor" aria-label="anchor" href="#compiling-0-1-0"></a></h3>
+<ul><li>
+<code><a href="../reference/re_compile.html">re_compile()</a></code> compiles patterns with flag letters, a JavaScript dialect, literal patterns and JIT compilation into <code>re</code> objects, which survive <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code>. <code><a href="../reference/re_info.html">re_info()</a></code> describes them, and <code><a href="../reference/re_escape.html">re_escape()</a></code> quotes metacharacters.</li>
+<li>Patterns are cached, 128 by default; <code><a href="../reference/re_cache_size.html">re_cache_size()</a></code> and <code><a href="../reference/re_cache_size.html">re_cache_clear()</a></code> manage the cache.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="matching-0-1-0">Matching<a class="anchor" aria-label="anchor" href="#matching-0-1-0"></a></h3>
+<ul><li>
+<code><a href="../reference/re_detect.html">re_detect()</a></code>, <code><a href="../reference/re_detect.html">re_count()</a></code>, <code><a href="../reference/re_locate.html">re_locate()</a></code> and <code><a href="../reference/re_locate.html">re_locate_all()</a></code> match character vectors, raw vectors and lists of raw vectors, with one pattern for every element or one per element. Offsets are one-based and inclusive, in characters or bytes.</li>
+<li>
+<code><a href="../reference/re_extract.html">re_extract()</a></code>, <code><a href="../reference/re_extract.html">re_extract_all()</a></code>, <code><a href="../reference/re_extract.html">re_match()</a></code> and <code><a href="../reference/re_extract.html">re_match_all()</a></code> return matches and capture groups as vectors and data frames built in C. <code><a href="../reference/re_extract.html">re_match()</a></code> types its columns through <code>proto</code>, as <code><a href="https://rdrr.io/r/utils/strcapture.html" class="external-link">utils::strcapture()</a></code> does.</li>
+<li>
+<code><a href="../reference/re_replace.html">re_replace()</a></code> uses PCRE2’s extended templates (<code>$1</code>, <code>${name}</code>, <code>${1:-default}</code>, <code>${1:+yes:no}</code>, case forcing), literal text, or a function called once with every match. <code><a href="../reference/re_replace.html">re_expand()</a></code> expands a template with the first match, and <code><a href="../reference/re_split.html">re_split()</a></code> splits as Python’s <code>re.split()</code> does.</li>
+<li>
+<code><a href="../reference/re_limits.html">re_limits()</a></code> bounds the work of a match, per call or through the <code>zuregex.limits</code> option. An element that hits a limit raises <code>zuregex_error_limit</code>, or gives <code>NA</code> and one warning with <code>on_limit = "na"</code>.</li>
+<li>Matching runs on several threads with OpenMP on large inputs, with the same results on any number of threads; <code><a href="../reference/re_threads.html">re_threads()</a></code> caps them.</li>
+<li>Errors are classed conditions inheriting from <code>zuregex_error</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="for-other-packages-0-1-0">For other packages<a class="anchor" aria-label="anchor" href="#for-other-packages-0-1-0"></a></h3>
+<ul><li>A C API through <code>LinkingTo: zuregex</code> and <code>&lt;zuregex-r.h&gt;</code>: compile, match, read offsets, substitute and set limits through opaque <code>zr_pattern</code> and <code>zr_match_data</code> handles, so an upgrade of the bundled PCRE2 never changes a consumer’s build. Offsets there are zero-based, half-open and in bytes.</li>
+</ul></div>
+</div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

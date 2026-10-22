@@ -1,46 +1,43 @@
 # Changelog
 
-## zuregex (development version)
+## zuregex 0.1.0
+
+- Initial CRAN submission.
+
+### The engine
 
 - Bundles PCRE2 10.48, the 8-bit library with its JIT compiler, built
   without CMake and with every PCRE2 symbol hidden from R’s own copy.
-- [`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md)
-  reports the bundled PCRE2 version and whether its JIT compiler works
-  on this machine.
+  [`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md)
+  reports the version, whether the JIT compiler works on this machine,
+  OpenMP, the thread cap and the cache size.
+
+### Compiling
+
 - [`re_compile()`](https://pedrobtz.github.io/zuregex/reference/re_compile.md)
-  compiles patterns, with flag letters, a JavaScript dialect, literal
-  patterns and JIT compilation, into `re` objects that survive
+  compiles patterns with flag letters, a JavaScript dialect, literal
+  patterns and JIT compilation into `re` objects, which survive
   [`saveRDS()`](https://rdrr.io/r/base/readRDS.html).
   [`re_info()`](https://pedrobtz.github.io/zuregex/reference/re_info.md)
   describes them, and
   [`re_escape()`](https://pedrobtz.github.io/zuregex/reference/re_escape.md)
   quotes metacharacters.
-- Compiled patterns are cached, 128 by default;
+- Patterns are cached, 128 by default;
   [`re_cache_size()`](https://pedrobtz.github.io/zuregex/reference/re_cache_size.md)
   and
   [`re_cache_clear()`](https://pedrobtz.github.io/zuregex/reference/re_cache_size.md)
   manage the cache.
-- Errors are classed conditions inheriting from `zuregex_error`. An
-  invalid pattern raises `zuregex_error_compile`, which shows where
-  PCRE2 found the error.
-- [`re_detect()`](https://pedrobtz.github.io/zuregex/reference/re_detect.md)
+
+### Matching
+
+- [`re_detect()`](https://pedrobtz.github.io/zuregex/reference/re_detect.md),
+  [`re_count()`](https://pedrobtz.github.io/zuregex/reference/re_detect.md),
+  [`re_locate()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
   and
-  [`re_count()`](https://pedrobtz.github.io/zuregex/reference/re_detect.md)
+  [`re_locate_all()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
   match character vectors, raw vectors and lists of raw vectors, with
-  one pattern for every element or one per element. `anchor` gives
-  Python’s [`match()`](https://rdrr.io/r/base/match.html) and
-  `fullmatch()`. Invalid UTF-8 raises `zuregex_error_utf`, naming the
-  element and byte.
-- [`re_locate()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
-  and
-  [`re_locate_all()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
-  return one-based, inclusive offsets in characters or bytes, so
-  [`substr()`](https://rdrr.io/r/base/substr.html) extracts each match.
-  [`re_locate_all()`](https://pedrobtz.github.io/zuregex/reference/re_locate.md)
-  takes `n` and `overlap`, and follows JavaScript’s rule for empty
-  matches with `dialect = "js"`, as
-  [`re_count()`](https://pedrobtz.github.io/zuregex/reference/re_detect.md)
-  now does.
+  one pattern for every element or one per element. Offsets are
+  one-based and inclusive, in characters or bytes.
 - [`re_extract()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md),
   [`re_extract_all()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md),
   [`re_match()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md)
@@ -49,32 +46,30 @@
   return matches and capture groups as vectors and data frames built
   in C.
   [`re_match()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md)
-  takes a `proto` for typed columns, as
-  [`utils::strcapture()`](https://rdrr.io/r/utils/strcapture.html) does,
-  and is about 17 times faster than it on 100,000 strings.
+  types its columns through `proto`, as
+  [`utils::strcapture()`](https://rdrr.io/r/utils/strcapture.html) does.
 - [`re_replace()`](https://pedrobtz.github.io/zuregex/reference/re_replace.md)
-  replaces matches with PCRE2’s extended templates (`$1`, `${name}`,
-  `${1:-default}`, `${1:+yes:no}`, case forcing), literal text, or a
-  function called once with every match.
+  uses PCRE2’s extended templates (`$1`, `${name}`, `${1:-default}`,
+  `${1:+yes:no}`, case forcing), literal text, or a function called once
+  with every match.
   [`re_expand()`](https://pedrobtz.github.io/zuregex/reference/re_replace.md)
   expands a template with the first match, and
   [`re_split()`](https://pedrobtz.github.io/zuregex/reference/re_split.md)
-  splits as Python’s `re.split()` does. Template errors raise
-  `zuregex_error_template`.
+  splits as Python’s `re.split()` does.
 - [`re_limits()`](https://pedrobtz.github.io/zuregex/reference/re_limits.md)
-  bounds the work of a match, through `limits =` on every verb or the
-  `zuregex.limits` option. An element that hits a limit raises
-  `zuregex_error_limit`, or gives `NA` and one warning per call with
-  `on_limit = "na"`.
-- Matching runs on several threads with OpenMP when a call’s subjects
-  pass an internal size threshold, with identical results at any thread
-  count.
+  bounds the work of a match, per call or through the `zuregex.limits`
+  option. An element that hits a limit raises `zuregex_error_limit`, or
+  gives `NA` and one warning with `on_limit = "na"`.
+- Matching runs on several threads with OpenMP on large inputs, with the
+  same results on any number of threads;
   [`re_threads()`](https://pedrobtz.github.io/zuregex/reference/re_threads.md)
-  caps the threads;
-  [`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md)
-  reports `openmp`, `threads` and `cache_size`.
-- A C API for other packages (`LinkingTo: zuregex` and `<zuregex-r.h>`):
-  compile, match, read offsets, substitute and set limits through opaque
-  `zr_pattern` and `zr_match_data` handles, so a PCRE2 upgrade never
-  changes a consumer’s build. Offsets there are zero-based, half-open
-  and in bytes.
+  caps them.
+- Errors are classed conditions inheriting from `zuregex_error`.
+
+### For other packages
+
+- A C API through `LinkingTo: zuregex` and `<zuregex-r.h>`: compile,
+  match, read offsets, substitute and set limits through opaque
+  `zr_pattern` and `zr_match_data` handles, so an upgrade of the bundled
+  PCRE2 never changes a consumer’s build. Offsets there are zero-based,
+  half-open and in bytes.
