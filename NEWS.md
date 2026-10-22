@@ -41,11 +41,11 @@
   same results on any number of threads; `re_threads()` caps them.
 * Each call does little work outside the match itself. Subjects that R
   marks as ASCII skip PCRE2's UTF-8 check, results are built in one buffer
-  per thread, and a verb with one pattern string prepares its call in one
-  `.Call`. On one thread and 200,000 strings, detection, replacement and
-  splitting run at or ahead of base R's `perl = TRUE`, extraction and
-  captures are 10 to 40 times faster, and a call on a short vector costs
-  about what `grepl()` costs.
+  per thread, and a call with one pattern string is a single `.Call`. On
+  one thread and 200,000 strings, detection, replacement and splitting run
+  at or ahead of base R's `perl = TRUE`, and extraction and captures are
+  10 to 40 times faster. A call on one to ten strings costs 8 to 15 microseconds,
+  less than base R and stringi.
 * Errors are classed conditions inheriting from `zuregex_error`.
 
 ## For other packages

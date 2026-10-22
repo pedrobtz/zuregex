@@ -8,6 +8,7 @@ R’s
 pcre
 py
 sljit
+stringi
 stringr
 vectorscan
 zuregex's

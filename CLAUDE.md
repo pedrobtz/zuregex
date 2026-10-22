@@ -184,14 +184,24 @@ API.
   `ZUREGEX_THREAD_NUM`. A thread appends one element at a time, so each
   element is contiguous and records its arena and offset. A `malloc()` per
   element cost a third of `re_replace()`'s time (#68).
-- The R wrappers are on every call's path, so they stay lean. Every verb
-  starts with `prepare()` in `R/match.R`: for a character vector and one
-  pattern string, `zuregex_prepare_c()` scans for bytes and looks up the
-  cache in one `.Call`; anything else falls back to `subjects()` and
-  `patterns()`. `prepare()` runs inside the verb's `run_verb()`, so a call
-  pays for one calling handler (about 2 µs), not two; a calling handler is
-  a third of the cost of `tryCatch()`. `verb_result()` reads a result that
-  is already evaluated.
+- Every verb has a fast path for its common call: a character vector and
+  one pattern string. The verb passes the pattern string itself as
+  `table`, with `bytes = NA`, to its own `.Call`. `zuregex_collect()` then
+  scans for bytes and borrows the pattern from the cache
+  (`zuregex_cache_borrow()`), and the entry point returns the bare value.
+  It returns `NULL` when the general path must decide: an NA,
+  bytes-marked or untranslated pattern, a long vector, a pattern the cache
+  won't keep, or a bytes template on character subjects. It returns a
+  `"zuregex_result"` list for an error or a limit, which `fast_result()`
+  raises. `ZUREGEX_COLLECT` makes each entry point honour this. A short
+  call costs about 8 to 10 µs, below base R and stringi; the R side is
+  most of it, so the fast path stays inline in each verb.
+- The general path starts with `prepare()` in `R/match.R`:
+  `zuregex_prepare_c()` for one pattern string, else `subjects()` and
+  `patterns()`, inside the verb's `run_verb()`, so a call pays for one
+  calling handler (about 2 µs) instead of two. A calling handler is a third of
+  the cost of `tryCatch()`. `verb_result()` reads a result that is already
+  evaluated.
 
 ## Invariants that are easy to break
 
@@ -216,6 +226,12 @@ stage establishes it.
   store offsets, and phase 3 turns them into pointers once phase 2 is over.
   An arena is allocated for each of the `nt` threads `zuregex_threads_for()`
   gives the call.
+- **A borrowed pattern lives only for one `.Call`.** The fast path holds
+  no reference: only the cache's API evicts, and nothing in a verb's
+  `.Call` calls it after `zuregex_collect()`. Never keep a borrowed pointer
+  past the `.Call`, or call into the cache after borrowing.
+- **Fast and general paths agree.** `test-prepare.R` runs every verb both
+  ways; a fast-path change needs it green.
 - **`PCRE2_NO_UTF_CHECK` only on subjects known valid.** That means R's
   ASCII mark or an earlier successful match of the same subject.
   `pcre2_jit_match()` never checks UTF-8, so `zuregex_match_once()` calls

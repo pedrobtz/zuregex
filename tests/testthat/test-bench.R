@@ -25,14 +25,13 @@ test_that("re_detect() is no slower than grepl() and faster than stringi", {
   )
 })
 
-test_that("many short calls are no slower than grepl()", {
+test_that("short calls beat grepl() and stringi", {
   skip_unless_timing()
   short <- bench_corpus(10)
   p <- "user(\\d+)@host(\\d+)\\.com"
   expect_identical(re_detect(short, p), grepl(p, short, perl = TRUE))
-  # Measured 0.96x to 1.05x over 10,000 calls. Design section 10 hoped for
-  # 3x from the cache; GAP: base R recompiles each call but does all of its
-  # work in C, and zuregex's R wrapper costs about as much as the compile.
+  # Measured 1.6x on 10 strings: one .Call does what base R does in C, and
+  # the cache saves the compile base R repeats on every call.
   expect_speedup(
     function() {
       for (i in 1:2000) {
@@ -44,8 +43,50 @@ test_that("many short calls are no slower than grepl()", {
         grepl(p, short, perl = TRUE)
       }
     },
-    0.75
+    1.2
   )
+  skip_if_not_installed("stringi")
+  one <- short[1]
+  calls <- list(
+    list(function() re_detect(one, p), function() {
+      stringi::stri_detect_regex(one, p)
+    }),
+    list(function() re_count(one, p), function() {
+      stringi::stri_count_regex(one, p)
+    }),
+    list(function() re_locate(one, p), function() {
+      stringi::stri_locate_first_regex(one, p)
+    }),
+    list(function() re_extract(one, p), function() {
+      stringi::stri_extract_first_regex(one, p)
+    }),
+    list(function() re_match(one, p), function() {
+      stringi::stri_match_first_regex(one, p)
+    }),
+    list(
+      function() re_replace(one, p, "$2:$1"),
+      function() stringi::stri_replace_all_regex(one, p, "$2:$1")
+    ),
+    list(function() re_split(one, "[,;] *"), function() {
+      stringi::stri_split_regex(one, "[,;] *")
+    })
+  )
+  # Measured 1.05x to 1.3x on one string; "no slower" leaves room for noise.
+  for (pair in calls) {
+    expect_speedup(
+      function() {
+        for (i in 1:2000) {
+          pair[[1]]()
+        }
+      },
+      function() {
+        for (i in 1:2000) {
+          pair[[2]]()
+        }
+      },
+      0.85
+    )
+  }
 })
 
 test_that("captures beat regexec() and stringi", {
