@@ -119,7 +119,9 @@
 <li>
 <code>tools/consumer/zuregexlink</code> is the consumer fixture; <code>consumer.yaml</code> installs and tests it. <code>tools/fuzz/</code> holds the libFuzzer harness and seeds; <code>tools/pcre2-testdata/convert.py</code> turns PCRE2’s own test results into <code>tests/testthat/fixtures/pcre2-testdata.tsv.gz</code>, with every case it leaves out in <code>tools/pcre2-testdata/skipped.tsv</code>.</li>
 <li>
-<code>src/locate.c</code> converts byte offsets to one-based characters in phase 2. Per-element match lists are <code>malloc()</code>ed, and phase 3 runs under <code>R_ExecWithCleanup()</code> so they are freed even if an R allocation fails.</li>
+<code>src/locate.c</code> converts byte offsets to one-based characters in phase 2. Phase 3 runs under <code>R_ExecWithCleanup()</code>, so phase 2’s buffers are freed even if an R allocation fails.</li>
+<li>Phase 2 writes variable-length output (match lists, capture offsets, replacement text) into one <code>zuregex_arena</code> per thread, indexed by <code>ZUREGEX_THREAD_NUM</code>. A thread appends one element at a time, so each element is contiguous and records its arena and offset. A <code>malloc()</code> per element cost a third of <code><a href="reference/re_replace.html">re_replace()</a></code>’s time (#68).</li>
+<li>The R wrappers are on every call’s path, so they stay lean: one pattern string skips <code><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique()</a></code>, <code><a href="https://rdrr.io/r/base/match.html" class="external-link">match()</a></code> and the <code>re</code> attributes in <code>patterns()</code>, <code>subjects()</code> asks C whether any string is bytes, and <code>native()</code> uses a calling handler, a third of the cost of <code><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch()</a></code>.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="invariants-that-are-easy-to-break">Invariants that are easy to break<a class="anchor" aria-label="anchor" href="#invariants-that-are-easy-to-break"></a></h2>
@@ -131,7 +133,11 @@
 <li>
 <strong>Results are identical for any thread count</strong> (design §6.6). Tests cap at two threads in <code>tests/testthat/setup.R</code>; a result that depends on the cap is a bug, not a tuning question. <code>test-threads.R</code> runs every verb at one thread and at the cap.</li>
 <li>
-<strong>Phase-2 loops share no mutable state.</strong> Running out of memory is recorded in the element’s own status as <code>PCRE2_ERROR_NOMEMORY</code>, never in a shared flag, and loops never <code><a href="https://rdrr.io/r/base/Control.html" class="external-link">break</a></code> out of the element loop.</li>
+<strong>Phase-2 loops share no mutable state.</strong> Running out of memory is recorded in the element’s own status as <code>PCRE2_ERROR_NOMEMORY</code>, never in a shared flag, and loops never <code><a href="https://rdrr.io/r/base/Control.html" class="external-link">break</a></code> out of the element loop. Each thread writes only its own arena.</li>
+<li>
+<strong>Never keep a pointer into an arena.</strong> Growing it moves it, so elements store offsets, and phase 3 turns them into pointers once phase 2 is over. An arena is allocated for each of the <code>nt</code> threads <code>zuregex_threads_for()</code> gives the call.</li>
+<li>
+<strong><code>PCRE2_NO_UTF_CHECK</code> only on subjects known valid.</strong> That means R’s ASCII mark or an earlier successful match of the same subject. <code>pcre2_jit_match()</code> never checks UTF-8, so <code>zuregex_match_once()</code> calls it only under the same condition.</li>
 <li>
 <strong>The pattern cache is main-thread only</strong> (design §6.4). It has no lock because nothing else reads or writes it. Touching it from phase 2 breaks that assumption silently.</li>
 <li>

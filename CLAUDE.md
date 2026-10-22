@@ -192,9 +192,21 @@ without the R API.
   results into `tests/testthat/fixtures/pcre2-testdata.tsv.gz`, with
   every case it leaves out in `tools/pcre2-testdata/skipped.tsv`.
 - `src/locate.c` converts byte offsets to one-based characters in
-  phase 2. Per-element match lists are `malloc()`ed, and phase 3 runs
-  under `R_ExecWithCleanup()` so they are freed even if an R allocation
-  fails.
+  phase 2. Phase 3 runs under `R_ExecWithCleanup()`, so phase 2’s
+  buffers are freed even if an R allocation fails.
+- Phase 2 writes variable-length output (match lists, capture offsets,
+  replacement text) into one `zuregex_arena` per thread, indexed by
+  `ZUREGEX_THREAD_NUM`. A thread appends one element at a time, so each
+  element is contiguous and records its arena and offset. A `malloc()`
+  per element cost a third of
+  [`re_replace()`](https://pedrobtz.github.io/zuregex/reference/re_replace.md)’s
+  time (#68).
+- The R wrappers are on every call’s path, so they stay lean: one
+  pattern string skips [`unique()`](https://rdrr.io/r/base/unique.html),
+  [`match()`](https://rdrr.io/r/base/match.html) and the `re` attributes
+  in `patterns()`, `subjects()` asks C whether any string is bytes, and
+  `native()` uses a calling handler, a third of the cost of
+  [`tryCatch()`](https://rdrr.io/r/base/conditions.html).
 
 ## Invariants that are easy to break
 
@@ -215,7 +227,15 @@ when a stage establishes it.
   recorded in the element’s own status as `PCRE2_ERROR_NOMEMORY`, never
   in a shared flag, and loops never
   [`break`](https://rdrr.io/r/base/Control.html) out of the element
-  loop.
+  loop. Each thread writes only its own arena.
+- **Never keep a pointer into an arena.** Growing it moves it, so
+  elements store offsets, and phase 3 turns them into pointers once
+  phase 2 is over. An arena is allocated for each of the `nt` threads
+  `zuregex_threads_for()` gives the call.
+- **`PCRE2_NO_UTF_CHECK` only on subjects known valid.** That means R’s
+  ASCII mark or an earlier successful match of the same subject.
+  `pcre2_jit_match()` never checks UTF-8, so `zuregex_match_once()`
+  calls it only under the same condition.
 - **The pattern cache is main-thread only** (design §6.4). It has no
   lock because nothing else reads or writes it. Touching it from phase 2
   breaks that assumption silently.
