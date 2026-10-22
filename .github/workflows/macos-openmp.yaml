@@ -58,37 +58,54 @@ jobs:
             str(info[c("openmp", "threads", "cores", "serial_bytes")])
             stopifnot(info$openmp, info$threads > 1L)'
 
+      # Rscript {0} rather than Rscript -e: Rscript -e halves backslashes,
+      # so "\\d" would reach R as "\d".
       - name: results do not depend on the thread count
+        shell: Rscript {0}
         run: |
-          Rscript -e '
-            library(zuregex)
-            set.seed(1)
-            x <- sprintf("id=%d user%d@host%d.com; call 555-%04d", 1:2e5,
-              sample.int(999, 2e5, TRUE), sample.int(50, 2e5, TRUE), sample.int(9999, 2e5, TRUE))
-            run <- function(n) {
-              re_threads(n)
-              list(re_detect(x, "555-\\d{4}"), re_extract_all(x, "\\d+"),
-                re_match(x, "user(\\d+)@host(\\d+)"), re_replace(x, "(\\d+)", "<$1>"),
-                re_split(x, "[;@]"))
-            }
-            stopifnot(identical(run(1), run(0)))'
+          library(zuregex)
+          set.seed(1)
+          x <- sprintf(
+            "id=%d user%d@host%d.com; call 555-%04d", 1:2e5,
+            sample.int(999, 2e5, TRUE), sample.int(50, 2e5, TRUE),
+            sample.int(9999, 2e5, TRUE)
+          )
+          run <- function(n) {
+            re_threads(n)
+            list(
+              re_detect(x, "555-\\d{4}"), re_extract_all(x, "\\d+"),
+              re_match(x, "user(\\d+)@host(\\d+)"),
+              re_replace(x, "(\\d+)", "<$1>"), re_split(x, "[;@]")
+            )
+          }
+          stopifnot(identical(run(1), run(0)))
+          cat("identical at 1 thread and at", re_threads(), "threads\n")
 
       - name: speed-up with threads (one run, informational)
+        shell: Rscript {0}
         run: |
-          Rscript -e '
-            library(zuregex)
-            set.seed(1)
-            x <- sprintf("id=%d user%d@host%d.com; call 555-%04d", 1:1e6,
-              sample.int(999, 1e6, TRUE), sample.int(50, 1e6, TRUE), sample.int(9999, 1e6, TRUE))
-            b <- function(n) {
-              re_threads(n)
-              bench::mark(count = re_count(x, "\\d"), detect = re_detect(x, "555-\\d{4}"),
-                replace = re_replace(x, "(\\d+)", "<$1>"), check = FALSE, min_iterations = 5)
-            }
-            s <- b(1); p <- b(0)
-            cat(sprintf("%-8s 1 thread %7.1f ms   %d threads %7.1f ms   x%.2f\n",
-              as.character(s$expression), as.numeric(s$median) * 1e3, re_threads(),
-              as.numeric(p$median) * 1e3, as.numeric(s$median) / as.numeric(p$median)), sep = "")'
+          library(zuregex)
+          set.seed(1)
+          x <- sprintf(
+            "id=%d user%d@host%d.com; call 555-%04d", 1:1e6,
+            sample.int(999, 1e6, TRUE), sample.int(50, 1e6, TRUE),
+            sample.int(9999, 1e6, TRUE)
+          )
+          b <- function(n) {
+            re_threads(n)
+            bench::mark(
+              count = re_count(x, "\\d"), detect = re_detect(x, "555-\\d{4}"),
+              replace = re_replace(x, "(\\d+)", "<$1>"),
+              check = FALSE, min_iterations = 5
+            )
+          }
+          s <- b(1)
+          p <- b(0)
+          cat(sprintf(
+            "%-8s 1 thread %7.1f ms   %d threads %7.1f ms   x%.2f\n",
+            as.character(s$expression), as.numeric(s$median) * 1e3, re_threads(),
+            as.numeric(p$median) * 1e3, as.numeric(s$median) / as.numeric(p$median)
+          ), sep = "")
 
       - uses: r-lib/actions/check-r-package@v2
         with:
