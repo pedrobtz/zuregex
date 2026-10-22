@@ -24,10 +24,22 @@ test_that("zuregex_info() returns its documented fields with their types", {
       "jit_target",
       "openmp",
       "threads",
+      "cores",
+      "serial_bytes",
       "cache_size"
     )
   )
   expect_type(info$threads, "integer")
+  expect_type(info$cores, "integer")
+  expect_length(info$cores, 1L)
+  # Without OpenMP there is nothing to count; with it, at least one.
+  if (info$openmp) {
+    expect_gte(info$cores, 1L)
+  } else {
+    expect_identical(info$cores, NA_integer_)
+    expect_identical(info$threads, 1L)
+  }
+  expect_identical(info$serial_bytes, 16384)
   expect_identical(info$cache_size, re_cache_size())
   for (field in c("unicode", "jit", "jit_usable", "openmp")) {
     expect_true(is_flag(info[[field]]), label = field)
