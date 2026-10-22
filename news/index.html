@@ -56,7 +56,7 @@
 <li>
 <code><a href="../reference/re_limits.html">re_limits()</a></code> bounds the work of a match, per call or through the <code>zuregex.limits</code> option. An element that hits a limit raises <code>zuregex_error_limit</code>, or gives <code>NA</code> and one warning with <code>on_limit = "na"</code>.</li>
 <li>Matching runs on several threads with OpenMP on large inputs, with the same results on any number of threads; <code><a href="../reference/re_threads.html">re_threads()</a></code> caps them.</li>
-<li>Each call does little work outside the match itself. Subjects that R marks as ASCII skip PCRE2’s UTF-8 check, results are built in one buffer per thread, and the R wrappers stay short. On one thread and 200,000 strings, detection, replacement and splitting run at or ahead of base R’s <code>perl = TRUE</code>, and extraction and captures are 10 to 40 times faster.</li>
+<li>Each call does little work outside the match itself. Subjects that R marks as ASCII skip PCRE2’s UTF-8 check, results are built in one buffer per thread, and a call with one pattern string is a single <code>.Call</code>. Extraction and captures are 10 to 40 times faster than base R’s <code>perl = TRUE</code>. Detection, replacement, splitting and calls on a few strings run about level with base R and stringi, a little ahead or behind depending on the platform.</li>
 <li>Errors are classed conditions inheriting from <code>zuregex_error</code>.</li>
 </ul></div>
 <div class="section level3">

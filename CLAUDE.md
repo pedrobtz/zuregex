@@ -108,7 +108,13 @@ tools/vendor/verify --offline    # the same without re-deriving from upstream
 tools/vendor/fetch               # re-vendor from tools/vendor/manifest.tsv
 ```
 
-The benchmark harness arrives with its stage; add it here when it does.
+``` sh
+ZUREGEX_TIMING_TESTS=true Rscript -e 'devtools::test(filter = "bench")'  # benchmark
+```
+
+`tests/testthat/test-bench.R` is the benchmark against base R and
+stringi (#66), as timing tests on `bench_corpus()` from
+`helper-bench.R`.
 
 ## Architecture
 
@@ -201,12 +207,26 @@ without the R API.
   per element cost a third of
   [`re_replace()`](https://pedrobtz.github.io/zuregex/reference/re_replace.md)’s
   time (#68).
-- The R wrappers are on every call’s path, so they stay lean: one
-  pattern string skips [`unique()`](https://rdrr.io/r/base/unique.html),
-  [`match()`](https://rdrr.io/r/base/match.html) and the `re` attributes
-  in `patterns()`, `subjects()` asks C whether any string is bytes, and
-  `native()` uses a calling handler, a third of the cost of
+- Every verb has a fast path for its common call: a character vector and
+  one pattern string. The verb passes the pattern string itself as
+  `table`, with `bytes = NA`, to its own `.Call`. `zuregex_collect()`
+  then scans for bytes and borrows the pattern from the cache
+  (`zuregex_cache_borrow()`), and the entry point returns the bare
+  value. It returns `NULL` when the general path must decide: an NA,
+  bytes-marked or untranslated pattern, a long vector, a pattern the
+  cache won’t keep, or a bytes template on character subjects. It
+  returns a `"zuregex_result"` list for an error or a limit, which
+  `fast_result()` raises. `ZUREGEX_COLLECT` makes each entry point
+  honour this. A short call costs about 8 to 10 µs, level with base R
+  and stringi (ahead on an Intel Mac, 10 to 25% behind on Linux); the R
+  side is most of it, so the fast path stays inline in each verb.
+- The general path starts with `prepare()` in `R/match.R`:
+  `zuregex_prepare_c()` for one pattern string, else `subjects()` and
+  `patterns()`, inside the verb’s `run_verb()`, so a call pays for one
+  calling handler (about 2 µs) instead of two. A calling handler is a
+  third of the cost of
   [`tryCatch()`](https://rdrr.io/r/base/conditions.html).
+  `verb_result()` reads a result that is already evaluated.
 
 ## Invariants that are easy to break
 
@@ -232,6 +252,12 @@ when a stage establishes it.
   elements store offsets, and phase 3 turns them into pointers once
   phase 2 is over. An arena is allocated for each of the `nt` threads
   `zuregex_threads_for()` gives the call.
+- **A borrowed pattern lives only for one `.Call`.** The fast path holds
+  no reference: only the cache’s API evicts, and nothing in a verb’s
+  `.Call` calls it after `zuregex_collect()`. Never keep a borrowed
+  pointer past the `.Call`, or call into the cache after borrowing.
+- **Fast and general paths agree.** `test-prepare.R` runs every verb
+  both ways; a fast-path change needs it green.
 - **`PCRE2_NO_UTF_CHECK` only on subjects known valid.** That means R’s
   ASCII mark or an earlier successful match of the same subject.
   `pcre2_jit_match()` never checks UTF-8, so `zuregex_match_once()`
@@ -293,7 +319,10 @@ when a stage establishes it.
   with `ZUREGEX_TIMING_TESTS=true`, which `R-CMD-check.yaml` sets.
   Coverage, sanitizers, valgrind and gctorture distort timings. The
   thread speedup test also needs `ZUREGEX_BENCH_THREADS=true` and four
-  free cores, which GitHub’s shared runners do not have.
+  free cores, which GitHub’s shared runners do not have. `test-bench.R`
+  checks results before it times, asserts a speedup only where the
+  measured margin is wide, and “no slower” with room for noise where it
+  is close. Timing tests add about 18 seconds to the suite.
 - **Keep the suite inside the CRAN time budget.** About 4 seconds on a
   2026 laptop at Stage 4, timing tests off. Re-measure when a stage adds
   a large corpus.

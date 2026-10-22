@@ -80,7 +80,8 @@
 <div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="ex">tools/vendor/verify</span>              <span class="co"># vendored tree = upstream + declared patches</span></span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="ex">tools/vendor/verify</span> <span class="at">--offline</span>    <span class="co"># the same without re-deriving from upstream</span></span>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="ex">tools/vendor/fetch</span>               <span class="co"># re-vendor from tools/vendor/manifest.tsv</span></span></code></pre></div>
-<p>The benchmark harness arrives with its stage; add it here when it does.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="va">ZUREGEX_TIMING_TESTS</span><span class="op">=</span>true <span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test(filter = "bench")'</span>  <span class="co"># benchmark</span></span></code></pre></div>
+<p><code>tests/testthat/test-bench.R</code> is the benchmark against base R and stringi (#66), as timing tests on <code>bench_corpus()</code> from <code>helper-bench.R</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="architecture">Architecture<a class="anchor" aria-label="anchor" href="#architecture"></a></h2>
@@ -121,7 +122,8 @@
 <li>
 <code>src/locate.c</code> converts byte offsets to one-based characters in phase 2. Phase 3 runs under <code>R_ExecWithCleanup()</code>, so phase 2’s buffers are freed even if an R allocation fails.</li>
 <li>Phase 2 writes variable-length output (match lists, capture offsets, replacement text) into one <code>zuregex_arena</code> per thread, indexed by <code>ZUREGEX_THREAD_NUM</code>. A thread appends one element at a time, so each element is contiguous and records its arena and offset. A <code>malloc()</code> per element cost a third of <code><a href="reference/re_replace.html">re_replace()</a></code>’s time (#68).</li>
-<li>The R wrappers are on every call’s path, so they stay lean: one pattern string skips <code><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique()</a></code>, <code><a href="https://rdrr.io/r/base/match.html" class="external-link">match()</a></code> and the <code>re</code> attributes in <code>patterns()</code>, <code>subjects()</code> asks C whether any string is bytes, and <code>native()</code> uses a calling handler, a third of the cost of <code><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch()</a></code>.</li>
+<li>Every verb has a fast path for its common call: a character vector and one pattern string. The verb passes the pattern string itself as <code>table</code>, with <code>bytes = NA</code>, to its own <code>.Call</code>. <code>zuregex_collect()</code> then scans for bytes and borrows the pattern from the cache (<code>zuregex_cache_borrow()</code>), and the entry point returns the bare value. It returns <code>NULL</code> when the general path must decide: an NA, bytes-marked or untranslated pattern, a long vector, a pattern the cache won’t keep, or a bytes template on character subjects. It returns a <code>"zuregex_result"</code> list for an error or a limit, which <code>fast_result()</code> raises. <code>ZUREGEX_COLLECT</code> makes each entry point honour this. A short call costs about 8 to 10 µs, level with base R and stringi (ahead on an Intel Mac, 10 to 25% behind on Linux); the R side is most of it, so the fast path stays inline in each verb.</li>
+<li>The general path starts with <code>prepare()</code> in <code>R/match.R</code>: <code>zuregex_prepare_c()</code> for one pattern string, else <code>subjects()</code> and <code>patterns()</code>, inside the verb’s <code>run_verb()</code>, so a call pays for one calling handler (about 2 µs) instead of two. A calling handler is a third of the cost of <code><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch()</a></code>. <code>verb_result()</code> reads a result that is already evaluated.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="invariants-that-are-easy-to-break">Invariants that are easy to break<a class="anchor" aria-label="anchor" href="#invariants-that-are-easy-to-break"></a></h2>
@@ -136,6 +138,10 @@
 <strong>Phase-2 loops share no mutable state.</strong> Running out of memory is recorded in the element’s own status as <code>PCRE2_ERROR_NOMEMORY</code>, never in a shared flag, and loops never <code><a href="https://rdrr.io/r/base/Control.html" class="external-link">break</a></code> out of the element loop. Each thread writes only its own arena.</li>
 <li>
 <strong>Never keep a pointer into an arena.</strong> Growing it moves it, so elements store offsets, and phase 3 turns them into pointers once phase 2 is over. An arena is allocated for each of the <code>nt</code> threads <code>zuregex_threads_for()</code> gives the call.</li>
+<li>
+<strong>A borrowed pattern lives only for one <code>.Call</code>.</strong> The fast path holds no reference: only the cache’s API evicts, and nothing in a verb’s <code>.Call</code> calls it after <code>zuregex_collect()</code>. Never keep a borrowed pointer past the <code>.Call</code>, or call into the cache after borrowing.</li>
+<li>
+<strong>Fast and general paths agree.</strong> <code>test-prepare.R</code> runs every verb both ways; a fast-path change needs it green.</li>
 <li>
 <strong><code>PCRE2_NO_UTF_CHECK</code> only on subjects known valid.</strong> That means R’s ASCII mark or an earlier successful match of the same subject. <code>pcre2_jit_match()</code> never checks UTF-8, so <code>zuregex_match_once()</code> calls it only under the same condition.</li>
 <li>
@@ -170,7 +176,7 @@
 <li>
 <strong>Helpers live in <code>tests/testthat/helper-*.R</code>.</strong> <code>helper-symbols.R</code> runs <code>nm</code> on the loaded shared object; <code>helper-types.R</code> has small predicates; <code>helper-cache.R</code> gives a test its own cache (<code>local_cache()</code>); <code>helper-corpus.R</code> is the parity corpus every verb is checked on.</li>
 <li>
-<strong>Timing tests are opt-in.</strong> <code>skip_unless_timing()</code> runs them only with <code>ZUREGEX_TIMING_TESTS=true</code>, which <code>R-CMD-check.yaml</code> sets. Coverage, sanitizers, valgrind and gctorture distort timings. The thread speedup test also needs <code>ZUREGEX_BENCH_THREADS=true</code> and four free cores, which GitHub’s shared runners do not have.</li>
+<strong>Timing tests are opt-in.</strong> <code>skip_unless_timing()</code> runs them only with <code>ZUREGEX_TIMING_TESTS=true</code>, which <code>R-CMD-check.yaml</code> sets. Coverage, sanitizers, valgrind and gctorture distort timings. The thread speedup test also needs <code>ZUREGEX_BENCH_THREADS=true</code> and four free cores, which GitHub’s shared runners do not have. <code>test-bench.R</code> checks results before it times, asserts a speedup only where the measured margin is wide, and “no slower” with room for noise where it is close. Timing tests add about 18 seconds to the suite.</li>
 <li>
 <strong>Keep the suite inside the CRAN time budget.</strong> About 4 seconds on a 2026 laptop at Stage 4, timing tests off. Re-measure when a stage adds a large corpus.</li>
 </ul></div>
