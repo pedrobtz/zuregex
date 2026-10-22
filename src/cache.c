@@ -46,7 +46,8 @@ static void evict_lru(void) {
 
 zuregex_pattern *zuregex_cache_get(const zuregex_key *key, int use_cache,
                                    int *errcode, size_t *erroffset) {
-  if (!use_cache) {
+  // A cache of capacity 0 holds nothing: compile without counting a miss.
+  if (!use_cache || capacity == 0) {
     return zuregex_pattern_compile(key, errcode, erroffset);
   }
   for (int i = 0; i < size; i++) {

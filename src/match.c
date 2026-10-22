@@ -19,6 +19,7 @@ static void set_subject(zuregex_subject *s, const char *ptr, size_t len) {
   s->ptr = len > 0 ? ptr : "";
   s->len = len;
   s->na = 0;
+  s->ascii = 0;
 }
 
 // x is a character vector, a raw vector (one subject) or a list of raw
@@ -85,7 +86,13 @@ void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index, SEXP limits,
       SEXP s = STRING_ELT(x, i);
       if (s == NA_STRING) {
         call->subjects[i].na = 1;
-      } else if (bytes || Rf_charIsASCII(s) || Rf_charIsUTF8(s)) {
+      } else if (bytes) {
+        set_subject(&call->subjects[i], CHAR(s), (size_t) LENGTH(s));
+      } else if (Rf_charIsASCII(s)) {
+        // ASCII is valid UTF-8: phase 2 skips PCRE2's check of it.
+        set_subject(&call->subjects[i], CHAR(s), (size_t) LENGTH(s));
+        call->subjects[i].ascii = 1;
+      } else if (Rf_charIsUTF8(s)) {
         set_subject(&call->subjects[i], CHAR(s), (size_t) LENGTH(s));
       } else {
         const char *t = Rf_translateCharUTF8(s);
@@ -207,15 +214,56 @@ int zuregex_pad(const zuregex_subject *s, zuregex_pad_buf *buf,
   out->ptr = buf->data;
   out->len = s->len;
   out->na = 0;
+  out->ascii = s->ascii;
   return 1;
 }
+
+zuregex_arena *zuregex_arenas_new(int nt) {
+  return calloc(nt > 0 ? (size_t) nt : 1, sizeof(zuregex_arena));
+}
+
+void zuregex_arenas_free(zuregex_arena *arenas, int nt) {
+  if (arenas == NULL) return;
+  for (int t = 0; t < (nt > 0 ? nt : 1); t++) free(arenas[t].data);
+  free(arenas);
+}
+
+int zuregex_arena_reserve(zuregex_arena *a, size_t n) {
+  if (n <= a->cap - a->len) return 1;
+  size_t cap = a->cap ? a->cap : 4096;
+  while (n > cap - a->len) {
+    if (cap > SIZE_MAX / 2) return 0;
+    cap *= 2;
+  }
+  char *grown = realloc(a->data, cap);
+  if (grown == NULL) return 0;
+  a->data = grown;
+  a->cap = cap;
+  return 1;
+}
+
+// Options pcre2_jit_match() honours. It ignores the rest, which
+// pcre2_match() handles by falling back to the interpreter.
+#define ZUREGEX_JIT_OPTIONS                                                  \
+  (PCRE2_NOTBOL | PCRE2_NOTEOL | PCRE2_NOTEMPTY | PCRE2_NOTEMPTY_ATSTART |   \
+   PCRE2_NO_UTF_CHECK)
 
 int zuregex_match_once(const zuregex_call *call, const zuregex_pattern *p,
                        const zuregex_subject *s, size_t start,
                        uint32_t options, pcre2_match_data *md,
                        zuregex_status *st) {
-  int rc = pcre2_match(p->code, (PCRE2_SPTR) s->ptr, s->len, start, options,
-                       md, call->mctx);
+  if (s->ascii) options |= PCRE2_NO_UTF_CHECK;
+  int rc;
+  // pcre2_jit_match() skips pcre2_match()'s checks, including the UTF-8
+  // check, so it is used only once the subject is known valid.
+  if (p->jit_in_use && (options & ~(uint32_t) ZUREGEX_JIT_OPTIONS) == 0 &&
+      (!p->key.utf || (options & PCRE2_NO_UTF_CHECK))) {
+    rc = pcre2_jit_match(p->code, (PCRE2_SPTR) s->ptr, s->len, start, options,
+                         md, call->mctx);
+  } else {
+    rc = pcre2_match(p->code, (PCRE2_SPTR) s->ptr, s->len, start, options, md,
+                     call->mctx);
+  }
   if (rc >= 0) return 1;
   if (rc == PCRE2_ERROR_NOMATCH) return 0;
   st->rc = rc;
@@ -395,4 +443,17 @@ SEXP zuregex_count_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits) {
   SEXP ans = zuregex_result(&call, status, Rf_isNull(err) ? out : R_NilValue, err);
   UNPROTECT(2);
   return ans;
+}
+
+// Whether any string in a character vector is marked "bytes": the R side
+// then matches the whole call as bytes. One pass, no allocation, unlike
+// any(Encoding(x) == "bytes").
+SEXP zuregex_has_bytes_c(SEXP x) {
+  if (TYPEOF(x) != STRSXP) return Rf_ScalarLogical(FALSE);
+  R_xlen_t n = XLENGTH(x);
+  for (R_xlen_t i = 0; i < n; i++) {
+    SEXP s = STRING_ELT(x, i);
+    if (s != NA_STRING && Rf_getCharCE(s) == CE_BYTES) return Rf_ScalarLogical(TRUE);
+  }
+  return Rf_ScalarLogical(FALSE);
 }

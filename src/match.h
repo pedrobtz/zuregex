@@ -18,6 +18,7 @@ typedef struct {
   const char *ptr;
   size_t len;
   int na;
+  int ascii;  // R marks the string ASCII: valid UTF-8 without checking
 } zuregex_subject;
 
 // Everything phase 2 needs, collected in phase 1.
@@ -37,9 +38,9 @@ typedef struct {
 // Phase 2 status per element.
 typedef struct {
   int rc;         // 0, or the PCRE2 error code that stopped this element
+  int in_template;  // the error came from expanding a replacement template
   size_t offset;  // UTF errors: byte offset of the bad character;
                   // template errors: byte offset in the template
-  int in_template;  // the error came from expanding a replacement template
 } zuregex_status;
 
 // limits: a double vector of match, depth and heap limits (NA keeps
@@ -74,7 +75,26 @@ typedef struct {
 int zuregex_pad(const zuregex_subject *s, zuregex_pad_buf *buf,
                 zuregex_subject *out);
 
-// One pcre2_match(). Returns 1 for a match, 0 for none, -1 for an error
+// Per-thread output of phase 2. Each thread appends one element's results
+// at a time, so they are contiguous; elements record which arena and the
+// offset they start at, never a pointer, because growing an arena moves it.
+// One growing buffer per thread replaces a malloc() per element.
+typedef struct {
+  char *data;
+  size_t len, cap;
+} zuregex_arena;
+
+// nt empty arenas, or NULL when memory ran out. Called on the main thread.
+zuregex_arena *zuregex_arenas_new(int nt);
+void zuregex_arenas_free(zuregex_arena *arenas, int nt);
+
+// Room for n more bytes after a->len. Returns 0 when memory ran out. Keeps
+// data aligned for any type when every append is a multiple of 8 bytes.
+// No R API.
+int zuregex_arena_reserve(zuregex_arena *a, size_t n);
+
+// One match: pcre2_jit_match() when the pattern is JIT-compiled and the
+// options allow it, otherwise pcre2_match(). Returns 1 for a match, 0 for none, -1 for an error
 // recorded in *st.
 int zuregex_match_once(const zuregex_call *call, const zuregex_pattern *p,
                        const zuregex_subject *s, size_t start,

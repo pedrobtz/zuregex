@@ -37,10 +37,15 @@
 #ifdef ZUREGEX_OPENMP
 #  define ZUREGEX_OMP_PARALLEL ZUREGEX_PRAGMA(omp parallel num_threads(nt) if(nt > 1))
 #  define ZUREGEX_OMP_FOR ZUREGEX_PRAGMA(omp for schedule(dynamic, 64))
+#  define ZUREGEX_THREAD_NUM omp_get_thread_num()
 #else
 #  define ZUREGEX_OMP_PARALLEL (void) nt;
 #  define ZUREGEX_OMP_FOR
+#  define ZUREGEX_THREAD_NUM 0
 #endif
+
+// The thread's index inside ZUREGEX_OMP_PARALLEL, below nt: which of the
+// call's per-thread arenas it writes.
 
 // Below this many subject bytes in a call, phase 2 runs on one thread:
 // starting threads costs more than the matching. Measured in Stage 8 with
