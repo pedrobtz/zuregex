@@ -141,8 +141,15 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                        SEXP expand_only, SEXP first) {
   zuregex_call call;
   int is_bytes = Rf_asLogical(bytes);
-  zuregex_collect(x, is_bytes, table, index, limits, &call);
+  ZUREGEX_COLLECT(x, is_bytes, table, index, limits, &call);
   int per_match = Rf_asInteger(mode) == 1;
+  // A bytes template needs bytes subjects: the R path says so.
+  if (call.fast && !call.bytes) {
+    for (R_xlen_t j = 0; j < XLENGTH(repl); j++) {
+      SEXP r = STRING_ELT(repl, j);
+      if (r != NA_STRING && Rf_getCharCE(r) == CE_BYTES) return R_NilValue;
+    }
+  }
   uint32_t syntax = Rf_asLogical(literal) ? PCRE2_SUBSTITUTE_LITERAL
                                           : PCRE2_SUBSTITUTE_EXTENDED;
   double limit = Rf_asReal(n_max);
@@ -157,7 +164,7 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
     SEXP s = STRING_ELT(repl, j);
     r[j].na = s == NA_STRING;
     if (r[j].na) continue;
-    if (is_bytes || Rf_charIsASCII(s) || Rf_charIsUTF8(s)) {
+    if (call.bytes || Rf_charIsASCII(s) || Rf_charIsUTF8(s)) {
       r[j].ptr = CHAR(s);
       r[j].len = (size_t) LENGTH(s);
     } else {

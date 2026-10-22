@@ -26,11 +26,7 @@ user_call <- function(n = 2L) {
 # zuregex_error_native. A calling handler re-signals it as one; that costs
 # a third of tryCatch(), which matters on every call of every verb.
 native <- function(expr, call) {
-  withCallingHandlers(expr, error = function(e) {
-    if (!inherits(e, "zuregex_error")) {
-      zuregex_abort("native", conditionMessage(e), parent = e, call = call)
-    }
-  })
+  withCallingHandlers(expr, error = function(e) native_error(e, call))
 }
 
 check_string <- function(x, arg, call) {

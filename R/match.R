@@ -2,6 +2,30 @@
 # UTF-8 and bytes, apply the pairing rule to `pattern` (design section 6.5,
 # D8) and compile each distinct pattern once.
 
+# subjects() and patterns() in one step: list(x, n, bytes, table, index).
+# A character vector with one pattern string, the common case, takes one
+# .Call; anything else goes through the two R functions below. Call it
+# inside run_verb() or native(), which class the errors its .Call can
+# raise; a verb then pays for one handler, not two.
+prepare <- function(x, pattern, call) {
+  res <- .Call(zuregex_prepare_c, x, pattern)
+  if (is.null(res)) {
+    s <- subjects(x, call)
+    p <- patterns(pattern, s$n, s$bytes, call)
+    return(list(
+      x = s$x,
+      n = s$n,
+      bytes = s$bytes,
+      table = p$table,
+      index = p$index
+    ))
+  }
+  if (!is.null(res$error)) {
+    raise_compile_error(res$error, pattern, "", FALSE, call)
+  }
+  res
+}
+
 # x: a character vector, a raw vector (one subject) or a list of raw
 # vectors. Returns list(x, n, bytes).
 subjects <- function(x, call) {
@@ -192,12 +216,43 @@ raise_match_error <- function(err, call) {
   )
 }
 
+# The fast path: a verb's .Call given `x` and one pattern string, which
+# returns the value itself, NULL when the call needs the general path, or
+# a "zuregex_result" list when something went wrong. fast_result() turns
+# that list into its error or warning.
+fast_result <- function(res, call, pattern, repl = NULL) {
+  err <- res$error
+  if (!is.null(err) && err$kind == "compile") {
+    raise_compile_error(err, pattern, "", FALSE, call)
+  }
+  if (!is.null(err) && err$kind == "template") {
+    raise_template_error(err, repl, call)
+  }
+  verb_result(res, call)
+}
+
+# The calling handler every .Call runs under (see native()).
+native_error <- function(e, call) {
+  if (!inherits(e, "zuregex_error")) {
+    zuregex_abort("native", conditionMessage(e), parent = e, call = call)
+  }
+}
+
+# Evaluates `res`, a verb's .Call and whatever prepares it, under one
+# calling handler (see native()), then turns the result into a value, an
+# error or a warning.
 run_verb <- function(res, call) {
-  res <- native(res, call)
+  res <- withCallingHandlers(res, error = function(e) native_error(e, call))
+  verb_result(res, call)
+}
+
+# list(value, error, limited) from a verb's .Call: the value, the error it
+# describes, or the value with a warning for elements that hit a limit.
+verb_result <- function(res, call) {
   if (!is.null(res$error)) {
     raise_match_error(res$error, call)
   }
-  if (isTRUE(res$limited > 0)) {
+  if (res$limited > 0) {
     n <- res$limited
     warning(structure(
       class = c("zuregex_warning_limit", "warning", "condition"),

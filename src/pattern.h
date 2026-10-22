@@ -60,6 +60,13 @@ void zuregex_pattern_release(zuregex_pattern *p);
 // (design section 6.5).
 zuregex_pattern *zuregex_cache_get(const zuregex_key *key, int use_cache,
                                    int *errcode, size_t *erroffset);
+// The cached pattern for key, without taking a reference: valid until the
+// cache is next changed, so for the rest of one .Call, which changes it no
+// further. NULL with *errcode set on a compile error, or with *uncached
+// set when the cache would not keep the pattern (capacity 0, or a pattern
+// over ZUREGEX_CACHE_MAX_PATTERN), for the caller to compile it itself.
+zuregex_pattern *zuregex_cache_borrow(const zuregex_key *key, int *errcode,
+                                      size_t *erroffset, int *uncached);
 int zuregex_cache_capacity(void);
 int zuregex_cache_set_capacity(int capacity);  // returns the previous one
 int zuregex_cache_clear(void);                 // returns how many it held

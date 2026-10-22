@@ -18,6 +18,11 @@ SEXP zuregex_capi_limit_c(SEXP pattern, SEXP subject, SEXP match_limit);
 SEXP zuregex_capi_edges_c(void);
 SEXP zuregex_compile_c(SEXP pattern, SEXP flags, SEXP dialect, SEXP literal,
                        SEXP jit, SEXP utf, SEXP use_cache);
+// The description of a compile error in the one pattern of a call, as
+// zuregex_compile_c() describes them; erroffset is in bytes.
+SEXP zuregex_compile_error_for(const char *pattern, int errcode,
+                               size_t erroffset);
+SEXP zuregex_prepare_c(SEXP x, SEXP pattern);
 SEXP zuregex_re_valid_c(SEXP re);
 SEXP zuregex_re_info_c(SEXP re);
 SEXP zuregex_cache_size_c(SEXP n);

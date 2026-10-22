@@ -40,22 +40,41 @@
 #' re_locate_all("aaaa", "aa", overlap = TRUE)
 re_locate <- function(x, pattern, bytes = FALSE, limits = NULL) {
   call <- sys.call()
-  check_flag(bytes, "bytes", call)
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
-  out <- run_verb(
-    .Call(
-      zuregex_locate_c,
-      s$x,
-      s$bytes,
-      p$table,
-      p$index,
-      call_limits(limits, call),
-      !bytes
-    ),
-    call
-  )
-  colnames(out) <- c("start", "end")
+  if (!is.logical(bytes) || length(bytes) != 1L || is.na(bytes)) {
+    check_flag(bytes, "bytes", call)
+  }
+  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
+    no_limits
+  } else {
+    call_limits(limits, call)
+  }
+  out <- NULL
+  if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
+    out <- withCallingHandlers(
+      .Call(zuregex_locate_c, x, NA, pattern, NULL, lim, !bytes),
+      error = function(e) native_error(e, call)
+    )
+    if (is.object(out)) {
+      out <- fast_result(out, call, pattern)
+    }
+  }
+  if (is.null(out)) {
+    out <- run_verb(
+      {
+        s <- p <- prepare(x, pattern, call)
+        .Call(
+          zuregex_locate_c,
+          s$x,
+          s$bytes,
+          p$table,
+          p$index,
+          lim,
+          !bytes
+        )
+      },
+      call
+    )
+  }
   out
 }
 
@@ -70,40 +89,59 @@ re_locate_all <- function(
   limits = NULL
 ) {
   call <- sys.call()
-  if (
-    !is.numeric(n) ||
-      length(n) != 1L ||
-      is.na(n) ||
-      n < 0 ||
-      (is.finite(n) && n != trunc(n))
-  ) {
-    zuregex_abort(
-      "argument",
-      sprintf(
-        "`n` must be a whole number of 0 or more, or `Inf`, not %s.",
-        describe(n)
+  if (!missing(n)) {
+    check_n(n, call)
+  }
+  if (!is.logical(overlap) || length(overlap) != 1L || is.na(overlap)) {
+    check_flag(overlap, "overlap", call)
+  }
+  if (!is.logical(bytes) || length(bytes) != 1L || is.na(bytes)) {
+    check_flag(bytes, "bytes", call)
+  }
+  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
+    no_limits
+  } else {
+    call_limits(limits, call)
+  }
+  cols <- NULL
+  if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
+    cols <- withCallingHandlers(
+      .Call(
+        zuregex_locate_all_c,
+        x,
+        NA,
+        pattern,
+        NULL,
+        lim,
+        as.double(n),
+        overlap,
+        !bytes
       ),
-      call = call
+      error = function(e) native_error(e, call)
+    )
+    if (is.object(cols)) {
+      cols <- fast_result(cols, call, pattern)
+    }
+  }
+  if (is.null(cols)) {
+    cols <- run_verb(
+      {
+        s <- p <- prepare(x, pattern, call)
+        .Call(
+          zuregex_locate_all_c,
+          s$x,
+          s$bytes,
+          p$table,
+          p$index,
+          lim,
+          as.double(n),
+          overlap,
+          !bytes
+        )
+      },
+      call
     )
   }
-  check_flag(overlap, "overlap", call)
-  check_flag(bytes, "bytes", call)
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
-  cols <- run_verb(
-    .Call(
-      zuregex_locate_all_c,
-      s$x,
-      s$bytes,
-      p$table,
-      p$index,
-      call_limits(limits, call),
-      as.double(n),
-      overlap,
-      !bytes
-    ),
-    call
-  )
   as_data_frame(cols)
 }
 

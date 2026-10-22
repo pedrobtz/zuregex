@@ -58,14 +58,54 @@ re_replace <- function(
   limits = NULL
 ) {
   call <- sys.call()
-  check_n(n, call)
+  if (!missing(n)) {
+    check_n(n, call)
+  }
   if (missing(syntax)) {
     syntax <- "extended"
+  } else {
+    check_choice(syntax, c("extended", "literal"), "syntax", call)
   }
-  check_choice(syntax, c("extended", "literal"), "syntax", call)
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
-  lim <- call_limits(limits, call)
+  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
+    no_limits
+  } else {
+    call_limits(limits, call)
+  }
+  if (
+    is.character(x) &&
+      is.character(pattern) &&
+      length(pattern) == 1L &&
+      is.character(replacement) &&
+      length(replacement) == 1L
+  ) {
+    out <- withCallingHandlers(
+      .Call(
+        zuregex_replace_c,
+        x,
+        NA,
+        pattern,
+        NULL,
+        lim,
+        replacement,
+        0L,
+        syntax == "literal",
+        as.double(n),
+        FALSE,
+        NULL
+      ),
+      error = function(e) native_error(e, call)
+    )
+    if (!is.null(out)) {
+      return(
+        if (is.object(out)) {
+          fast_result(out, call, pattern, replacement)
+        } else {
+          out
+        }
+      )
+    }
+  }
+  s <- p <- native(prepare(x, pattern, call), call)
   if (is.function(replacement)) {
     return(replace_with_function(s, p, replacement, n, lim, call))
   }
@@ -87,13 +127,47 @@ re_replace <- function(
 #' @export
 re_expand <- function(x, pattern, template, limits = NULL) {
   call <- sys.call()
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
+  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
+    no_limits
+  } else {
+    call_limits(limits, call)
+  }
+  if (
+    is.character(x) &&
+      is.character(pattern) &&
+      length(pattern) == 1L &&
+      is.character(template) &&
+      length(template) == 1L
+  ) {
+    out <- withCallingHandlers(
+      .Call(
+        zuregex_replace_c,
+        x,
+        NA,
+        pattern,
+        NULL,
+        lim,
+        template,
+        0L,
+        FALSE,
+        1,
+        TRUE,
+        NULL
+      ),
+      error = function(e) native_error(e, call)
+    )
+    if (!is.null(out)) {
+      return(
+        if (is.object(out)) fast_result(out, call, pattern, template) else out
+      )
+    }
+  }
+  s <- p <- native(prepare(x, pattern, call), call)
   check_templates(template, "template", s$n, call, s$bytes)
   run_replace(
     s,
     p,
-    call_limits(limits, call),
+    lim,
     enc2utf8(template),
     0L,
     FALSE,
@@ -171,7 +245,7 @@ run_replace <- function(
   if (!is.null(res$error) && res$error$kind == "template") {
     raise_template_error(res$error, repl, call)
   }
-  run_verb(res, call)
+  verb_result(res, call)
 }
 
 raise_template_error <- function(err, repl, call) {
@@ -304,23 +378,56 @@ replace_with_function <- function(s, p, fun, n, lim, call) {
 #' re_split("a-b-c-d", "-", n = 2)
 re_split <- function(x, pattern, n = Inf, keep_groups = FALSE, limits = NULL) {
   call <- sys.call()
-  check_n(n, call)
-  check_flag(keep_groups, "keep_groups", call)
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
-  out <- run_verb(
-    .Call(
-      zuregex_split_c,
-      s$x,
-      s$bytes,
-      p$table,
-      p$index,
-      call_limits(limits, call),
-      as.double(max(n - 1, 0)),
-      keep_groups
-    ),
-    call
-  )
+  if (!missing(n)) {
+    check_n(n, call)
+  }
+  if (
+    !is.logical(keep_groups) || length(keep_groups) != 1L || is.na(keep_groups)
+  ) {
+    check_flag(keep_groups, "keep_groups", call)
+  }
+  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
+    no_limits
+  } else {
+    call_limits(limits, call)
+  }
+  out <- NULL
+  if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
+    out <- withCallingHandlers(
+      .Call(
+        zuregex_split_c,
+        x,
+        NA,
+        pattern,
+        NULL,
+        lim,
+        as.double(max(n - 1, 0)),
+        keep_groups
+      ),
+      error = function(e) native_error(e, call)
+    )
+    if (is.object(out)) {
+      out <- fast_result(out, call, pattern)
+    }
+  }
+  if (is.null(out)) {
+    out <- run_verb(
+      {
+        s <- p <- prepare(x, pattern, call)
+        .Call(
+          zuregex_split_c,
+          s$x,
+          s$bytes,
+          p$table,
+          p$index,
+          lim,
+          as.double(max(n - 1, 0)),
+          keep_groups
+        )
+      },
+      call
+    )
+  }
   if (n == 0) {
     out <- lapply(out, function(v) {
       if (length(v) == 1L && is.na(v)) v else character()

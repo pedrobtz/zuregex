@@ -28,10 +28,17 @@ static zuregex_status *new_status(R_xlen_t n) {
 SEXP zuregex_locate_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                       SEXP char_offsets) {
   zuregex_call call;
-  zuregex_collect(x, Rf_asLogical(bytes), table, index, limits, &call);
+  ZUREGEX_COLLECT(x, Rf_asLogical(bytes), table, index, limits, &call);
   int chars = Rf_asLogical(char_offsets);
 
   SEXP out = PROTECT(Rf_allocMatrix(INTSXP, (int) call.n, 2));
+  SEXP dn = PROTECT(Rf_allocVector(VECSXP, 2));
+  SEXP cn = Rf_allocVector(STRSXP, 2);
+  SET_VECTOR_ELT(dn, 1, cn);
+  SET_STRING_ELT(cn, 0, Rf_mkChar("start"));
+  SET_STRING_ELT(cn, 1, Rf_mkChar("end"));
+  Rf_dimnamesgets(out, dn);
+  UNPROTECT(1);
   int *start_col = INTEGER(out);
   int *end_col = start_col + call.n;
   zuregex_status *status = new_status(call.n);
@@ -154,7 +161,7 @@ static SEXP build_frame(void *data) {
 SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                           SEXP n_max, SEXP overlap, SEXP char_offsets) {
   zuregex_call call;
-  zuregex_collect(x, Rf_asLogical(bytes), table, index, limits, &call);
+  ZUREGEX_COLLECT(x, Rf_asLogical(bytes), table, index, limits, &call);
   double limit = Rf_asReal(n_max);
   int ov_flag = Rf_asLogical(overlap);
   int chars = Rf_asLogical(char_offsets);

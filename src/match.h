@@ -33,7 +33,21 @@ typedef struct {
   double total_bytes;          // of all subjects: decides serial or parallel
   pcre2_match_context *mctx;   // the call's limits; NULL for PCRE2's defaults
   int limit_na;                // on_limit = "na": a limited element is NA
+  int bytes;                   // matched as bytes, as decided in phase 1
+  // Fast mode: `table` was one pattern string (see zuregex_collect()).
+  int fast;
+  int declined;                // fast mode cannot take this call
+  SEXP early;                  // fast mode: the result to return at once
 } zuregex_call;
+
+// Every verb's entry point starts with this. In fast mode the R side gets
+// NULL when the call needs its general path, or a compile error at once.
+#define ZUREGEX_COLLECT(x, bytes, table, index, limits, call)               \
+  do {                                                                      \
+    zuregex_collect(x, bytes, table, index, limits, call);                  \
+    if ((call)->declined) return R_NilValue;                                \
+    if ((call)->early != NULL) return (call)->early;                        \
+  } while (0)
 
 // Phase 2 status per element.
 typedef struct {
@@ -45,6 +59,15 @@ typedef struct {
 
 // limits: a double vector of match, depth and heap limits (NA keeps
 // PCRE2's default) and the on_limit mode (1 for "na").
+//
+// table is a list of compiled patterns and index maps elements to them;
+// bytes says whether to match as bytes. Fast mode, for the common call of
+// a character vector and one pattern string: table is that string, index
+// is ignored, bytes is NA and decided here, and the pattern is borrowed
+// from the cache. Fast mode sets call->declined when the call needs the R
+// side (an NA pattern, a pattern to translate, a long vector, a pattern
+// the cache will not keep), and call->early to a compile error. Use it
+// through ZUREGEX_COLLECT.
 void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index, SEXP limits,
                      zuregex_call *call);
 
@@ -130,7 +153,17 @@ SEXP zuregex_nul_error(R_xlen_t element);
 SEXP zuregex_too_long_error(R_xlen_t element);
 double zuregex_limited(const zuregex_call *call, const zuregex_status *status);
 
-// list(value, error, limited), as every verb returns to R.
+// A one-string character vector made once and kept for the session, for
+// attributes set on every call; *slot starts NULL. Main thread only.
+SEXP zuregex_constant_string(const char *s, SEXP *slot);
+
+// Fast mode's result for a call that failed before matching: a classed
+// list(value = NULL, error, limited = 0).
+SEXP zuregex_fast_failure(SEXP error);
+
+// list(value, error, limited), as every verb returns to R. In fast mode,
+// the value alone when there is no error and no limited element, and
+// otherwise the list with class "zuregex_result".
 SEXP zuregex_result(const zuregex_call *call, const zuregex_status *status,
                     SEXP value, SEXP error);
 

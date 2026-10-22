@@ -54,8 +54,80 @@ static void set_limits(SEXP limits, zuregex_call *call) {
   if (!ISNAN(l[2])) pcre2_set_heap_limit(call->mctx, (uint32_t) l[2]);
 }
 
+static void collect_table(SEXP table, SEXP index, zuregex_call *call);
+
+// Fast mode's pattern (see match.h): borrowed from the cache, or a reason
+// to decline or an error to return early.
+static void collect_fast_pattern(SEXP table, zuregex_call *call) {
+  static const int one = 1;
+  SEXP p = STRING_ELT(table, 0);
+  zuregex_key key;
+  memset(&key, 0, sizeof(key));
+  zuregex_parse_flags("", 0, &key.options, &key.extra);
+  key.dialect = ZUREGEX_DIALECT_PCRE;
+  key.jit = 1;
+  key.utf = !call->bytes;
+  key.pattern = CHAR(p);
+  key.length = (size_t) LENGTH(p);
+  int errcode = 0, uncached = 0;
+  size_t erroffset = 0;
+  zuregex_pattern *pat = zuregex_cache_borrow(&key, &errcode, &erroffset, &uncached);
+  if (pat == NULL) {
+    if (uncached) {
+      call->declined = 1;
+      return;
+    }
+    SEXP err = PROTECT(zuregex_compile_error_for(key.pattern, errcode, erroffset));
+    call->early = zuregex_fast_failure(err);
+    UNPROTECT(1);
+    return;
+  }
+  call->n_patterns = 1;
+  call->patterns = (zuregex_pattern **) R_alloc(1, sizeof(zuregex_pattern *));
+  call->patterns[0] = pat;
+  uint32_t groups = 0;
+  pcre2_pattern_info(pat->code, PCRE2_INFO_CAPTURECOUNT, &groups);
+  call->max_ovector = groups + 1;
+  call->index = &one;
+  call->index_len = 1;
+}
+
+// Whether fast mode can take x and pattern; sets call->bytes if so.
+static int fast_eligible(SEXP x, SEXP table, int bytes, zuregex_call *call) {
+  if (TYPEOF(x) != STRSXP || XLENGTH(table) != 1 || XLENGTH(x) > INT_MAX) return 0;
+  SEXP p = STRING_ELT(table, 0);
+  if (p == NA_STRING || Rf_getCharCE(p) == CE_BYTES ||
+      !(Rf_charIsASCII(p) || Rf_charIsUTF8(p))) {
+    return 0;
+  }
+  if (bytes == NA_LOGICAL) {
+    bytes = 0;
+    R_xlen_t n = XLENGTH(x);
+    for (R_xlen_t i = 0; i < n; i++) {
+      SEXP s = STRING_ELT(x, i);
+      if (s != NA_STRING && Rf_getCharCE(s) == CE_BYTES) {
+        bytes = 1;
+        break;
+      }
+    }
+  }
+  call->bytes = bytes;
+  return 1;
+}
+
 void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index, SEXP limits,
                      zuregex_call *call) {
+  call->fast = TYPEOF(table) == STRSXP;
+  call->declined = 0;
+  call->early = NULL;
+  call->bytes = bytes;
+  if (call->fast) {
+    if (!fast_eligible(x, table, bytes, call)) {
+      call->declined = 1;
+      return;
+    }
+    bytes = call->bytes;
+  }
   set_limits(limits, call);
   if (TYPEOF(x) == RAWSXP) {
     call->n = 1;
@@ -101,6 +173,19 @@ void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index, SEXP limits,
     }
   }
 
+  if (call->fast) {
+    collect_fast_pattern(table, call);
+    if (call->declined || call->early != NULL) return;
+  } else {
+    collect_table(table, index, call);
+  }
+  call->total_bytes = 0;
+  for (R_xlen_t i = 0; i < call->n; i++) {
+    if (!call->subjects[i].na) call->total_bytes += (double) call->subjects[i].len;
+  }
+}
+
+static void collect_table(SEXP table, SEXP index, zuregex_call *call) {
   call->n_patterns = (int) XLENGTH(table);
   call->patterns = (zuregex_pattern **) R_alloc(
     call->n_patterns > 0 ? (size_t) call->n_patterns : 1,
@@ -118,10 +203,6 @@ void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index, SEXP limits,
   }
   call->index = INTEGER(index);
   call->index_len = (int) XLENGTH(index);
-  call->total_bytes = 0;
-  for (R_xlen_t i = 0; i < call->n; i++) {
-    if (!call->subjects[i].na) call->total_bytes += (double) call->subjects[i].len;
-  }
 }
 
 zuregex_pattern *zuregex_pattern_for(const zuregex_call *call, R_xlen_t i) {
@@ -331,13 +412,40 @@ static uint32_t anchor_options(int anchor) {
   }
 }
 
+SEXP zuregex_constant_string(const char *s, SEXP *slot) {
+  if (*slot == NULL) {
+    *slot = Rf_mkString(s);
+    R_PreserveObject(*slot);
+  }
+  return *slot;
+}
+
+static SEXP result_class = NULL;
+
+SEXP zuregex_fast_failure(SEXP error) {
+  const char *names[] = {"value", "error", "limited", ""};
+  SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));
+  SET_VECTOR_ELT(out, 1, error);
+  SET_VECTOR_ELT(out, 2, Rf_ScalarReal(0));
+  Rf_classgets(out, zuregex_constant_string("zuregex_result", &result_class));
+  UNPROTECT(1);
+  return out;
+}
+
 SEXP zuregex_result(const zuregex_call *call, const zuregex_status *status,
                     SEXP value, SEXP error) {
+  double limited = zuregex_limited(call, status);
+  // Fast mode returns a plain value when nothing went wrong; the R side
+  // only looks further at a classed result.
+  if (call->fast && Rf_isNull(error) && limited == 0) return value;
   const char *names[] = {"value", "error", "limited", ""};
   SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));
   SET_VECTOR_ELT(out, 0, value);
   SET_VECTOR_ELT(out, 1, error);
-  SET_VECTOR_ELT(out, 2, Rf_ScalarReal(zuregex_limited(call, status)));
+  SET_VECTOR_ELT(out, 2, Rf_ScalarReal(limited));
+  if (call->fast) {
+    Rf_classgets(out, zuregex_constant_string("zuregex_result", &result_class));
+  }
   UNPROTECT(1);
   return out;
 }
@@ -346,7 +454,7 @@ SEXP zuregex_result(const zuregex_call *call, const zuregex_status *status,
 SEXP zuregex_detect_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                       SEXP anchor, SEXP negate) {
   zuregex_call call;
-  zuregex_collect(x, Rf_asLogical(bytes), table, index, limits, &call);
+  ZUREGEX_COLLECT(x, Rf_asLogical(bytes), table, index, limits, &call);
   uint32_t options = anchor_options(Rf_asInteger(anchor));
   int neg = Rf_asLogical(negate);
 
@@ -391,7 +499,7 @@ SEXP zuregex_detect_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
 
 SEXP zuregex_count_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits) {
   zuregex_call call;
-  zuregex_collect(x, Rf_asLogical(bytes), table, index, limits, &call);
+  ZUREGEX_COLLECT(x, Rf_asLogical(bytes), table, index, limits, &call);
 
   SEXP out = PROTECT(Rf_allocVector(INTSXP, call.n));
   int *res = INTEGER(out);
