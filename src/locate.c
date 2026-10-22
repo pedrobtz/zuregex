@@ -49,8 +49,7 @@ SEXP zuregex_locate_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   {
     pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
     zuregex_pad_buf pad = {NULL, 0};
-    ZUREGEX_OMP_FOR
-    for (R_xlen_t i = 0; i < call.n; i++) {
+    ZUREGEX_FOR_EACH(i, call.n) {
       const zuregex_pattern *p = zuregex_pattern_for(&call, i);
       start_col[i] = end_col[i] = NA_INTEGER;
       if (p == NULL) continue;
@@ -183,8 +182,7 @@ SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limit
     pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
     zuregex_pad_buf pad = {NULL, 0};
     zuregex_arena *a = &t.arenas[ZUREGEX_THREAD_NUM];
-    ZUREGEX_OMP_FOR
-    for (R_xlen_t i = 0; i < call.n; i++) {
+    ZUREGEX_FOR_EACH(i, call.n) {
       const zuregex_pattern *p = zuregex_pattern_for(&call, i);
       element_matches *e = &t.el[i];
       e->tid = ZUREGEX_THREAD_NUM;

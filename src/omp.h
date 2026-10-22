@@ -25,24 +25,48 @@
 //   ZUREGEX_OMP_PARALLEL
 //   {
 //     ... per-thread state, such as match data ...
-//     ZUREGEX_OMP_FOR
-//     for (R_xlen_t i = 0; i < n; i++) { ... }
+//     ZUREGEX_FOR_EACH(i, n) { ... }
 //   }
 //
-// The variable must be named nt. Without OpenMP the block runs once:
-// ZUREGEX_OMP_PARALLEL only marks nt as used, and ZUREGEX_OMP_FOR is
-// empty. Scheduling is dynamic: per-element patterns and subject lengths
-// make elements cost different amounts.
+// The variable must be named nt, and a function holds at most one such
+// block: ZUREGEX_OMP_PARALLEL declares the block's chunk counter. Without
+// OpenMP the block runs once and the loop visits every element in order.
+//
+// Scheduling is dynamic, because per-element patterns and subject lengths
+// make elements cost different amounts. Each thread claims the next chunk
+// of ZUREGEX_CHUNK elements with an atomic add on the shared counter. That
+// is done here rather than with schedule(dynamic): clang from LLVM 19 on
+// compiles schedule(dynamic) to a call to __kmpc_dispatch_deinit, which
+// the older libomp R ships on macOS lacks, so the package would build and
+// then fail to load (#72). The block's only runtime calls are the fork
+// and omp_get_thread_num(), which every libomp has. The counter is
+// unsigned int: a call has at most INT_MAX elements, so it cannot wrap,
+// and a 32-bit atomic needs no libatomic on 32-bit builds.
+#define ZUREGEX_CHUNK 64u
 #define ZUREGEX_PRAGMA(x) _Pragma(#x)
 #ifdef ZUREGEX_OPENMP
-#  define ZUREGEX_OMP_PARALLEL ZUREGEX_PRAGMA(omp parallel num_threads(nt) if(nt > 1))
-#  define ZUREGEX_OMP_FOR ZUREGEX_PRAGMA(omp for schedule(dynamic, 64))
+#  define ZUREGEX_OMP_PARALLEL                                               \
+    unsigned int zuregex_next_chunk_ = 0;                                    \
+    ZUREGEX_PRAGMA(omp parallel num_threads(nt) if(nt > 1))
 #  define ZUREGEX_THREAD_NUM omp_get_thread_num()
 #else
-#  define ZUREGEX_OMP_PARALLEL (void) nt;
-#  define ZUREGEX_OMP_FOR
+#  define ZUREGEX_OMP_PARALLEL                                               \
+    unsigned int zuregex_next_chunk_ = 0;                                    \
+    (void) nt;
 #  define ZUREGEX_THREAD_NUM 0
 #endif
+
+#define ZUREGEX_FOR_EACH(i, n)                                               \
+  for (R_xlen_t zuregex_lo_ = (R_xlen_t) __atomic_fetch_add(                 \
+           &zuregex_next_chunk_, ZUREGEX_CHUNK, __ATOMIC_RELAXED);           \
+       zuregex_lo_ < (n);                                                    \
+       zuregex_lo_ = (R_xlen_t) __atomic_fetch_add(                          \
+           &zuregex_next_chunk_, ZUREGEX_CHUNK, __ATOMIC_RELAXED))           \
+    for (R_xlen_t i = zuregex_lo_,                                           \
+                  zuregex_hi_ = zuregex_lo_ + (R_xlen_t) ZUREGEX_CHUNK < (n) \
+                                  ? zuregex_lo_ + (R_xlen_t) ZUREGEX_CHUNK   \
+                                  : (n);                                     \
+         i < zuregex_hi_; i++)
 
 // The thread's index inside ZUREGEX_OMP_PARALLEL, below nt: which of the
 // call's per-thread arenas it writes.

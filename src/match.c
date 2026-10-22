@@ -469,8 +469,7 @@ SEXP zuregex_detect_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   {
     pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
     zuregex_pad_buf pad = {NULL, 0};
-    ZUREGEX_OMP_FOR
-    for (R_xlen_t i = 0; i < call.n; i++) {
+    ZUREGEX_FOR_EACH(i, call.n) {
       const zuregex_pattern *p = zuregex_pattern_for(&call, i);
       res[i] = NA_LOGICAL;
       if (p == NULL) continue;
@@ -513,8 +512,7 @@ SEXP zuregex_count_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits) {
   {
     pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
     zuregex_pad_buf pad = {NULL, 0};
-    ZUREGEX_OMP_FOR
-    for (R_xlen_t i = 0; i < call.n; i++) {
+    ZUREGEX_FOR_EACH(i, call.n) {
       const zuregex_pattern *p = zuregex_pattern_for(&call, i);
       res[i] = NA_INTEGER;
       if (p == NULL) continue;
