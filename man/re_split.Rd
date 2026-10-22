@@ -4,7 +4,15 @@
 \alias{re_split}
 \title{Split strings}
 \usage{
-re_split(x, pattern, n = Inf, keep_groups = FALSE, limits = NULL)
+re_split(
+  x,
+  pattern,
+  n = Inf,
+  keep_groups = FALSE,
+  flags = "",
+  literal = FALSE,
+  limits = NULL
+)
 }
 \arguments{
 \item{x}{A character vector, a raw vector, or a list of raw vectors.
@@ -18,6 +26,14 @@ pieces.}
 
 \item{keep_groups}{If \code{TRUE}, the groups of each separator are inserted
 after the piece before it, \code{NA} for a group that did not take part.}
+
+\item{flags}{A single string of flag letters for pattern strings, such as
+\code{"i"} for case-insensitive matching; see \code{\link[=re_compile]{re_compile()}} for every
+letter. It applies to every pattern in the call.}
+
+\item{literal}{If \code{TRUE}, each pattern string is matched as literal text,
+with no metacharacters, as base R's \code{fixed = TRUE}. Only the flags \code{i}
+and \code{r} apply to a literal pattern.}
 
 \item{limits}{A \code{\link[=re_limits]{re_limits()}} object, or \code{NULL} for
 \code{getOption("zuregex.limits")} and then PCRE2's defaults.}
@@ -34,11 +50,18 @@ Splits each element of \code{x} at the matches of \code{pattern}, as Python's
 \section{Patterns}{
 
 \code{pattern} is a character vector of regular expressions, compiled through
-the cache with the default options, or an \code{re} vector from
-\code{\link[=re_compile]{re_compile()}} for flags, dialects and literal patterns. It has length 1,
+the cache with \code{flags} and \code{literal}, or an \code{re} vector from
+\code{\link[=re_compile]{re_compile()}}, which carries its own flags and can use the JavaScript
+dialect. It has length 1,
 used for every element of \code{x}, or exactly the length of \code{x}, pairing
 \code{pattern[i]} with \code{x[i]}. Any other length is an error: nothing is
 recycled. An \code{NA} pattern gives \code{NA} for its element.
+
+Base R's options map onto these arguments: \code{ignore.case = TRUE} is
+\code{flags = "i"}, \code{fixed = TRUE} is \code{literal = TRUE}, \code{invert = TRUE} is
+\code{re_detect(negate = TRUE)}, and \code{useBytes = TRUE} is a raw vector or
+strings marked as \code{"bytes"} (see Strings and bytes). \code{perl = TRUE} is
+always on.
 }
 
 \section{Strings and bytes}{

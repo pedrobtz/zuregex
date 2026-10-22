@@ -23,7 +23,9 @@ SEXP zuregex_compile_c(SEXP pattern, SEXP flags, SEXP dialect, SEXP literal,
 // zuregex_compile_c() describes them; erroffset is in bytes.
 SEXP zuregex_compile_error_for(const char *pattern, int errcode,
                                size_t erroffset);
-SEXP zuregex_prepare_c(SEXP x, SEXP pattern);
+// A flags error, the first bad letter at one-based `offset`.
+SEXP zuregex_flags_error_for(int offset);
+SEXP zuregex_prepare_c(SEXP x, SEXP pattern, SEXP flags, SEXP literal);
 SEXP zuregex_re_valid_c(SEXP re);
 SEXP zuregex_re_info_c(SEXP re);
 SEXP zuregex_cache_size_c(SEXP n);

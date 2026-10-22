@@ -7,11 +7,15 @@
 # .Call; anything else goes through the two R functions below. Call it
 # inside run_verb() or native(), which class the errors its .Call can
 # raise; a verb then pays for one handler, not two.
-prepare <- function(x, pattern, call) {
-  res <- .Call(zuregex_prepare_c, x, pattern)
+# `opts` is NULL for the default flags and literal, or what
+# pattern_options() returns.
+prepare <- function(x, pattern, call, opts = NULL) {
+  flags <- if (is.null(opts)) "" else opts[[1L]]
+  literal <- if (is.null(opts)) FALSE else opts[[2L]]
+  res <- .Call(zuregex_prepare_c, x, pattern, flags, literal)
   if (is.null(res)) {
     s <- subjects(x, call)
-    p <- patterns(pattern, s$n, s$bytes, call)
+    p <- patterns(pattern, s$n, s$bytes, call, opts)
     return(list(
       x = s$x,
       n = s$n,
@@ -21,9 +25,38 @@ prepare <- function(x, pattern, call) {
     ))
   }
   if (!is.null(res$error)) {
-    raise_compile_error(res$error, pattern, "", FALSE, call)
+    raise_compile_error(res$error, pattern, flags, literal, call)
   }
   res
+}
+
+# A verb's `flags` and `literal`, checked, as list(flags, literal): what the
+# fast path's .Call and prepare() take. Verbs call it only when one of the
+# two was given, and pass NULL otherwise.
+pattern_options <- function(flags, literal, call) {
+  # One cheap test for valid input; the checks that build a message run
+  # only when it fails. A verb with flags is otherwise a few microseconds.
+  if (
+    is.character(flags) &&
+      length(flags) == 1L &&
+      !is.na(flags) &&
+      Encoding(flags) != "bytes" &&
+      is.logical(literal) &&
+      length(literal) == 1L &&
+      !is.na(literal)
+  ) {
+    return(list(flags, literal))
+  }
+  check_string(flags, "flags", call)
+  if (Encoding(flags) == "bytes") {
+    zuregex_abort(
+      "argument",
+      "`flags` must not be marked as \"bytes\".",
+      call = call
+    )
+  }
+  check_flag(literal, "literal", call)
+  list(flags, literal)
 }
 
 # x: a character vector, a raw vector (one subject) or a list of raw
@@ -77,7 +110,7 @@ subjects <- function(x, call) {
 # holds the call's distinct compiled patterns and `index` the 1-based entry
 # for each subject (one entry when the pattern is shared), NA for an NA
 # pattern.
-patterns <- function(pattern, n, bytes, call) {
+patterns <- function(pattern, n, bytes, call, opts = NULL) {
   len <- length(pattern)
   if (len != 1L && len != n) {
     zuregex_abort(
@@ -91,18 +124,27 @@ patterns <- function(pattern, n, bytes, call) {
     )
   }
   if (inherits(pattern, "re")) {
+    if (!is.null(opts)) {
+      zuregex_abort(
+        "argument",
+        "`flags` and `literal` apply to pattern strings; an `re` object carries its own from `re_compile()`.",
+        call = call
+      )
+    }
     return(re_patterns(pattern, bytes, call))
   }
+  flags <- if (is.null(opts)) "" else opts[[1L]]
+  literal <- if (is.null(opts)) FALSE else opts[[2L]]
   if (len == 1L && is.character(pattern) && !is.na(pattern)) {
     # The common case, one pattern string: a cache lookup in C, without
     # unique(), match() or the attributes of an `re` object.
     pattern <- enc2utf8(pattern)
     res <- native(
-      .Call(zuregex_compile_c, pattern, "", 0L, FALSE, TRUE, !bytes, TRUE),
+      .Call(zuregex_compile_c, pattern, flags, 0L, literal, TRUE, !bytes, TRUE),
       call
     )
     if (!is.null(res$error)) {
-      raise_compile_error(res$error, pattern, "", FALSE, call)
+      raise_compile_error(res$error, pattern, flags, literal, call)
     }
     return(list(table = res$value, index = 1L))
   }
@@ -123,9 +165,9 @@ patterns <- function(pattern, n, bytes, call) {
   use_cache <- length(distinct) <= re_cache_size()
   table <- compile_patterns(
     distinct,
-    "",
+    flags,
     "pcre",
-    FALSE,
+    literal,
     TRUE,
     call = call,
     utf = !bytes,
@@ -220,10 +262,16 @@ raise_match_error <- function(err, call) {
 # returns the value itself, NULL when the call needs the general path, or
 # a "zuregex_result" list when something went wrong. fast_result() turns
 # that list into its error or warning.
-fast_result <- function(res, call, pattern, repl = NULL) {
+fast_result <- function(res, call, pattern, repl = NULL, opts = NULL) {
   err <- res$error
-  if (!is.null(err) && err$kind == "compile") {
-    raise_compile_error(err, pattern, "", FALSE, call)
+  if (!is.null(err) && err$kind %in% c("compile", "flags")) {
+    raise_compile_error(
+      err,
+      pattern,
+      if (is.null(opts)) "" else opts[[1L]],
+      if (is.null(opts)) FALSE else opts[[2L]],
+      call
+    )
   }
   if (!is.null(err) && err$kind == "template") {
     raise_template_error(err, repl, call)

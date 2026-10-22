@@ -63,11 +63,12 @@ typedef struct {
 // table is a list of compiled patterns and index maps elements to them;
 // bytes says whether to match as bytes. Fast mode, for the common call of
 // a character vector and one pattern string: table is that string, index
-// is ignored, bytes is NA and decided here, and the pattern is borrowed
-// from the cache. Fast mode sets call->declined when the call needs the R
-// side (an NA pattern, a pattern to translate, a long vector, a pattern
-// the cache will not keep), and call->early to a compile error. Use it
-// through ZUREGEX_COLLECT.
+// is NULL for the default flags or list(flags, literal), bytes is NA and
+// decided here, and the pattern is borrowed from the cache. Fast mode sets
+// call->declined when the call needs the R side (an NA pattern, a pattern
+// to translate, a long vector, a pattern the cache will not keep), and
+// call->early to a compile or flags error. Use it through
+// ZUREGEX_COLLECT.
 void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index, SEXP limits,
                      zuregex_call *call);
 

@@ -5,11 +5,18 @@
 #'
 #' @section Patterns:
 #' `pattern` is a character vector of regular expressions, compiled through
-#' the cache with the default options, or an `re` vector from
-#' [re_compile()] for flags, dialects and literal patterns. It has length 1,
+#' the cache with `flags` and `literal`, or an `re` vector from
+#' [re_compile()], which carries its own flags and can use the JavaScript
+#' dialect. It has length 1,
 #' used for every element of `x`, or exactly the length of `x`, pairing
 #' `pattern[i]` with `x[i]`. Any other length is an error: nothing is
 #' recycled. An `NA` pattern gives `NA` for its element.
+#'
+#' Base R's options map onto these arguments: `ignore.case = TRUE` is
+#' `flags = "i"`, `fixed = TRUE` is `literal = TRUE`, `invert = TRUE` is
+#' `re_detect(negate = TRUE)`, and `useBytes = TRUE` is a raw vector or
+#' strings marked as `"bytes"` (see Strings and bytes). `perl = TRUE` is
+#' always on.
 #'
 #' @section Strings and bytes:
 #' Character input is matched as UTF-8; strings in other declared encodings
@@ -27,6 +34,12 @@
 #'   subject (Python's `re.fullmatch()`). Anchoring is done by PCRE2, so it
 #'   holds for every branch of a top-level alternation.
 #' @param negate If `TRUE`, return `TRUE` for elements that do not match.
+#' @param flags A single string of flag letters for pattern strings, such as
+#'   `"i"` for case-insensitive matching; see [re_compile()] for every
+#'   letter. It applies to every pattern in the call.
+#' @param literal If `TRUE`, each pattern string is matched as literal text,
+#'   with no metacharacters, as base R's `fixed = TRUE`. Only the flags `i`
+#'   and `r` apply to a literal pattern.
 #' @param limits A [re_limits()] object, or `NULL` for
 #'   `getOption("zuregex.limits")` and then PCRE2's defaults.
 #' @return `re_detect()`: a logical vector, one per subject. `re_count()`:
@@ -37,6 +50,8 @@
 #' re_detect(x, "an")
 #' re_detect(x, "a|b", anchor = "start")
 #' re_count(x, "[aeiou]")
+#' re_detect(x, "APPLE", flags = "i")
+#' re_count("a.b.c", ".", literal = TRUE)
 #'
 #' # One pattern per element
 #' re_detect(c("abc", "abc"), c("^a", "^b"))
@@ -45,9 +60,16 @@ re_detect <- function(
   pattern,
   anchor = c("none", "start", "full"),
   negate = FALSE,
+  flags = "",
+  literal = FALSE,
   limits = NULL
 ) {
   call <- sys.call()
+  opts <- if (missing(flags) && missing(literal)) {
+    NULL
+  } else {
+    pattern_options(flags, literal, call)
+  }
   if (missing(anchor)) {
     anchor <- 0L
   } else {
@@ -65,17 +87,17 @@ re_detect <- function(
   out <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     out <- withCallingHandlers(
-      .Call(zuregex_detect_c, x, NA, pattern, NULL, lim, anchor, negate),
+      .Call(zuregex_detect_c, x, NA, pattern, opts, lim, anchor, negate),
       error = function(e) native_error(e, call)
     )
     if (is.object(out)) {
-      out <- fast_result(out, call, pattern)
+      out <- fast_result(out, call, pattern, opts = opts)
     }
   }
   if (is.null(out)) {
     out <- run_verb(
       {
-        s <- p <- prepare(x, pattern, call)
+        s <- p <- prepare(x, pattern, call, opts)
         .Call(
           zuregex_detect_c,
           s$x,
@@ -95,8 +117,13 @@ re_detect <- function(
 
 #' @rdname re_detect
 #' @export
-re_count <- function(x, pattern, limits = NULL) {
+re_count <- function(x, pattern, flags = "", literal = FALSE, limits = NULL) {
   call <- sys.call()
+  opts <- if (missing(flags) && missing(literal)) {
+    NULL
+  } else {
+    pattern_options(flags, literal, call)
+  }
   lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
     no_limits
   } else {
@@ -105,17 +132,17 @@ re_count <- function(x, pattern, limits = NULL) {
   out <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     out <- withCallingHandlers(
-      .Call(zuregex_count_c, x, NA, pattern, NULL, lim),
+      .Call(zuregex_count_c, x, NA, pattern, opts, lim),
       error = function(e) native_error(e, call)
     )
     if (is.object(out)) {
-      out <- fast_result(out, call, pattern)
+      out <- fast_result(out, call, pattern, opts = opts)
     }
   }
   if (is.null(out)) {
     out <- run_verb(
       {
-        s <- p <- prepare(x, pattern, call)
+        s <- p <- prepare(x, pattern, call, opts)
         .Call(
           zuregex_count_c,
           s$x,
