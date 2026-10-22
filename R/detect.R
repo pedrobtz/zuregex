@@ -50,8 +50,9 @@ re_detect <- function(
   call <- sys.call()
   if (missing(anchor)) {
     anchor <- "none"
+  } else {
+    check_choice(anchor, c("none", "start", "full"), "anchor", call)
   }
-  check_choice(anchor, c("none", "start", "full"), "anchor", call)
   check_flag(negate, "negate", call)
   s <- subjects(x, call)
   p <- patterns(pattern, s$n, s$bytes, call)

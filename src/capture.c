@@ -1,7 +1,7 @@
 // re_extract(), re_extract_all(), re_match() and re_match_all().
 //
 // Phase 2 scans each element and keeps the offsets of every group of every
-// match in malloc()ed buffers. Phase 3, under R_ExecWithCleanup(), turns
+// match in its thread's arena. Phase 3, under R_ExecWithCleanup(), turns
 // offset pairs into strings through make_string(), the one place a CHARSXP
 // is made from a match, so encoding is decided once.
 
@@ -14,13 +14,16 @@
 
 typedef struct {
   int count;          // matches; -1 for an NA subject or pattern
-  int cap;
-  PCRE2_SIZE *ov;     // count * width pairs
+  int tid;            // the arena holding its offsets
+  size_t off;         // where in it: count * width pairs of PCRE2_SIZE
 } element_caps;
 
 typedef struct {
   zuregex_call *call;
   element_caps *el;
+  zuregex_arena *arenas;  // one per phase-2 thread
+  int nt;
+  int may_nul;        // raw input: text can hold a NUL byte
   uint32_t width;     // pairs per match: groups + 1 of the widest pattern
   // What phase 3 builds, set by the entry points.
   SEXP groups;        // re_extract*: per pattern table entry, the group
@@ -36,10 +39,15 @@ typedef struct {
 
 static void free_caps(void *data) {
   capture_job *job = data;
-  if (job->el == NULL) return;
-  for (R_xlen_t i = 0; i < job->call->n; i++) free(job->el[i].ov);
+  zuregex_arenas_free(job->arenas, job->nt);
+  job->arenas = NULL;
   free(job->el);
   job->el = NULL;
+}
+
+// Element e's offsets, valid once phase 2 is over.
+static const PCRE2_SIZE *caps_of(const capture_job *job, const element_caps *e) {
+  return (const PCRE2_SIZE *) (job->arenas[e->tid].data + e->off);
 }
 
 // The pattern table entry (0-based) element i uses, or -1.
@@ -49,16 +57,14 @@ static int entry_for(const zuregex_call *call, R_xlen_t i) {
   return k == NA_INTEGER ? -1 : k - 1;
 }
 
-static int push(element_caps *e, const PCRE2_SIZE *ov, uint32_t pairs,
-                uint32_t width) {
-  if (e->count == e->cap) {
-    int cap = e->cap ? e->cap * 2 : 1;
-    PCRE2_SIZE *grown = realloc(e->ov, (size_t) cap * width * 2 * sizeof(PCRE2_SIZE));
-    if (grown == NULL) return 0;
-    e->ov = grown;
-    e->cap = cap;
-  }
-  PCRE2_SIZE *dst = e->ov + (size_t) e->count * width * 2;
+// Appends one match to the element being scanned, which is the last thing
+// in arena a.
+static int push(element_caps *e, zuregex_arena *a, const PCRE2_SIZE *ov,
+                uint32_t pairs, uint32_t width) {
+  size_t bytes = (size_t) width * 2 * sizeof(PCRE2_SIZE);
+  if (!zuregex_arena_reserve(a, bytes)) return 0;
+  PCRE2_SIZE *dst = (PCRE2_SIZE *) (a->data + a->len);
+  a->len += bytes;
   for (uint32_t g = 0; g < width; g++) {
     if (g < pairs) {
       dst[2 * g] = ov[2 * g];
@@ -75,15 +81,18 @@ static int push(element_caps *e, const PCRE2_SIZE *ov, uint32_t pairs,
 // element's error, so threads share no flag.
 static void scan(capture_job *job, double limit, zuregex_status *status) {
   zuregex_call *call = job->call;
-  int nt = zuregex_threads_for(call);
+  int nt = job->nt;
   ZUREGEX_OMP_PARALLEL
   {
     pcre2_match_data *md = pcre2_match_data_create(job->width, NULL);
     zuregex_pad_buf pad = {NULL, 0};
+    zuregex_arena *a = &job->arenas[ZUREGEX_THREAD_NUM];
     ZUREGEX_OMP_FOR
     for (R_xlen_t i = 0; i < call->n; i++) {
       const zuregex_pattern *p = zuregex_pattern_for(call, i);
       element_caps *e = &job->el[i];
+      e->tid = ZUREGEX_THREAD_NUM;
+      e->off = a->len;
       if (p == NULL) {
         e->count = -1;
         continue;
@@ -113,13 +122,15 @@ static void scan(capture_job *job, double limit, zuregex_status *status) {
           break;
         }
         if (m == 0) break;
-        if (!push(e, pcre2_get_ovector_pointer(md), pairs, job->width)) {
+        if (!push(e, a, pcre2_get_ovector_pointer(md), pairs, job->width)) {
           status[i].rc = PCRE2_ERROR_NOMEMORY;
           e->count = -1;
           break;
         }
         if (!zuregex_next_start(p, s, md, 0, &start, &options)) break;
       }
+      // An NA element keeps none of its matches.
+      if (e->count < 0) a->len = e->off;
     }
     pcre2_match_data_free(md);
     free(pad.data);
@@ -137,7 +148,8 @@ static SEXP make_string(capture_job *job, R_xlen_t i, const zuregex_subject *s,
   // \K in a lookahead can end a match before its start: PCRE2 reports
   // that as is, and the matched text is empty.
   if (b < a) return R_BlankString;
-  if (memchr(s->ptr + a, 0, b - a) != NULL) {
+  // An R string cannot hold a NUL, so only raw input needs the scan.
+  if (job->may_nul && memchr(s->ptr + a, 0, b - a) != NULL) {
     if (job->nul_element == 0) job->nul_element = i + 1;
     return NA_STRING;
   }
@@ -174,13 +186,14 @@ static SEXP build_extract(void *data) {
     for (R_xlen_t i = 0; i < call->n; i++) {
       int k = entry_for(call, i);
       element_caps *e = &job->el[i];
-      int g = e->count > 0 ? pick_group(job, k, e->ov) : -1;
+      int g = e->count > 0 ? pick_group(job, k, caps_of(job, e)) : -1;
       if (g < 0) {
         SET_STRING_ELT(out, i, NA_STRING);
         continue;
       }
+      const PCRE2_SIZE *ov = caps_of(job, e);
       SET_STRING_ELT(out, i, make_string(job, i, &call->subjects[i],
-                                         e->ov[2 * g], e->ov[2 * g + 1],
+                                         ov[2 * g], ov[2 * g + 1],
                                          utf_of(call, k)));
     }
     UNPROTECT(1);
@@ -205,7 +218,7 @@ static SEXP build_extract(void *data) {
     }
     SEXP v = PROTECT(Rf_allocVector(STRSXP, e->count));
     for (int m = 0; m < e->count; m++) {
-      const PCRE2_SIZE *ov = e->ov + (size_t) m * job->width * 2;
+      const PCRE2_SIZE *ov = caps_of(job, e) + (size_t) m * job->width * 2;
       int g = pick_group(job, k, ov);
       SET_STRING_ELT(v, m, make_string(job, i, &call->subjects[i], ov[2 * g],
                                        ov[2 * g + 1], utf_of(call, k)));
@@ -262,7 +275,7 @@ static SEXP build_match(void *data) {
     int first = job->with_zero ? 0 : 1;  // the group colmap's entry 0 is for
     int utf = utf_of(call, k);
     for (int m = 0; m < e->count; m++, r++) {
-      const PCRE2_SIZE *ov = e->ov + (size_t) m * job->width * 2;
+      const PCRE2_SIZE *ov = caps_of(job, e) + (size_t) m * job->width * 2;
       if (job->all) {
         element[r] = (int) i + 1;
         match[r] = m + 1;
@@ -305,7 +318,7 @@ static SEXP build_split(void *data) {
     PCRE2_SIZE last = 0;
     R_xlen_t at = 0;
     for (int m = 0; m < e->count; m++) {
-      const PCRE2_SIZE *ov = e->ov + (size_t) m * job->width * 2;
+      const PCRE2_SIZE *ov = caps_of(job, e) + (size_t) m * job->width * 2;
       PCRE2_SIZE from = last, to = ov[0] > last ? ov[0] : last;
       SET_STRING_ELT(v, at++, make_string(job, i, s, from, to, utf));
       if (job->keep_groups) {
@@ -329,8 +342,13 @@ static SEXP run(capture_job *job, double limit, SEXP (*build)(void *)) {
   zuregex_status *status = (zuregex_status *) R_alloc(n, sizeof(zuregex_status));
   memset(status, 0, n * sizeof(zuregex_status));
   job->width = call->max_ovector;
+  job->nt = zuregex_threads_for(call);
   job->el = calloc(n, sizeof(element_caps));
-  if (job->el == NULL) Rf_error("out of memory allocating match buffers");
+  job->arenas = zuregex_arenas_new(job->nt);
+  if (job->el == NULL || job->arenas == NULL) {
+    free_caps(job);
+    Rf_error("out of memory allocating match buffers");
+  }
   scan(job, limit, status);
   SEXP err = PROTECT(zuregex_status_error(call, status));
   SEXP value = R_NilValue;
@@ -359,6 +377,7 @@ SEXP zuregex_extract_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   capture_job job;
   memset(&job, 0, sizeof(job));
   job.call = &call;
+  job.may_nul = TYPEOF(x) != STRSXP;
   job.groups = group;
   job.all = Rf_asLogical(all);
   return run(&job, job.all ? Rf_asReal(n_max) : 1, build_extract);
@@ -375,6 +394,7 @@ SEXP zuregex_match_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   capture_job job;
   memset(&job, 0, sizeof(job));
   job.call = &call;
+  job.may_nul = TYPEOF(x) != STRSXP;
   job.colmap = colmap;
   job.ncol = Rf_asInteger(ncol);
   job.all = Rf_asLogical(all);
@@ -390,6 +410,7 @@ SEXP zuregex_split_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   capture_job job;
   memset(&job, 0, sizeof(job));
   job.call = &call;
+  job.may_nul = TYPEOF(x) != STRSXP;
   job.keep_groups = Rf_asLogical(keep_groups);
   return run(&job, Rf_asReal(n_max), build_split);
 }

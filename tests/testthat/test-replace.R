@@ -279,3 +279,11 @@ test_that("a template marked as bytes needs bytes subjects", {
     as.raw(0xff)
   )
 })
+
+test_that("results of zero length are empty strings, not NA", {
+  # An empty result can be built before its thread has written anything.
+  expect_identical(re_replace(c("", "a", "aa"), "a*", ""), c("", "", ""))
+  expect_identical(re_replace("", "^", ""), "")
+  expect_identical(re_expand(c("", "b"), "^", ""), c("", ""))
+  expect_identical(re_replace(c("x", ""), "x", ""), c("", ""))
+})

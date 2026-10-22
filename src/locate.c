@@ -72,37 +72,36 @@ SEXP zuregex_locate_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   return ans;
 }
 
-// The matches of one element, grown with realloc() in phase 2: no R
-// memory, so phase 2 stays free of the R API.
+// The matches of one element, in its phase-2 thread's arena: no R memory,
+// so phase 2 stays free of the R API.
 typedef struct {
-  int count;  // matches; -1 for an NA row (NA subject or pattern)
-  int cap;
-  int *offsets;  // count pairs of start, end
+  int count;   // matches; -1 for an NA row (NA subject or pattern)
+  int tid;     // the arena holding its offsets
+  size_t off;  // where in it: count pairs of int start, end
 } element_matches;
 
 typedef struct {
   element_matches *el;
   R_xlen_t n;
+  zuregex_arena *arenas;
+  int nt;
 } matches_table;
 
-static int push_match(element_matches *e, int start, int end) {
-  if (e->count == e->cap) {
-    int cap = e->cap ? e->cap * 2 : 4;
-    int *grown = realloc(e->offsets, (size_t) cap * 2 * sizeof(int));
-    if (grown == NULL) return 0;
-    e->offsets = grown;
-    e->cap = cap;
-  }
-  e->offsets[2 * e->count] = start;
-  e->offsets[2 * e->count + 1] = end;
+static int push_match(element_matches *e, zuregex_arena *a, int start,
+                      int end) {
+  if (!zuregex_arena_reserve(a, 2 * sizeof(int))) return 0;
+  int *dst = (int *) (a->data + a->len);
+  dst[0] = start;
+  dst[1] = end;
+  a->len += 2 * sizeof(int);
   e->count++;
   return 1;
 }
 
 static void free_matches(void *data) {
   matches_table *t = data;
-  if (t->el == NULL) return;
-  for (R_xlen_t i = 0; i < t->n; i++) free(t->el[i].offsets);
+  zuregex_arenas_free(t->arenas, t->nt);
+  t->arenas = NULL;
   free(t->el);
   t->el = NULL;
 }
@@ -124,6 +123,9 @@ static SEXP build_frame(void *data) {
   R_xlen_t r = 0;
   for (R_xlen_t i = 0; i < t->n; i++) {
     const element_matches *e = &t->el[i];
+    // Only an element with matches has written to its arena.
+    const int *offsets =
+      e->count > 0 ? (const int *) (t->arenas[e->tid].data + e->off) : NULL;
     if (e->count < 0) {
       INTEGER(element)[r] = (int) i + 1;
       INTEGER(match)[r] = NA_INTEGER;
@@ -135,8 +137,8 @@ static SEXP build_frame(void *data) {
     for (int k = 0; k < e->count; k++, r++) {
       INTEGER(element)[r] = (int) i + 1;
       INTEGER(match)[r] = k + 1;
-      INTEGER(start)[r] = e->offsets[2 * k];
-      INTEGER(end)[r] = e->offsets[2 * k + 1];
+      INTEGER(start)[r] = offsets[2 * k];
+      INTEGER(end)[r] = offsets[2 * k + 1];
     }
   }
   SET_VECTOR_ELT(out, 0, element);
@@ -158,21 +160,28 @@ SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limit
   int chars = Rf_asLogical(char_offsets);
   zuregex_status *status = new_status(call.n);
 
-  matches_table t = {NULL, call.n};
+  int nt = zuregex_threads_for(&call);
+  matches_table t = {NULL, call.n, NULL, nt};
   t.el = calloc(call.n > 0 ? (size_t) call.n : 1, sizeof(element_matches));
-  if (t.el == NULL) Rf_error("out of memory allocating match buffers");
+  t.arenas = zuregex_arenas_new(nt);
+  if (t.el == NULL || t.arenas == NULL) {
+    free_matches(&t);
+    Rf_error("out of memory allocating match buffers");
+  }
 
   // Phase 2. Running out of memory is an element's error, so threads share
   // no flag.
-  int nt = zuregex_threads_for(&call);
   ZUREGEX_OMP_PARALLEL
   {
     pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
     zuregex_pad_buf pad = {NULL, 0};
+    zuregex_arena *a = &t.arenas[ZUREGEX_THREAD_NUM];
     ZUREGEX_OMP_FOR
     for (R_xlen_t i = 0; i < call.n; i++) {
       const zuregex_pattern *p = zuregex_pattern_for(&call, i);
       element_matches *e = &t.el[i];
+      e->tid = ZUREGEX_THREAD_NUM;
+      e->off = a->len;
       if (p == NULL) {
         e->count = -1;
         continue;
@@ -200,7 +209,7 @@ SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limit
         }
         if (m == 0) break;
         PCRE2_SIZE *ov = pcre2_get_ovector_pointer(md);
-        if (!push_match(e, to_offset(s, ov[0], chars, p->key.utf) + 1,
+        if (!push_match(e, a, to_offset(s, ov[0], chars, p->key.utf) + 1,
                         to_offset(s, ov[1], chars, p->key.utf))) {
           status[i].rc = PCRE2_ERROR_NOMEMORY;
           e->count = -1;
@@ -208,6 +217,8 @@ SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limit
         }
         if (!zuregex_next_start(p, s, md, ov_flag, &start, &options)) break;
       }
+      // An NA element keeps none of its matches.
+      if (e->count < 0) a->len = e->off;
     }
     pcre2_match_data_free(md);
     free(pad.data);

@@ -5,8 +5,8 @@
 // pcre2_substitute() with PCRE2_SUBSTITUTE_MATCHED and
 // PCRE2_SUBSTITUTE_REPLACEMENT_ONLY, which expands the template against the
 // match just found without searching again, or, for a replacement function,
-// from the strings it returned. The output is assembled in phase 2 in
-// malloc()ed buffers and turned into R strings in phase 3.
+// from the strings it returned. The output is assembled in phase 2 in the
+// thread's arena and turned into R strings in phase 3.
 
 #include <limits.h>
 #include <stdlib.h>
@@ -17,54 +17,46 @@
 #include "omp.h"
 
 typedef struct {
-  char *buf;
-  size_t len, cap;
-  int state;  // 0 unchanged (no match), 1 built, -1 NA
+  int state;   // 0 unchanged (no match), 1 built, -1 NA
+  int tid;     // the arena holding the text
+  size_t off;  // where in it
+  size_t len;
 } out_buf;
 
 typedef struct {
   zuregex_call *call;
   out_buf *out;
+  zuregex_arena *arenas;
+  int nt;
   SEXP x;     // to return unmatched elements unchanged
   int expand;
   R_xlen_t nul_element;  // first result with a NUL byte, 1-based
   R_xlen_t long_element;  // first result over INT_MAX bytes, 1-based
 } replace_job;
 
-// Room for n more bytes after o->len.
-static int reserve(out_buf *o, size_t n) {
-  if (o->len + n + 1 <= o->cap) return 1;
-  size_t cap = o->cap ? o->cap : 64;
-  while (o->len + n + 1 > cap) cap *= 2;
-  char *grown = realloc(o->buf, cap);
-  if (grown == NULL) return 0;
-  o->buf = grown;
-  o->cap = cap;
-  return 1;
-}
-
-static int append(out_buf *o, const char *s, size_t n) {
-  if (!reserve(o, n)) return 0;
-  if (n > 0) memcpy(o->buf + o->len, s, n);
-  o->len += n;
+// Appends n bytes to the element being built, the last thing in arena a.
+static int append(zuregex_arena *a, const char *s, size_t n) {
+  if (!zuregex_arena_reserve(a, n)) return 0;
+  if (n > 0) memcpy(a->data + a->len, s, n);
+  a->len += n;
   return 1;
 }
 
 static void free_out(void *data) {
   replace_job *job = data;
-  if (job->out == NULL) return;
-  for (R_xlen_t i = 0; i < job->call->n; i++) free(job->out[i].buf);
+  zuregex_arenas_free(job->arenas, job->nt);
+  job->arenas = NULL;
   free(job->out);
   job->out = NULL;
 }
 
 // Expands `tmpl` against the match in `md`, found at `start` with
-// `options`, appending the text to `o`. Returns 1, 0 for out of memory, or
-// -1 with the error in *st.
+// `options`, appending the text to arena `a`. Returns 1, 0 for out of
+// memory, or -1 with the error in *st.
 static int expand(const zuregex_pattern *p, const zuregex_subject *s,
                   size_t start, uint32_t options, pcre2_match_data *md,
-                  const zuregex_subject *tmpl, uint32_t syntax, out_buf *o,
-                  zuregex_status *st) {
+                  const zuregex_subject *tmpl, uint32_t syntax,
+                  zuregex_arena *a, zuregex_status *st) {
   uint32_t sub = options | syntax | PCRE2_SUBSTITUTE_MATCHED |
                  PCRE2_SUBSTITUTE_REPLACEMENT_ONLY |
                  PCRE2_SUBSTITUTE_UNSET_EMPTY | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH;
@@ -73,14 +65,15 @@ static int expand(const zuregex_pattern *p, const zuregex_subject *s,
   // is repeated once with that much.
   PCRE2_SIZE need = tmpl->len + 64;
   for (int attempt = 0; attempt < 2; attempt++) {
-    if (!reserve(o, need)) return 0;
+    // One byte more than PCRE2 may write: it NUL-terminates.
+    if (!zuregex_arena_reserve(a, need + 1)) return 0;
     PCRE2_SIZE outlen = need + 1;
     int rc = pcre2_substitute(p->code, (PCRE2_SPTR) s->ptr, s->len, start,
                               sub, md, NULL, (PCRE2_SPTR) tmpl->ptr,
-                              tmpl->len, (PCRE2_UCHAR *) o->buf + o->len,
+                              tmpl->len, (PCRE2_UCHAR *) a->data + a->len,
                               &outlen);
     if (rc >= 0) {
-      o->len += outlen;
+      a->len += outlen;
       return 1;
     }
     if (rc == PCRE2_ERROR_NOMEMORY && attempt == 0) {
@@ -102,6 +95,9 @@ static SEXP build(void *data) {
   SEXP res = PROTECT(Rf_allocVector(STRSXP, call->n));
   for (R_xlen_t i = 0; i < call->n; i++) {
     out_buf *o = &job->out[i];
+    // An empty result can leave its arena unallocated: point it at "".
+    const char *text = "";
+    if (o->state == 1 && o->len > 0) text = job->arenas[o->tid].data + o->off;
     if (o->state < 0 || (job->expand && o->state == 0)) {
       SET_STRING_ELT(res, i, NA_STRING);
     } else if (o->state == 0) {
@@ -121,13 +117,13 @@ static SEXP build(void *data) {
     } else if (o->len > (size_t) INT_MAX) {
       if (job->long_element == 0) job->long_element = i + 1;
       SET_STRING_ELT(res, i, NA_STRING);
-    } else if (memchr(o->buf, 0, o->len) != NULL) {
+    } else if (memchr(text, 0, o->len) != NULL) {
       if (job->nul_element == 0) job->nul_element = i + 1;
       SET_STRING_ELT(res, i, NA_STRING);
     } else {
       const zuregex_pattern *p = zuregex_pattern_for(call, i);
       int utf = p != NULL ? p->key.utf : 1;
-      SET_STRING_ELT(res, i, Rf_mkCharLenCE(o->buf, (int) o->len,
+      SET_STRING_ELT(res, i, Rf_mkCharLenCE(text, (int) o->len,
                                             utf ? CE_UTF8 : CE_BYTES));
     }
   }
@@ -173,22 +169,29 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   size_t n = call.n > 0 ? (size_t) call.n : 1;
   zuregex_status *status = (zuregex_status *) R_alloc(n, sizeof(zuregex_status));
   memset(status, 0, n * sizeof(zuregex_status));
-  replace_job job = {&call, NULL, x, expand_flag, 0, 0};
+  int nt = zuregex_threads_for(&call);
+  replace_job job = {&call, NULL, NULL, nt, x, expand_flag, 0, 0};
   job.out = calloc(n, sizeof(out_buf));
-  if (job.out == NULL) Rf_error("out of memory allocating replacement buffers");
+  job.arenas = zuregex_arenas_new(nt);
+  if (job.out == NULL || job.arenas == NULL) {
+    free_out(&job);
+    Rf_error("out of memory allocating replacement buffers");
+  }
 
   // Phase 2: no R API, on several threads. Running out of memory is an
   // element's error, so threads share no flag.
   const int *first_repl = per_match ? INTEGER(first) : NULL;
-  int nt = zuregex_threads_for(&call);
   ZUREGEX_OMP_PARALLEL
   {
     pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
     zuregex_pad_buf pad = {NULL, 0};
+    zuregex_arena *a = &job.arenas[ZUREGEX_THREAD_NUM];
     ZUREGEX_OMP_FOR
     for (R_xlen_t i = 0; i < call.n; i++) {
       const zuregex_pattern *p = zuregex_pattern_for(&call, i);
       out_buf *o = &job.out[i];
+      o->tid = ZUREGEX_THREAD_NUM;
+      o->off = a->len;
       const zuregex_subject *tmpl = per_match ? NULL : &r[nr == 1 ? 0 : i];
       if (p == NULL || (tmpl != NULL && tmpl->na) ||
           (per_match && first_repl[i] == NA_INTEGER)) {
@@ -223,7 +226,7 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
         matches++;
         o->state = 1;
         if (!expand_flag && m0 >= last &&
-            !append(o, s->ptr + last, m0 - last)) {
+            !append(a, s->ptr + last, m0 - last)) {
           oom = 1;
           break;
         }
@@ -239,12 +242,12 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
             o->state = -1;
             break;
           }
-          if (!append(o, t->ptr, t->len)) {
+          if (!append(a, t->ptr, t->len)) {
             oom = 1;
             break;
           }
         } else {
-          int e = expand(p, s, start, options, md, tmpl, syntax, o, &status[i]);
+          int e = expand(p, s, start, options, md, tmpl, syntax, a, &status[i]);
           if (e == 0) {
             oom = 1;
             break;
@@ -258,12 +261,18 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
         if (!zuregex_next_start(p, s, md, 0, &start, &options)) break;
       }
       if (!oom && o->state == 1 && !expand_flag &&
-          !append(o, s->ptr + last, s->len > last ? s->len - last : 0)) {
+          !append(a, s->ptr + last, s->len > last ? s->len - last : 0)) {
         oom = 1;
       }
       if (oom) {
         status[i].rc = PCRE2_ERROR_NOMEMORY;
         o->state = -1;
+      }
+      // Only a built element keeps its text.
+      if (o->state == 1) {
+        o->len = a->len - o->off;
+      } else {
+        a->len = o->off;
       }
     }
     pcre2_match_data_free(md);
