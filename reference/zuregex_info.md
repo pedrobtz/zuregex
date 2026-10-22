@@ -2,7 +2,8 @@
 
 Reports the version of PCRE2 that zuregex was built with, whether its
 just-in-time (JIT) compiler works on this machine, and how matching is
-set up: OpenMP, the thread cap and the cache size.
+set up: OpenMP, the threads and cores it can use, the input size it
+starts at, and the cache size.
 
 ## Usage
 
@@ -29,10 +30,18 @@ A list with elements:
 - `jit_target`: the architecture the JIT compiler generates code for, or
   `NA` without it.
 
-- `openmp`: whether this build matches on several threads.
+- `openmp`: whether this build matches on several threads. On macOS that
+  needs the OpenMP headers from <https://mac.r-project.org/openmp/> when
+  zuregex is built.
 
 - `threads`: the most threads a call may use; see
   [`re_threads()`](https://pedrobtz.github.io/zuregex/reference/re_threads.md).
+
+- `cores`: the processors OpenMP sees, or `NA` without OpenMP.
+
+- `serial_bytes`: the total size of a call's subjects, in bytes, below
+  which it runs on one thread, because starting threads would cost more
+  than they save.
 
 - `cache_size`: the pattern cache's capacity; see
   [`re_cache_size()`](https://pedrobtz.github.io/zuregex/reference/re_cache_size.md).
@@ -75,6 +84,12 @@ zuregex_info()
 #> 
 #> $threads
 #> [1] 4
+#> 
+#> $cores
+#> [1] 4
+#> 
+#> $serial_bytes
+#> [1] 16384
 #> 
 #> $cache_size
 #> [1] 128
