@@ -159,9 +159,14 @@ API.
   each element's first row to the second, so a limited element cannot
   misalign the strings.
 - `src/omp.h` gates OpenMP on `ZUREGEX_OPENMP` and defines
-  `ZUREGEX_OMP_PARALLEL` and `ZUREGEX_OMP_FOR`, the shape of every phase-2
-  loop: per-thread match data inside the parallel block, dynamic
-  scheduling, and the thread count in a variable named `nt`.
+  `ZUREGEX_OMP_PARALLEL` and `ZUREGEX_FOR_EACH`, the shape of every phase-2
+  loop: per-thread match data inside the parallel block, and the thread
+  count in a variable named `nt`. Scheduling is dynamic, done by threads
+  claiming 64-element chunks from an atomic counter.
+- On macOS, `./configure` builds, loads and runs an OpenMP probe against
+  the `libomp` R ships, and uses it only if all three work. CRAN's machines
+  have the headers that need (https://mac.r-project.org/openmp/), and
+  `macos-openmp.yaml` installs them as CRAN does and checks the result.
   `src/threads.c` holds the cap and the serial threshold.
 - The C API: `inst/include/zuregex.h` is plain C99 with the types, flags,
   status codes and function types, naming neither R nor PCRE2;
@@ -219,10 +224,17 @@ stage establishes it.
   two threads in `tests/testthat/setup.R`; a result that depends on the cap
   is a bug, not a tuning question. `test-threads.R` runs every verb at one
   thread and at the cap.
+- **No `schedule(dynamic)` or other OpenMP runtime calls in phase 2.**
+  clang from LLVM 19 on emits `__kmpc_dispatch_deinit` for it, which the
+  older `libomp` R ships on macOS lacks, so the package built and then
+  failed to load (#72). The parallel block calls only the fork and
+  `omp_get_thread_num()`. The probe in `configure` uses the same
+  constructs, so add any new one there first.
 - **Phase-2 loops share no mutable state.** Running out of memory is
   recorded in the element's own status as `PCRE2_ERROR_NOMEMORY`, never in
   a shared flag, and loops never `break` out of the element loop. Each
-  thread writes only its own arena.
+  thread writes only its own arena. The chunk counter is the one shared
+  variable, and it is only touched atomically.
 - **Never keep a pointer into an arena.** Growing it moves it, so elements
   store offsets, and phase 3 turns them into pointers once phase 2 is over.
   An arena is allocated for each of the `nt` threads `zuregex_threads_for()`

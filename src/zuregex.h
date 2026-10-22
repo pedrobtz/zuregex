@@ -7,6 +7,7 @@
 SEXP zuregex_info_c(void);
 SEXP zuregex_threads_c(SEXP n);
 SEXP zuregex_openmp_c(void);
+SEXP zuregex_cores_c(void);
 SEXP zuregex_serial_bytes_c(SEXP n);
 SEXP zuregex_capi_match_c(SEXP pattern, SEXP flags, SEXP dialect,
                           SEXP subjects, SEXP options);

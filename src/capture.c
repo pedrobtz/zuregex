@@ -87,8 +87,7 @@ static void scan(capture_job *job, double limit, zuregex_status *status) {
     pcre2_match_data *md = pcre2_match_data_create(job->width, NULL);
     zuregex_pad_buf pad = {NULL, 0};
     zuregex_arena *a = &job->arenas[ZUREGEX_THREAD_NUM];
-    ZUREGEX_OMP_FOR
-    for (R_xlen_t i = 0; i < call->n; i++) {
+    ZUREGEX_FOR_EACH(i, call->n) {
       const zuregex_pattern *p = zuregex_pattern_for(call, i);
       element_caps *e = &job->el[i];
       e->tid = ZUREGEX_THREAD_NUM;

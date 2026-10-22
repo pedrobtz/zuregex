@@ -193,8 +193,7 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
     pcre2_match_data *md = pcre2_match_data_create(call.max_ovector, NULL);
     zuregex_pad_buf pad = {NULL, 0};
     zuregex_arena *a = &job.arenas[ZUREGEX_THREAD_NUM];
-    ZUREGEX_OMP_FOR
-    for (R_xlen_t i = 0; i < call.n; i++) {
+    ZUREGEX_FOR_EACH(i, call.n) {
       const zuregex_pattern *p = zuregex_pattern_for(&call, i);
       out_buf *o = &job.out[i];
       o->tid = ZUREGEX_THREAD_NUM;

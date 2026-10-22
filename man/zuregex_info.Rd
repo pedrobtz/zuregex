@@ -17,15 +17,22 @@ A list with elements:
 \item \code{jit_usable}: whether the JIT compiler works on this machine.
 \item \code{jit_target}: the architecture the JIT compiler generates code for,
 or \code{NA} without it.
-\item \code{openmp}: whether this build matches on several threads.
+\item \code{openmp}: whether this build matches on several threads. On macOS
+that needs the OpenMP headers from
+\url{https://mac.r-project.org/openmp/} when zuregex is built.
 \item \code{threads}: the most threads a call may use; see \code{\link[=re_threads]{re_threads()}}.
+\item \code{cores}: the processors OpenMP sees, or \code{NA} without OpenMP.
+\item \code{serial_bytes}: the total size of a call's subjects, in bytes, below
+which it runs on one thread, because starting threads would cost
+more than they save.
 \item \code{cache_size}: the pattern cache's capacity; see \code{\link[=re_cache_size]{re_cache_size()}}.
 }
 }
 \description{
 Reports the version of PCRE2 that zuregex was built with, whether its
 just-in-time (JIT) compiler works on this machine, and how matching is
-set up: OpenMP, the thread cap and the cache size.
+set up: OpenMP, the threads and cores it can use, the input size it
+starts at, and the cache size.
 }
 \details{
 The JIT compiler can be built in and still fail at run time, on a CPU it

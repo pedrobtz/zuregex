@@ -39,6 +39,15 @@ SEXP zuregex_threads_c(SEXP n) {
   return Rf_ScalarInteger(previous);
 }
 
+// The processors OpenMP sees, or NA in a build without it.
+SEXP zuregex_cores_c(void) {
+#ifdef ZUREGEX_OPENMP
+  return Rf_ScalarInteger(omp_get_num_procs());
+#else
+  return Rf_ScalarInteger(NA_INTEGER);
+#endif
+}
+
 SEXP zuregex_openmp_c(void) {
 #ifdef ZUREGEX_OPENMP
   return Rf_ScalarLogical(1);
