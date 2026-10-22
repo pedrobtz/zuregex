@@ -79,6 +79,12 @@ test_that("re_cache_size() gets, sets and shrinks", {
   expect_identical(zuregex:::cache_stats()$size, 0L)
   re_compile("a")
   expect_identical(zuregex:::cache_stats()$size, 0L)
+  # A cache that holds nothing is not consulted, so nothing counts as a
+  # miss, whichever path compiles the pattern.
+  before <- zuregex:::cache_stats()
+  re_detect("abc", "b")
+  re_detect(c("abc", "xyz"), c("b", "y"))
+  expect_identical(stats_delta(before), c(hits = 0, misses = 0, evictions = 0))
 })
 
 test_that("re_cache_size() rejects capacities outside 0 to 256", {

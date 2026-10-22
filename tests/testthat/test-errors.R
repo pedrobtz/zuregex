@@ -49,3 +49,22 @@ test_that("a long pattern is shown around the error, not in full", {
   expect_identical(err$pattern, long)
   expect_snapshot(re_compile(long), error = TRUE)
 })
+
+test_that("native() classes an error native code raises without a class", {
+  call <- quote(re_detect(x, p))
+  err <- expect_error(
+    zuregex:::native(stop("boom"), call),
+    class = "zuregex_error_native"
+  )
+  expect_s3_class(err, "zuregex_error")
+  expect_identical(err$call, call)
+  expect_s3_class(err$parent, "simpleError")
+  # A zuregex error passes through with its own class.
+  err <- expect_error(
+    zuregex:::native(zuregex:::zuregex_abort("limit", "x"), call),
+    class = "zuregex_error_limit"
+  )
+  expect_false(inherits(err, "zuregex_error_native"))
+  # Without an error the value comes back.
+  expect_identical(zuregex:::native(1L, call), 1L)
+})

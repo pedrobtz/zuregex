@@ -28,7 +28,7 @@ subjects <- function(x, call) {
     )
   }
   if (is.character(x)) {
-    bytes <- any(Encoding(x) == "bytes")
+    bytes <- .Call(zuregex_has_bytes_c, x)
     return(list(x = x, n = length(x), bytes = bytes))
   }
   if (is.raw(x)) {
@@ -68,6 +68,19 @@ patterns <- function(pattern, n, bytes, call) {
   }
   if (inherits(pattern, "re")) {
     return(re_patterns(pattern, bytes, call))
+  }
+  if (len == 1L && is.character(pattern) && !is.na(pattern)) {
+    # The common case, one pattern string: a cache lookup in C, without
+    # unique(), match() or the attributes of an `re` object.
+    pattern <- enc2utf8(pattern)
+    res <- native(
+      .Call(zuregex_compile_c, pattern, "", 0L, FALSE, TRUE, !bytes, TRUE),
+      call
+    )
+    if (!is.null(res$error)) {
+      raise_compile_error(res$error, pattern, "", FALSE, call)
+    }
+    return(list(table = res$value, index = 1L))
   }
   if (!is.character(pattern)) {
     zuregex_abort(

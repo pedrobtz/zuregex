@@ -206,6 +206,13 @@ test_that("invalid UTF-8 is a zuregex_error_utf naming element and byte", {
   expect_snapshot(re_detect(c("ok", bad), "c"), error = TRUE)
   # An NA pattern means the element is not matched, so not checked either.
   expect_identical(re_detect(c("a", bad), c("a", NA)), c(TRUE, NA))
+  # ASCII subjects skip the check; the invalid one among them is still
+  # caught, on every verb that matches it.
+  x <- c(rep("plain ascii c", 50), bad, "more c")
+  err <- expect_error(re_detect(x, "c"), class = "zuregex_error_utf")
+  expect_identical(err$element, 51)
+  expect_error(re_extract_all(x, "c"), class = "zuregex_error_utf")
+  expect_error(re_replace(x, "c", "C"), class = "zuregex_error_utf")
 })
 
 test_that("calls with more patterns than the cache holds leave it alone", {

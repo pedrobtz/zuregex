@@ -119,3 +119,62 @@ test_that("re_detect() on four threads is at least 2.5 times faster than one", {
   expect_identical(four$value, one$value)
   expect_gt(one$elapsed / four$elapsed, 2.5)
 })
+
+test_that("long results agree with base R at one thread and at the cap", {
+  # Many matches per element make each thread's output grow far past its
+  # first allocation.
+  withr::local_seed(7)
+  x <- vapply(
+    seq_len(2000),
+    function(i) paste(sample(c(letters, 0:9, " "), 400, TRUE), collapse = ""),
+    ""
+  )
+  run <- function(threads) {
+    with_threads(threads, function() {
+      list(
+        re_extract_all(x, "\\d+"),
+        re_locate_all(x, "[aeiou]")$start,
+        re_replace(x, "(\\d)", "<$1$1>"),
+        re_split(x, "\\s+")
+      )
+    })
+  }
+  one <- run(1)
+  expect_identical(run(2), one)
+  expect_identical(one[[1]], regmatches(x, gregexpr("\\d+", x, perl = TRUE)))
+  expect_identical(
+    one[[2]],
+    unlist(lapply(gregexpr("[aeiou]", x, perl = TRUE), as.integer))
+  )
+  expect_identical(one[[3]], gsub("(\\d)", "<\\1\\1>", x, perl = TRUE))
+  # GAP: strsplit() drops a trailing empty piece; re_split() keeps it, as
+  # Python does.
+  trim <- function(v) {
+    if (length(v) > 0 && v[length(v)] == "") v[-length(v)] else v
+  }
+  expect_identical(lapply(one[[4]], trim), strsplit(x, "\\s+", perl = TRUE))
+})
+
+test_that("limited elements between good ones keep no partial results", {
+  case <- pathological()
+  good <- big_subjects()[1:40]
+  x <- rep(c(good, case$x), length.out = 2000)
+  bad <- x == case$x
+  lim <- re_limits(match = 1000, on_limit = "na")
+  p <- "(\\w+)=(\\d+)|^(a+)+$"
+  run <- function(threads) {
+    with_threads(threads, function() {
+      suppressWarnings(list(
+        re_extract_all(x, p, limits = lim),
+        re_locate_all(x, p, limits = lim),
+        re_replace(x, p, "<$0>", limits = lim)
+      ))
+    })
+  }
+  one <- run(1)
+  expect_identical(run(2), one)
+  expect_true(all(is.na(unlist(one[[1]][bad]))))
+  expect_true(all(is.na(one[[3]][bad])))
+  expect_identical(one[[1]][!bad], re_extract_all(x[!bad], p))
+  expect_identical(one[[3]][!bad], re_replace(x[!bad], p, "<$0>"))
+})

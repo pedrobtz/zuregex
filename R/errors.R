@@ -23,13 +23,13 @@ user_call <- function(n = 2L) {
 
 # Evaluates `expr`, a .Call, so that any error native code raises without
 # a class (R's own, such as running out of memory) reaches the user as a
-# zuregex_error_native.
+# zuregex_error_native. A calling handler re-signals it as one; that costs
+# a third of tryCatch(), which matters on every call of every verb.
 native <- function(expr, call) {
-  tryCatch(expr, error = function(e) {
-    if (inherits(e, "zuregex_error")) {
-      stop(e)
+  withCallingHandlers(expr, error = function(e) {
+    if (!inherits(e, "zuregex_error")) {
+      zuregex_abort("native", conditionMessage(e), parent = e, call = call)
     }
-    zuregex_abort("native", conditionMessage(e), parent = e, call = call)
   })
 }
 
