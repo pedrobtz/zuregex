@@ -1,0 +1,96 @@
+# OpenMP on macOS the way CRAN builds it, as zurand's macos-openmp job does.
+# R leaves SHLIB_OPENMP_CFLAGS empty on macOS; ./configure links the libomp
+# R ships in $(R_HOME)/lib when the headers are present, which CRAN's build
+# machines provide as https://mac.r-project.org/openmp/ instructs. This job
+# installs those headers the same way, asserts that configure took the
+# OpenMP path and that the package loads with it (#72), checks that results
+# do not depend on the thread count, prints the speed-up, and runs
+# R CMD check with threads on.
+#
+# The plain macos-latest leg of R-CMD-check has no headers and so covers
+# the serial fallback.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+name: macos-openmp
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  macos-openmp:
+    runs-on: macos-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      _R_CHECK_FORCE_SUGGESTS_: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: OpenMP headers (LLVM 19.1.5, for Xcode 16.3+), as CRAN's machines
+        run: |
+          curl -sSL -o "$RUNNER_TEMP/openmp.tar.gz" https://mac.r-project.org/openmp/openmp-19.1.5-darwin20-Release.tar.gz
+          sudo tar fxz "$RUNNER_TEMP/openmp.tar.gz" -C /
+          ls -l /usr/local/include/omp.h
+
+      - uses: r-lib/actions/setup-r@v2
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck any::bench
+          needs: check
+
+      - name: configure takes the OpenMP path, links R's libomp and loads
+        run: |
+          ./configure | tee "$RUNNER_TEMP/configure.out"
+          grep -q "OpenMP works with -Xclang -fopenmp -lomp... yes" "$RUNNER_TEMP/configure.out"
+          R CMD INSTALL --preclean .
+          ./cleanup
+          so="$(Rscript -e 'cat(system.file("libs", package = "zuregex"))')/zuregex.so"
+          otool -L "$so" | tee "$RUNNER_TEMP/otool.out"
+          grep -q "libomp.dylib" "$RUNNER_TEMP/otool.out"
+          Rscript -e '
+            info <- zuregex::zuregex_info()
+            str(info[c("openmp", "threads", "cores", "serial_bytes")])
+            stopifnot(info$openmp, info$threads > 1L)'
+
+      - name: results do not depend on the thread count
+        run: |
+          Rscript -e '
+            library(zuregex)
+            set.seed(1)
+            x <- sprintf("id=%d user%d@host%d.com; call 555-%04d", 1:2e5,
+              sample.int(999, 2e5, TRUE), sample.int(50, 2e5, TRUE), sample.int(9999, 2e5, TRUE))
+            run <- function(n) {
+              re_threads(n)
+              list(re_detect(x, "555-\\d{4}"), re_extract_all(x, "\\d+"),
+                re_match(x, "user(\\d+)@host(\\d+)"), re_replace(x, "(\\d+)", "<$1>"),
+                re_split(x, "[;@]"))
+            }
+            stopifnot(identical(run(1), run(0)))'
+
+      - name: speed-up with threads (one run, informational)
+        run: |
+          Rscript -e '
+            library(zuregex)
+            set.seed(1)
+            x <- sprintf("id=%d user%d@host%d.com; call 555-%04d", 1:1e6,
+              sample.int(999, 1e6, TRUE), sample.int(50, 1e6, TRUE), sample.int(9999, 1e6, TRUE))
+            b <- function(n) {
+              re_threads(n)
+              bench::mark(count = re_count(x, "\\d"), detect = re_detect(x, "555-\\d{4}"),
+                replace = re_replace(x, "(\\d+)", "<$1>"), check = FALSE, min_iterations = 5)
+            }
+            s <- b(1); p <- b(0)
+            cat(sprintf("%-8s 1 thread %7.1f ms   %d threads %7.1f ms   x%.2f\n",
+              as.character(s$expression), as.numeric(s$median) * 1e3, re_threads(),
+              as.numeric(p$median) * 1e3, as.numeric(s$median) / as.numeric(p$median)), sep = "")'
+
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          args: 'c("--no-manual", "--as-cran")'
+          error-on: '"warning"'
