@@ -45,7 +45,15 @@ keep_groups = TRUE each separator's groups are kept between the pieces."></head>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">re_split</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, n <span class="op">=</span> <span class="cn">Inf</span>, keep_groups <span class="op">=</span> <span class="cn">FALSE</span>, limits <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">re_split</span><span class="op">(</span></span>
+<span>  <span class="va">x</span>,</span>
+<span>  <span class="va">pattern</span>,</span>
+<span>  n <span class="op">=</span> <span class="cn">Inf</span>,</span>
+<span>  keep_groups <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  flags <span class="op">=</span> <span class="st">""</span>,</span>
+<span>  literal <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  limits <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -72,6 +80,18 @@ pieces.</p></dd>
 after the piece before it, <code>NA</code> for a group that did not take part.</p></dd>
 
 
+<dt id="arg-flags">flags<a class="anchor" aria-label="anchor" href="#arg-flags"></a></dt>
+<dd><p>A single string of flag letters for pattern strings, such as
+<code>"i"</code> for case-insensitive matching; see <code><a href="re_compile.html">re_compile()</a></code> for every
+letter. It applies to every pattern in the call.</p></dd>
+
+
+<dt id="arg-literal">literal<a class="anchor" aria-label="anchor" href="#arg-literal"></a></dt>
+<dd><p>If <code>TRUE</code>, each pattern string is matched as literal text,
+with no metacharacters, as base R's <code>fixed = TRUE</code>. Only the flags <code>i</code>
+and <code>r</code> apply to a literal pattern.</p></dd>
+
+
 <dt id="arg-limits">limits<a class="anchor" aria-label="anchor" href="#arg-limits"></a></dt>
 <dd><p>A <code><a href="re_limits.html">re_limits()</a></code> object, or <code>NULL</code> for
 <code>getOption("zuregex.limits")</code> and then PCRE2's defaults.</p></dd>
@@ -87,11 +107,17 @@ subject or pattern.</p>
 
 
 <p><code>pattern</code> is a character vector of regular expressions, compiled through
-the cache with the default options, or an <code>re</code> vector from
-<code><a href="re_compile.html">re_compile()</a></code> for flags, dialects and literal patterns. It has length 1,
+the cache with <code>flags</code> and <code>literal</code>, or an <code>re</code> vector from
+<code><a href="re_compile.html">re_compile()</a></code>, which carries its own flags and can use the JavaScript
+dialect. It has length 1,
 used for every element of <code>x</code>, or exactly the length of <code>x</code>, pairing
 <code>pattern[i]</code> with <code>x[i]</code>. Any other length is an error: nothing is
 recycled. An <code>NA</code> pattern gives <code>NA</code> for its element.</p>
+<p>Base R's options map onto these arguments: <code>ignore.case = TRUE</code> is
+<code>flags = "i"</code>, <code>fixed = TRUE</code> is <code>literal = TRUE</code>, <code>invert = TRUE</code> is
+<code>re_detect(negate = TRUE)</code>, and <code>useBytes = TRUE</code> is a raw vector or
+strings marked as <code>"bytes"</code> (see Strings and bytes). <code>perl = TRUE</code> is
+always on.</p>
     </div>
     <div class="section level2">
     <h2 id="strings-and-bytes">Strings and bytes<a class="anchor" aria-label="anchor" href="#strings-and-bytes"></a></h2>

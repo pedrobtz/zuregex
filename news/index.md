@@ -48,6 +48,11 @@
   [`re_match()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md)
   types its columns through `proto`, as
   [`utils::strcapture()`](https://rdrr.io/r/utils/strcapture.html) does.
+- Every verb takes `flags` and `literal`, as
+  [`re_compile()`](https://pedrobtz.github.io/zuregex/reference/re_compile.md)
+  does, so `re_detect(x, "abc", flags = "i")` is base R’s
+  `ignore.case = TRUE` and `literal = TRUE` is its `fixed = TRUE`. An
+  `re` object carries its own.
 - [`re_replace()`](https://pedrobtz.github.io/zuregex/reference/re_replace.md)
   uses PCRE2’s extended templates (`$1`, `${name}`, `${1:-default}`,
   `${1:+yes:no}`, case forcing), literal text, or a function called once

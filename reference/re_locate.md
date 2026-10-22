@@ -6,7 +6,14 @@
 ## Usage
 
 ``` r
-re_locate(x, pattern, bytes = FALSE, limits = NULL)
+re_locate(
+  x,
+  pattern,
+  bytes = FALSE,
+  flags = "",
+  literal = FALSE,
+  limits = NULL
+)
 
 re_locate_all(
   x,
@@ -14,6 +21,8 @@ re_locate_all(
   n = Inf,
   overlap = FALSE,
   bytes = FALSE,
+  flags = "",
+  literal = FALSE,
   limits = NULL
 )
 ```
@@ -32,6 +41,19 @@ re_locate_all(
 - bytes:
 
   If `TRUE`, offsets count bytes instead of characters.
+
+- flags:
+
+  A single string of flag letters for pattern strings, such as `"i"` for
+  case-insensitive matching; see
+  [`re_compile()`](https://pedrobtz.github.io/zuregex/reference/re_compile.md)
+  for every letter. It applies to every pattern in the call.
+
+- literal:
+
+  If `TRUE`, each pattern string is matched as literal text, with no
+  metacharacters, as base R's `fixed = TRUE`. Only the flags `i` and `r`
+  apply to a literal pattern.
 
 - limits:
 
@@ -78,12 +100,18 @@ character.
 ## Patterns
 
 `pattern` is a character vector of regular expressions, compiled through
-the cache with the default options, or an `re` vector from
-[`re_compile()`](https://pedrobtz.github.io/zuregex/reference/re_compile.md)
-for flags, dialects and literal patterns. It has length 1, used for
-every element of `x`, or exactly the length of `x`, pairing `pattern[i]`
-with `x[i]`. Any other length is an error: nothing is recycled. An `NA`
-pattern gives `NA` for its element.
+the cache with `flags` and `literal`, or an `re` vector from
+[`re_compile()`](https://pedrobtz.github.io/zuregex/reference/re_compile.md),
+which carries its own flags and can use the JavaScript dialect. It has
+length 1, used for every element of `x`, or exactly the length of `x`,
+pairing `pattern[i]` with `x[i]`. Any other length is an error: nothing
+is recycled. An `NA` pattern gives `NA` for its element.
+
+Base R's options map onto these arguments: `ignore.case = TRUE` is
+`flags = "i"`, `fixed = TRUE` is `literal = TRUE`, `invert = TRUE` is
+`re_detect(negate = TRUE)`, and `useBytes = TRUE` is a raw vector or
+strings marked as `"bytes"` (see Strings and bytes). `perl = TRUE` is
+always on.
 
 ## Strings and bytes
 

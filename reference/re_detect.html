@@ -47,10 +47,12 @@ re_count() counts the non-overlapping matches in each element."></head><body>
 <span>  <span class="va">pattern</span>,</span>
 <span>  anchor <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"start"</span>, <span class="st">"full"</span><span class="op">)</span>,</span>
 <span>  negate <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  flags <span class="op">=</span> <span class="st">""</span>,</span>
+<span>  literal <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  limits <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">re_count</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, limits <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">re_count</span><span class="op">(</span><span class="va">x</span>, <span class="va">pattern</span>, flags <span class="op">=</span> <span class="st">""</span>, literal <span class="op">=</span> <span class="cn">FALSE</span>, limits <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -77,6 +79,18 @@ holds for every branch of a top-level alternation.</p></dd>
 <dd><p>If <code>TRUE</code>, return <code>TRUE</code> for elements that do not match.</p></dd>
 
 
+<dt id="arg-flags">flags<a class="anchor" aria-label="anchor" href="#arg-flags"></a></dt>
+<dd><p>A single string of flag letters for pattern strings, such as
+<code>"i"</code> for case-insensitive matching; see <code><a href="re_compile.html">re_compile()</a></code> for every
+letter. It applies to every pattern in the call.</p></dd>
+
+
+<dt id="arg-literal">literal<a class="anchor" aria-label="anchor" href="#arg-literal"></a></dt>
+<dd><p>If <code>TRUE</code>, each pattern string is matched as literal text,
+with no metacharacters, as base R's <code>fixed = TRUE</code>. Only the flags <code>i</code>
+and <code>r</code> apply to a literal pattern.</p></dd>
+
+
 <dt id="arg-limits">limits<a class="anchor" aria-label="anchor" href="#arg-limits"></a></dt>
 <dd><p>A <code><a href="re_limits.html">re_limits()</a></code> object, or <code>NULL</code> for
 <code>getOption("zuregex.limits")</code> and then PCRE2's defaults.</p></dd>
@@ -92,11 +106,17 @@ an integer vector, one per subject.</p>
 
 
 <p><code>pattern</code> is a character vector of regular expressions, compiled through
-the cache with the default options, or an <code>re</code> vector from
-<code><a href="re_compile.html">re_compile()</a></code> for flags, dialects and literal patterns. It has length 1,
+the cache with <code>flags</code> and <code>literal</code>, or an <code>re</code> vector from
+<code><a href="re_compile.html">re_compile()</a></code>, which carries its own flags and can use the JavaScript
+dialect. It has length 1,
 used for every element of <code>x</code>, or exactly the length of <code>x</code>, pairing
 <code>pattern[i]</code> with <code>x[i]</code>. Any other length is an error: nothing is
 recycled. An <code>NA</code> pattern gives <code>NA</code> for its element.</p>
+<p>Base R's options map onto these arguments: <code>ignore.case = TRUE</code> is
+<code>flags = "i"</code>, <code>fixed = TRUE</code> is <code>literal = TRUE</code>, <code>invert = TRUE</code> is
+<code>re_detect(negate = TRUE)</code>, and <code>useBytes = TRUE</code> is a raw vector or
+strings marked as <code>"bytes"</code> (see Strings and bytes). <code>perl = TRUE</code> is
+always on.</p>
     </div>
     <div class="section level2">
     <h2 id="strings-and-bytes">Strings and bytes<a class="anchor" aria-label="anchor" href="#strings-and-bytes"></a></h2>
@@ -119,6 +139,10 @@ support, so <code>.</code> matches one byte.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1]  TRUE  TRUE FALSE    NA</span>
 <span class="r-in"><span><span class="fu">re_count</span><span class="op">(</span><span class="va">x</span>, <span class="st">"[aeiou]"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1]  2  3  1 NA</span>
+<span class="r-in"><span><span class="fu">re_detect</span><span class="op">(</span><span class="va">x</span>, <span class="st">"APPLE"</span>, flags <span class="op">=</span> <span class="st">"i"</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1]  TRUE FALSE FALSE    NA</span>
+<span class="r-in"><span><span class="fu">re_count</span><span class="op">(</span><span class="st">"a.b.c"</span>, <span class="st">"."</span>, literal <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># One pattern per element</span></span></span>
 <span class="r-in"><span><span class="fu">re_detect</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"abc"</span>, <span class="st">"abc"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"^a"</span>, <span class="st">"^b"</span><span class="op">)</span><span class="op">)</span></span></span>
