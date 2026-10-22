@@ -49,45 +49,84 @@ re_detect <- function(
 ) {
   call <- sys.call()
   if (missing(anchor)) {
-    anchor <- "none"
+    anchor <- 0L
   } else {
     check_choice(anchor, c("none", "start", "full"), "anchor", call)
+    anchor <- match(anchor, c("none", "start", "full")) - 1L
   }
-  check_flag(negate, "negate", call)
-  run_verb(
-    {
-      s <- p <- prepare(x, pattern, call)
-      .Call(
-        zuregex_detect_c,
-        s$x,
-        s$bytes,
-        p$table,
-        p$index,
-        call_limits(limits, call),
-        match(anchor, c("none", "start", "full")) - 1L,
-        negate
-      )
-    },
-    call
-  )
+  if (!is.logical(negate) || length(negate) != 1L || is.na(negate)) {
+    check_flag(negate, "negate", call)
+  }
+  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
+    no_limits
+  } else {
+    call_limits(limits, call)
+  }
+  out <- NULL
+  if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
+    out <- withCallingHandlers(
+      .Call(zuregex_detect_c, x, NA, pattern, NULL, lim, anchor, negate),
+      error = function(e) native_error(e, call)
+    )
+    if (is.object(out)) {
+      out <- fast_result(out, call, pattern)
+    }
+  }
+  if (is.null(out)) {
+    out <- run_verb(
+      {
+        s <- p <- prepare(x, pattern, call)
+        .Call(
+          zuregex_detect_c,
+          s$x,
+          s$bytes,
+          p$table,
+          p$index,
+          lim,
+          anchor,
+          negate
+        )
+      },
+      call
+    )
+  }
+  out
 }
 
 #' @rdname re_detect
 #' @export
 re_count <- function(x, pattern, limits = NULL) {
   call <- sys.call()
-  run_verb(
-    {
-      s <- p <- prepare(x, pattern, call)
-      .Call(
-        zuregex_count_c,
-        s$x,
-        s$bytes,
-        p$table,
-        p$index,
-        call_limits(limits, call)
-      )
-    },
-    call
-  )
+  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
+    no_limits
+  } else {
+    call_limits(limits, call)
+  }
+  out <- NULL
+  if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
+    out <- withCallingHandlers(
+      .Call(zuregex_count_c, x, NA, pattern, NULL, lim),
+      error = function(e) native_error(e, call)
+    )
+    if (is.object(out)) {
+      out <- fast_result(out, call, pattern)
+    }
+  }
+  if (is.null(out)) {
+    out <- run_verb(
+      {
+        s <- p <- prepare(x, pattern, call)
+        .Call(
+          zuregex_count_c,
+          s$x,
+          s$bytes,
+          p$table,
+          p$index,
+          lim
+        )
+      },
+      call
+    )
+  }
+  out
 }

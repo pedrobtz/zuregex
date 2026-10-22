@@ -33,6 +33,19 @@ static SEXP compile_error(const char *kind, int element, int offset,
   return err;
 }
 
+SEXP zuregex_compile_error_for(const char *pattern, int errcode,
+                               size_t erroffset) {
+  PCRE2_UCHAR msg[256];
+  if (pcre2_get_error_message(errcode, msg, sizeof(msg)) < 0) {
+    strcpy((char *) msg, "unknown error");
+  }
+  int chars = 0;
+  for (size_t i = 0; i < erroffset; i++) {
+    if (((unsigned char) pattern[i] & 0xC0) != 0x80) chars++;
+  }
+  return compile_error("compile", 1, chars + 1, (const char *) msg);
+}
+
 static SEXP result(SEXP value, SEXP error) {
   const char *names[] = {"value", "error", ""};
   SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));

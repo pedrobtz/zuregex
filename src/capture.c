@@ -373,7 +373,7 @@ static SEXP run(capture_job *job, double limit, SEXP (*build)(void *)) {
 SEXP zuregex_extract_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                        SEXP group, SEXP all, SEXP n_max) {
   zuregex_call call;
-  zuregex_collect(x, Rf_asLogical(bytes), table, index, limits, &call);
+  ZUREGEX_COLLECT(x, Rf_asLogical(bytes), table, index, limits, &call);
   capture_job job;
   memset(&job, 0, sizeof(job));
   job.call = &call;
@@ -386,11 +386,42 @@ SEXP zuregex_extract_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
 // colmap: per pattern table entry, an integer vector giving the 1-based
 // output column of each of its groups, preceded by group 0's column when
 // with_zero is TRUE.
+// Fast mode's column names for one pattern: each group's name, or its
+// number where it has none, as group_layout() names them in R. Without
+// the J flag no two groups share a name.
+static SEXP fast_group_names(const pcre2_code *code, uint32_t groups) {
+  SEXP names = PROTECT(Rf_allocVector(STRSXP, groups));
+  for (uint32_t g = 0; g < groups; g++) {
+    // The number in decimal, written backwards from the end of num.
+    char num[16];
+    char *at = num + sizeof(num) - 1;
+    *at = '\0';
+    for (uint32_t v = g + 1; v > 0 || at == num + sizeof(num) - 1; v /= 10) {
+      *--at = (char) ('0' + v % 10);
+    }
+    SET_STRING_ELT(names, g, Rf_mkChar(at));
+  }
+  uint32_t count = 0, size = 0;
+  PCRE2_SPTR table = NULL;
+  pcre2_pattern_info(code, PCRE2_INFO_NAMECOUNT, &count);
+  pcre2_pattern_info(code, PCRE2_INFO_NAMEENTRYSIZE, &size);
+  pcre2_pattern_info(code, PCRE2_INFO_NAMETABLE, &table);
+  for (uint32_t i = 0; i < count; i++) {
+    PCRE2_SPTR entry = table + (size_t) i * size;
+    int g = (entry[0] << 8) | entry[1];
+    SET_STRING_ELT(names, g - 1, Rf_mkCharCE((const char *) entry + 2, CE_UTF8));
+  }
+  UNPROTECT(1);
+  return names;
+}
+
+static SEXP data_frame_class = NULL, element_name = NULL, match_name = NULL;
+
 SEXP zuregex_match_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                      SEXP colmap, SEXP ncol, SEXP all, SEXP n_max,
                      SEXP with_zero) {
   zuregex_call call;
-  zuregex_collect(x, Rf_asLogical(bytes), table, index, limits, &call);
+  ZUREGEX_COLLECT(x, Rf_asLogical(bytes), table, index, limits, &call);
   capture_job job;
   memset(&job, 0, sizeof(job));
   job.call = &call;
@@ -399,14 +430,50 @@ SEXP zuregex_match_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   job.ncol = Rf_asInteger(ncol);
   job.all = Rf_asLogical(all);
   job.with_zero = Rf_asLogical(with_zero);
-  return run(&job, job.all ? Rf_asReal(n_max) : 1, build_match);
+  if (!call.fast) return run(&job, job.all ? Rf_asReal(n_max) : 1, build_match);
+
+  // Fast mode: one pattern, so group g is column g, and the columns are
+  // named here rather than by group_layout() in R.
+  uint32_t groups = call.max_ovector - 1;
+  SEXP names = PROTECT(fast_group_names(call.patterns[0]->code, groups));
+  SEXP map = PROTECT(Rf_allocVector(VECSXP, 1));
+  SEXP cols = Rf_allocVector(INTSXP, groups);
+  SET_VECTOR_ELT(map, 0, cols);
+  for (uint32_t g = 0; g < groups; g++) INTEGER(cols)[g] = (int) g + 1;
+  job.colmap = map;
+  job.ncol = (int) groups;
+  job.with_zero = 0;
+  SEXP ans = PROTECT(run(&job, job.all ? Rf_asReal(n_max) : 1, build_match));
+  SEXP value = Rf_isObject(ans) ? VECTOR_ELT(ans, 0) : ans;
+  if (!Rf_isNull(value)) {
+    int lead = job.all ? 2 : 0;
+    SEXP nm = PROTECT(Rf_allocVector(STRSXP, groups + lead));
+    if (job.all) {
+      SET_STRING_ELT(nm, 0, STRING_ELT(zuregex_constant_string("element", &element_name), 0));
+      SET_STRING_ELT(nm, 1, STRING_ELT(zuregex_constant_string("match", &match_name), 0));
+    }
+    for (uint32_t g = 0; g < groups; g++) {
+      SET_STRING_ELT(nm, g + lead, STRING_ELT(names, g));
+    }
+    Rf_namesgets(value, nm);
+    // A data frame already: compact row names, as .set_row_names() makes.
+    R_xlen_t rows = job.all ? XLENGTH(VECTOR_ELT(value, 0)) : call.n;
+    SEXP rn = PROTECT(Rf_allocVector(INTSXP, 2));
+    INTEGER(rn)[0] = NA_INTEGER;
+    INTEGER(rn)[1] = -(int) rows;
+    Rf_setAttrib(value, R_RowNamesSymbol, rn);
+    Rf_classgets(value, zuregex_constant_string("data.frame", &data_frame_class));
+    UNPROTECT(2);
+  }
+  UNPROTECT(3);
+  return ans;
 }
 
 // n_max: the most separators to split at (pieces - 1).
 SEXP zuregex_split_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
                      SEXP n_max, SEXP keep_groups) {
   zuregex_call call;
-  zuregex_collect(x, Rf_asLogical(bytes), table, index, limits, &call);
+  ZUREGEX_COLLECT(x, Rf_asLogical(bytes), table, index, limits, &call);
   capture_job job;
   memset(&job, 0, sizeof(job));
   job.call = &call;

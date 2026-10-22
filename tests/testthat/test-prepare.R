@@ -1,5 +1,6 @@
-# One pattern string takes the single-.Call path in prepare(); a vector of
-# patterns or an `re` object takes the R path. Both must agree.
+# A character vector with one pattern string takes the fast path, a single
+# .Call that compiles, matches and builds the result; a vector of patterns
+# or an `re` object takes the general path. Both must agree.
 
 test_that("the fast path and the R path give identical results", {
   x <- c(parity_subjects(), NA, "")

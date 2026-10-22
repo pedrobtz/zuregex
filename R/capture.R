@@ -51,6 +51,38 @@
 #' re_match_all(x, "(?<year>\\d{4})")
 re_extract <- function(x, pattern, group = 0, limits = NULL) {
   call <- sys.call()
+  if (
+    is.character(x) &&
+      is.character(pattern) &&
+      length(pattern) == 1L &&
+      is.numeric(group) &&
+      length(group) == 1L &&
+      !is.na(group) &&
+      group == 0
+  ) {
+    lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
+      no_limits
+    } else {
+      call_limits(limits, call)
+    }
+    out <- withCallingHandlers(
+      .Call(
+        zuregex_extract_c,
+        x,
+        NA,
+        pattern,
+        NULL,
+        lim,
+        group_zero,
+        FALSE,
+        1
+      ),
+      error = function(e) native_error(e, call)
+    )
+    if (!is.null(out)) {
+      return(if (is.object(out)) fast_result(out, call, pattern) else out)
+    }
+  }
   extract(x, pattern, group, all = FALSE, n = 1, limits, call = call)
 }
 
@@ -58,7 +90,41 @@ re_extract <- function(x, pattern, group = 0, limits = NULL) {
 #' @export
 re_extract_all <- function(x, pattern, group = 0, n = Inf, limits = NULL) {
   call <- sys.call()
-  check_n(n, call)
+  if (!missing(n)) {
+    check_n(n, call)
+  }
+  if (
+    is.character(x) &&
+      is.character(pattern) &&
+      length(pattern) == 1L &&
+      is.numeric(group) &&
+      length(group) == 1L &&
+      !is.na(group) &&
+      group == 0
+  ) {
+    lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
+      no_limits
+    } else {
+      call_limits(limits, call)
+    }
+    out <- withCallingHandlers(
+      .Call(
+        zuregex_extract_c,
+        x,
+        NA,
+        pattern,
+        NULL,
+        lim,
+        group_zero,
+        TRUE,
+        as.double(n)
+      ),
+      error = function(e) native_error(e, call)
+    )
+    if (!is.null(out)) {
+      return(if (is.object(out)) fast_result(out, call, pattern) else out)
+    }
+  }
   extract(x, pattern, group, all = TRUE, n = n, limits, call = call)
 }
 
@@ -66,6 +132,36 @@ re_extract_all <- function(x, pattern, group = 0, n = Inf, limits = NULL) {
 #' @export
 re_match <- function(x, pattern, proto = NULL, limits = NULL) {
   call <- sys.call()
+  if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
+    lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
+      no_limits
+    } else {
+      call_limits(limits, call)
+    }
+    # One pattern: the .Call names the columns and returns a data frame.
+    out <- withCallingHandlers(
+      .Call(
+        zuregex_match_c,
+        x,
+        NA,
+        pattern,
+        NULL,
+        lim,
+        NULL,
+        0L,
+        FALSE,
+        1,
+        FALSE
+      ),
+      error = function(e) native_error(e, call)
+    )
+    if (!is.null(out)) {
+      if (oldClass(out)[1L] == "zuregex_result") {
+        out <- as_data_frame(fast_result(out, call, pattern))
+      }
+      return(if (is.null(proto)) out else conform_to_proto(out, proto, call))
+    }
+  }
   out <- match_groups(x, pattern, all = FALSE, n = 1, limits, call = call)
   if (!is.null(proto)) {
     out <- conform_to_proto(out, proto, call)
@@ -77,7 +173,39 @@ re_match <- function(x, pattern, proto = NULL, limits = NULL) {
 #' @export
 re_match_all <- function(x, pattern, n = Inf, limits = NULL) {
   call <- sys.call()
-  check_n(n, call)
+  if (!missing(n)) {
+    check_n(n, call)
+  }
+  if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
+    lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
+      no_limits
+    } else {
+      call_limits(limits, call)
+    }
+    # One pattern: the .Call names the columns and returns a data frame.
+    out <- withCallingHandlers(
+      .Call(
+        zuregex_match_c,
+        x,
+        NA,
+        pattern,
+        NULL,
+        lim,
+        NULL,
+        0L,
+        TRUE,
+        as.double(n),
+        FALSE
+      ),
+      error = function(e) native_error(e, call)
+    )
+    if (!is.null(out)) {
+      if (oldClass(out)[1L] == "zuregex_result") {
+        out <- as_data_frame(fast_result(out, call, pattern))
+      }
+      return(out)
+    }
+  }
   match_groups(x, pattern, all = TRUE, n = n, limits, call = call)
 }
 
@@ -105,7 +233,15 @@ table_groups <- function(table) {
   .Call(zuregex_re_info_c, table)$group_names
 }
 
+# group_index() for one pattern and group 0.
+group_zero <- list(0L)
+
 extract <- function(x, pattern, group, all, n, limits, call) {
+  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
+    no_limits
+  } else {
+    call_limits(limits, call)
+  }
   run_verb(
     {
       s <- p <- prepare(x, pattern, call)
@@ -117,7 +253,7 @@ extract <- function(x, pattern, group, all, n, limits, call) {
         s$bytes,
         p$table,
         p$index,
-        call_limits(limits, call),
+        lim,
         idx,
         all,
         as.double(n)
@@ -185,6 +321,11 @@ group_index <- function(group, groups, call) {
 }
 
 match_groups <- function(x, pattern, all, n, limits, call) {
+  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
+    no_limits
+  } else {
+    call_limits(limits, call)
+  }
   cols <- run_verb(
     {
       s <- p <- prepare(x, pattern, call)
@@ -195,7 +336,7 @@ match_groups <- function(x, pattern, all, n, limits, call) {
         s$bytes,
         p$table,
         p$index,
-        call_limits(limits, call),
+        lim,
         layout$colmap,
         length(layout$names),
         all,

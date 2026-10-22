@@ -44,6 +44,21 @@ static void evict_lru(void) {
   evict(oldest);
 }
 
+zuregex_pattern *zuregex_cache_borrow(const zuregex_key *key, int *errcode,
+                                      size_t *erroffset, int *uncached) {
+  *uncached = 0;
+  zuregex_pattern *p = zuregex_cache_get(key, 1, errcode, erroffset);
+  if (p == NULL) return NULL;
+  // refs is 1 when the cache did not keep it (capacity 0, or too long).
+  int kept = p->refs > 1;
+  zuregex_pattern_release(p);
+  if (!kept) {
+    *uncached = 1;
+    return NULL;
+  }
+  return p;
+}
+
 zuregex_pattern *zuregex_cache_get(const zuregex_key *key, int use_cache,
                                    int *errcode, size_t *erroffset) {
   // A cache of capacity 0 holds nothing: compile without counting a miss.

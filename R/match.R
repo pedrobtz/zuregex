@@ -216,15 +216,33 @@ raise_match_error <- function(err, call) {
   )
 }
 
+# The fast path: a verb's .Call given `x` and one pattern string, which
+# returns the value itself, NULL when the call needs the general path, or
+# a "zuregex_result" list when something went wrong. fast_result() turns
+# that list into its error or warning.
+fast_result <- function(res, call, pattern, repl = NULL) {
+  err <- res$error
+  if (!is.null(err) && err$kind == "compile") {
+    raise_compile_error(err, pattern, "", FALSE, call)
+  }
+  if (!is.null(err) && err$kind == "template") {
+    raise_template_error(err, repl, call)
+  }
+  verb_result(res, call)
+}
+
+# The calling handler every .Call runs under (see native()).
+native_error <- function(e, call) {
+  if (!inherits(e, "zuregex_error")) {
+    zuregex_abort("native", conditionMessage(e), parent = e, call = call)
+  }
+}
+
 # Evaluates `res`, a verb's .Call and whatever prepares it, under one
 # calling handler (see native()), then turns the result into a value, an
 # error or a warning.
 run_verb <- function(res, call) {
-  res <- withCallingHandlers(res, error = function(e) {
-    if (!inherits(e, "zuregex_error")) {
-      zuregex_abort("native", conditionMessage(e), parent = e, call = call)
-    }
-  })
+  res <- withCallingHandlers(res, error = function(e) native_error(e, call))
   verb_result(res, call)
 }
 
