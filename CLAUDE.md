@@ -194,8 +194,9 @@ API.
   won't keep, or a bytes template on character subjects. It returns a
   `"zuregex_result"` list for an error or a limit, which `fast_result()`
   raises. `ZUREGEX_COLLECT` makes each entry point honour this. A short
-  call costs about 8 to 10 µs, below base R and stringi; the R side is
-  most of it, so the fast path stays inline in each verb.
+  call costs about 8 to 10 µs, level with base R and stringi (ahead on an
+  Intel Mac, 10 to 25% behind on Linux); the R side is most of it, so the
+  fast path stays inline in each verb.
 - The general path starts with `prepare()` in `R/match.R`:
   `zuregex_prepare_c()` for one pattern string, else `subjects()` and
   `patterns()`, inside the verb's `run_verb()`, so a call pays for one

@@ -1,19 +1,22 @@
 # The benchmark of #66 as timing tests, against base R's perl = TRUE engine
 # and stringi. Each test first checks that the results agree, then bounds
-# the speed. Bounds sit well inside what was measured (an Intel i5-8500B,
-# one thread, 200,000 lines): a wide margin is asserted as a speedup, and a
-# close one as "no slower", with room for the noise of shared CI runners.
+# the speed. They guard against regressions; they are not a ranking. The
+# ratios differ by platform (R's interpreter, its own PCRE2, the CPU), so a
+# bound sits at about half the worst ratio seen on any CI leg, and its
+# comment gives what was measured: on an Intel Mac, and where it differed,
+# on the GitHub runners and containers. Loops are long enough for Windows'
+# 10 ms timer.
 
 test_that("re_detect() is no slower than grepl() and faster than stringi", {
   skip_unless_timing()
   x <- bench_corpus()
   p <- "\\b555-\\d{4}\\b"
   expect_identical(re_detect(x, p), grepl(p, x, perl = TRUE))
-  # Measured 1.05x.
+  # Measured 1.05x on an Intel Mac, 0.58x on the arm64 macOS runner.
   expect_speedup(
     function() re_detect(x, p),
     function() grepl(p, x, perl = TRUE),
-    0.75
+    0.4
   )
   skip_if_not_installed("stringi")
   expect_identical(re_detect(x, p), stringi::stri_detect_regex(x, p))
@@ -25,25 +28,25 @@ test_that("re_detect() is no slower than grepl() and faster than stringi", {
   )
 })
 
-test_that("short calls beat grepl() and stringi", {
+test_that("short calls keep pace with grepl() and stringi", {
   skip_unless_timing()
   short <- bench_corpus(10)
   p <- "user(\\d+)@host(\\d+)\\.com"
   expect_identical(re_detect(short, p), grepl(p, short, perl = TRUE))
-  # Measured 1.6x on 10 strings: one .Call does what base R does in C, and
-  # the cache saves the compile base R repeats on every call.
+  # Measured 1.6x on 10 strings on an Intel Mac, 0.8x to 0.94x on Linux,
+  # where base R's .Internal call costs half as much.
   expect_speedup(
     function() {
-      for (i in 1:2000) {
+      for (i in 1:20000) {
         re_detect(short, p)
       }
     },
     function() {
-      for (i in 1:2000) {
+      for (i in 1:20000) {
         grepl(p, short, perl = TRUE)
       }
     },
-    1.2
+    0.5
   )
   skip_if_not_installed("stringi")
   one <- short[1]
@@ -71,20 +74,20 @@ test_that("short calls beat grepl() and stringi", {
       stringi::stri_split_regex(one, "[,;] *")
     })
   )
-  # Measured 1.05x to 1.3x on one string; "no slower" leaves room for noise.
+  # Measured 1.05x to 1.3x on one string on an Intel Mac, 0.75x to 0.94x on Linux.
   for (pair in calls) {
     expect_speedup(
       function() {
-        for (i in 1:2000) {
+        for (i in 1:20000) {
           pair[[1]]()
         }
       },
       function() {
-        for (i in 1:2000) {
+        for (i in 1:20000) {
           pair[[2]]()
         }
       },
-      0.85
+      0.4
     )
   }
 })
