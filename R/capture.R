@@ -106,22 +106,23 @@ table_groups <- function(table) {
 }
 
 extract <- function(x, pattern, group, all, n, limits, call) {
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
-  groups <- table_groups(p$table)
-  idx <- group_index(group, groups, call)
   run_verb(
-    .Call(
-      zuregex_extract_c,
-      s$x,
-      s$bytes,
-      p$table,
-      p$index,
-      call_limits(limits, call),
-      idx,
-      all,
-      as.double(n)
-    ),
+    {
+      s <- p <- prepare(x, pattern, call)
+      groups <- table_groups(p$table)
+      idx <- group_index(group, groups, call)
+      .Call(
+        zuregex_extract_c,
+        s$x,
+        s$bytes,
+        p$table,
+        p$index,
+        call_limits(limits, call),
+        idx,
+        all,
+        as.double(n)
+      )
+    },
     call
   )
 }
@@ -184,23 +185,24 @@ group_index <- function(group, groups, call) {
 }
 
 match_groups <- function(x, pattern, all, n, limits, call) {
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
-  layout <- group_layout(table_groups(p$table))
   cols <- run_verb(
-    .Call(
-      zuregex_match_c,
-      s$x,
-      s$bytes,
-      p$table,
-      p$index,
-      call_limits(limits, call),
-      layout$colmap,
-      length(layout$names),
-      all,
-      as.double(n),
-      FALSE
-    ),
+    {
+      s <- p <- prepare(x, pattern, call)
+      layout <- group_layout(table_groups(p$table))
+      .Call(
+        zuregex_match_c,
+        s$x,
+        s$bytes,
+        p$table,
+        p$index,
+        call_limits(limits, call),
+        layout$colmap,
+        length(layout$names),
+        all,
+        as.double(n),
+        FALSE
+      )
+    },
     call
   )
   names(cols) <- c(if (all) c("element", "match"), layout$names)

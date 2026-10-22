@@ -54,19 +54,20 @@ re_detect <- function(
     check_choice(anchor, c("none", "start", "full"), "anchor", call)
   }
   check_flag(negate, "negate", call)
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
   run_verb(
-    .Call(
-      zuregex_detect_c,
-      s$x,
-      s$bytes,
-      p$table,
-      p$index,
-      call_limits(limits, call),
-      match(anchor, c("none", "start", "full")) - 1L,
-      negate
-    ),
+    {
+      s <- p <- prepare(x, pattern, call)
+      .Call(
+        zuregex_detect_c,
+        s$x,
+        s$bytes,
+        p$table,
+        p$index,
+        call_limits(limits, call),
+        match(anchor, c("none", "start", "full")) - 1L,
+        negate
+      )
+    },
     call
   )
 }
@@ -75,17 +76,18 @@ re_detect <- function(
 #' @export
 re_count <- function(x, pattern, limits = NULL) {
   call <- sys.call()
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
   run_verb(
-    .Call(
-      zuregex_count_c,
-      s$x,
-      s$bytes,
-      p$table,
-      p$index,
-      call_limits(limits, call)
-    ),
+    {
+      s <- p <- prepare(x, pattern, call)
+      .Call(
+        zuregex_count_c,
+        s$x,
+        s$bytes,
+        p$table,
+        p$index,
+        call_limits(limits, call)
+      )
+    },
     call
   )
 }

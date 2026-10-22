@@ -97,12 +97,15 @@ check_limit_values <- function(values, call) {
 
 # The limits a call uses, as the double vector the C verbs read: match,
 # depth and heap (NA for PCRE2's default), then 1 for on_limit = "na".
+# PCRE2's defaults and on_limit = "error", as call_limits() passes them.
+no_limits <- c(NA_real_, NA_real_, NA_real_, 0)
+
 call_limits <- function(limits, call) {
   if (is.null(limits)) {
     limits <- getOption("zuregex.limits")
   }
   if (is.null(limits)) {
-    return(c(NA_real_, NA_real_, NA_real_, 0))
+    return(no_limits)
   }
   if (!inherits(limits, "re_limits")) {
     zuregex_abort(

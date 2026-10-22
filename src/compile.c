@@ -5,6 +5,7 @@
 // list. An external pointer read back from saveRDS() has a NULL address;
 // re_valid_c() lets the R side find and recompile those.
 
+#include <limits.h>
 #include <string.h>
 
 #include "zuregex.h"
@@ -54,17 +55,15 @@ static int byte_to_char_offset(const char *s, size_t bytes) {
 // the cache.
 // Returns list(value = <list of external pointers>, error = NULL), or
 // list(value = NULL, error = <description>) for the first failure.
-SEXP zuregex_compile_c(SEXP pattern, SEXP flags, SEXP dialect, SEXP literal,
-                       SEXP jit, SEXP utf, SEXP use_cache) {
+static SEXP compile_table(SEXP pattern, const char *f, int dialect,
+                          int literal, int jit, int utf, int cached) {
   zuregex_key key;
   memset(&key, 0, sizeof(key));
-  key.dialect = Rf_asInteger(dialect);
-  key.literal = Rf_asLogical(literal);
-  key.jit = Rf_asLogical(jit);
-  key.utf = Rf_asLogical(utf);
-  int cached = Rf_asLogical(use_cache);
+  key.dialect = dialect;
+  key.literal = literal;
+  key.jit = jit;
+  key.utf = utf;
 
-  const char *f = Rf_translateCharUTF8(STRING_ELT(flags, 0));
   int bad = zuregex_parse_flags(f, key.literal, &key.options, &key.extra);
   if (bad) {
     SEXP err = PROTECT(compile_error("flags", 1, bad, ""));
@@ -106,6 +105,53 @@ SEXP zuregex_compile_c(SEXP pattern, SEXP flags, SEXP dialect, SEXP literal,
   SEXP res = result(out, R_NilValue);
   UNPROTECT(1);
   return res;
+}
+
+SEXP zuregex_compile_c(SEXP pattern, SEXP flags, SEXP dialect, SEXP literal,
+                       SEXP jit, SEXP utf, SEXP use_cache) {
+  return compile_table(pattern, Rf_translateCharUTF8(STRING_ELT(flags, 0)),
+                       Rf_asInteger(dialect), Rf_asLogical(literal),
+                       Rf_asLogical(jit), Rf_asLogical(utf),
+                       Rf_asLogical(use_cache));
+}
+
+// What every verb needs before it matches, in one call for the common
+// case: a character vector and one pattern string, ASCII or UTF-8. Returns
+// list(x, n, bytes, table, index, error), as subjects() and patterns()
+// would together, or NULL when the R path must decide (a long vector, an
+// NA pattern, or a pattern that needs translating). Each R step the verbs
+// skip costs microseconds, which is most of a call on a short vector.
+SEXP zuregex_prepare_c(SEXP x, SEXP pattern) {
+  if (TYPEOF(x) != STRSXP || TYPEOF(pattern) != STRSXP ||
+      XLENGTH(pattern) != 1 || XLENGTH(x) > INT_MAX) {
+    return R_NilValue;
+  }
+  SEXP p = STRING_ELT(pattern, 0);
+  if (p == NA_STRING || Rf_getCharCE(p) == CE_BYTES ||
+      !(Rf_charIsASCII(p) || Rf_charIsUTF8(p))) {
+    return R_NilValue;
+  }
+  int bytes = 0;
+  R_xlen_t n = XLENGTH(x);
+  for (R_xlen_t i = 0; i < n; i++) {
+    SEXP s = STRING_ELT(x, i);
+    if (s != NA_STRING && Rf_getCharCE(s) == CE_BYTES) {
+      bytes = 1;
+      break;
+    }
+  }
+  SEXP compiled = PROTECT(compile_table(pattern, "", ZUREGEX_DIALECT_PCRE, 0,
+                                        1, !bytes, 1));
+  const char *names[] = {"x", "n", "bytes", "table", "index", "error", ""};
+  SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));
+  SET_VECTOR_ELT(out, 0, x);
+  SET_VECTOR_ELT(out, 1, Rf_ScalarInteger((int) n));
+  SET_VECTOR_ELT(out, 2, Rf_ScalarLogical(bytes));
+  SET_VECTOR_ELT(out, 3, VECTOR_ELT(compiled, 0));
+  SET_VECTOR_ELT(out, 4, Rf_ScalarInteger(1));
+  SET_VECTOR_ELT(out, 5, VECTOR_ELT(compiled, 1));
+  UNPROTECT(2);
+  return out;
 }
 
 static zuregex_pattern *pattern_at(SEXP re, R_xlen_t i) {

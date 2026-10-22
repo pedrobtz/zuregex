@@ -63,8 +63,7 @@ re_replace <- function(
     syntax <- "extended"
   }
   check_choice(syntax, c("extended", "literal"), "syntax", call)
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
+  s <- p <- native(prepare(x, pattern, call), call)
   lim <- call_limits(limits, call)
   if (is.function(replacement)) {
     return(replace_with_function(s, p, replacement, n, lim, call))
@@ -87,8 +86,7 @@ re_replace <- function(
 #' @export
 re_expand <- function(x, pattern, template, limits = NULL) {
   call <- sys.call()
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
+  s <- p <- native(prepare(x, pattern, call), call)
   check_templates(template, "template", s$n, call, s$bytes)
   run_replace(
     s,
@@ -171,7 +169,7 @@ run_replace <- function(
   if (!is.null(res$error) && res$error$kind == "template") {
     raise_template_error(res$error, repl, call)
   }
-  run_verb(res, call)
+  verb_result(res, call)
 }
 
 raise_template_error <- function(err, repl, call) {
@@ -306,19 +304,20 @@ re_split <- function(x, pattern, n = Inf, keep_groups = FALSE, limits = NULL) {
   call <- sys.call()
   check_n(n, call)
   check_flag(keep_groups, "keep_groups", call)
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
   out <- run_verb(
-    .Call(
-      zuregex_split_c,
-      s$x,
-      s$bytes,
-      p$table,
-      p$index,
-      call_limits(limits, call),
-      as.double(max(n - 1, 0)),
-      keep_groups
-    ),
+    {
+      s <- p <- prepare(x, pattern, call)
+      .Call(
+        zuregex_split_c,
+        s$x,
+        s$bytes,
+        p$table,
+        p$index,
+        call_limits(limits, call),
+        as.double(max(n - 1, 0)),
+        keep_groups
+      )
+    },
     call
   )
   if (n == 0) {

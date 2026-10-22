@@ -41,18 +41,19 @@
 re_locate <- function(x, pattern, bytes = FALSE, limits = NULL) {
   call <- sys.call()
   check_flag(bytes, "bytes", call)
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
   out <- run_verb(
-    .Call(
-      zuregex_locate_c,
-      s$x,
-      s$bytes,
-      p$table,
-      p$index,
-      call_limits(limits, call),
-      !bytes
-    ),
+    {
+      s <- p <- prepare(x, pattern, call)
+      .Call(
+        zuregex_locate_c,
+        s$x,
+        s$bytes,
+        p$table,
+        p$index,
+        call_limits(limits, call),
+        !bytes
+      )
+    },
     call
   )
   colnames(out) <- c("start", "end")
@@ -88,20 +89,21 @@ re_locate_all <- function(
   }
   check_flag(overlap, "overlap", call)
   check_flag(bytes, "bytes", call)
-  s <- subjects(x, call)
-  p <- patterns(pattern, s$n, s$bytes, call)
   cols <- run_verb(
-    .Call(
-      zuregex_locate_all_c,
-      s$x,
-      s$bytes,
-      p$table,
-      p$index,
-      call_limits(limits, call),
-      as.double(n),
-      overlap,
-      !bytes
-    ),
+    {
+      s <- p <- prepare(x, pattern, call)
+      .Call(
+        zuregex_locate_all_c,
+        s$x,
+        s$bytes,
+        p$table,
+        p$index,
+        call_limits(limits, call),
+        as.double(n),
+        overlap,
+        !bytes
+      )
+    },
     call
   )
   as_data_frame(cols)
