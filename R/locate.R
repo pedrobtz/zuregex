@@ -38,8 +38,20 @@
 #'
 #' re_locate_all(x, "[aeiou]")
 #' re_locate_all("aaaa", "aa", overlap = TRUE)
-re_locate <- function(x, pattern, bytes = FALSE, limits = NULL) {
+re_locate <- function(
+  x,
+  pattern,
+  bytes = FALSE,
+  flags = "",
+  literal = FALSE,
+  limits = NULL
+) {
   call <- sys.call()
+  opts <- if (missing(flags) && missing(literal)) {
+    NULL
+  } else {
+    pattern_options(flags, literal, call)
+  }
   if (!is.logical(bytes) || length(bytes) != 1L || is.na(bytes)) {
     check_flag(bytes, "bytes", call)
   }
@@ -51,17 +63,17 @@ re_locate <- function(x, pattern, bytes = FALSE, limits = NULL) {
   out <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     out <- withCallingHandlers(
-      .Call(zuregex_locate_c, x, NA, pattern, NULL, lim, !bytes),
+      .Call(zuregex_locate_c, x, NA, pattern, opts, lim, !bytes),
       error = function(e) native_error(e, call)
     )
     if (is.object(out)) {
-      out <- fast_result(out, call, pattern)
+      out <- fast_result(out, call, pattern, opts = opts)
     }
   }
   if (is.null(out)) {
     out <- run_verb(
       {
-        s <- p <- prepare(x, pattern, call)
+        s <- p <- prepare(x, pattern, call, opts)
         .Call(
           zuregex_locate_c,
           s$x,
@@ -86,9 +98,16 @@ re_locate_all <- function(
   n = Inf,
   overlap = FALSE,
   bytes = FALSE,
+  flags = "",
+  literal = FALSE,
   limits = NULL
 ) {
   call <- sys.call()
+  opts <- if (missing(flags) && missing(literal)) {
+    NULL
+  } else {
+    pattern_options(flags, literal, call)
+  }
   if (!missing(n)) {
     check_n(n, call)
   }
@@ -111,7 +130,7 @@ re_locate_all <- function(
         x,
         NA,
         pattern,
-        NULL,
+        opts,
         lim,
         as.double(n),
         overlap,
@@ -120,13 +139,13 @@ re_locate_all <- function(
       error = function(e) native_error(e, call)
     )
     if (is.object(cols)) {
-      cols <- fast_result(cols, call, pattern)
+      cols <- fast_result(cols, call, pattern, opts = opts)
     }
   }
   if (is.null(cols)) {
     cols <- run_verb(
       {
-        s <- p <- prepare(x, pattern, call)
+        s <- p <- prepare(x, pattern, call, opts)
         .Call(
           zuregex_locate_all_c,
           s$x,

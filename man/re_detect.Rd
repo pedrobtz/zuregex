@@ -10,10 +10,12 @@ re_detect(
   pattern,
   anchor = c("none", "start", "full"),
   negate = FALSE,
+  flags = "",
+  literal = FALSE,
   limits = NULL
 )
 
-re_count(x, pattern, limits = NULL)
+re_count(x, pattern, flags = "", literal = FALSE, limits = NULL)
 }
 \arguments{
 \item{x}{A character vector, a raw vector, or a list of raw vectors.
@@ -27,6 +29,14 @@ subject (Python's \code{re.fullmatch()}). Anchoring is done by PCRE2, so it
 holds for every branch of a top-level alternation.}
 
 \item{negate}{If \code{TRUE}, return \code{TRUE} for elements that do not match.}
+
+\item{flags}{A single string of flag letters for pattern strings, such as
+\code{"i"} for case-insensitive matching; see \code{\link[=re_compile]{re_compile()}} for every
+letter. It applies to every pattern in the call.}
+
+\item{literal}{If \code{TRUE}, each pattern string is matched as literal text,
+with no metacharacters, as base R's \code{fixed = TRUE}. Only the flags \code{i}
+and \code{r} apply to a literal pattern.}
 
 \item{limits}{A \code{\link[=re_limits]{re_limits()}} object, or \code{NULL} for
 \code{getOption("zuregex.limits")} and then PCRE2's defaults.}
@@ -42,11 +52,18 @@ an integer vector, one per subject.
 \section{Patterns}{
 
 \code{pattern} is a character vector of regular expressions, compiled through
-the cache with the default options, or an \code{re} vector from
-\code{\link[=re_compile]{re_compile()}} for flags, dialects and literal patterns. It has length 1,
+the cache with \code{flags} and \code{literal}, or an \code{re} vector from
+\code{\link[=re_compile]{re_compile()}}, which carries its own flags and can use the JavaScript
+dialect. It has length 1,
 used for every element of \code{x}, or exactly the length of \code{x}, pairing
 \code{pattern[i]} with \code{x[i]}. Any other length is an error: nothing is
 recycled. An \code{NA} pattern gives \code{NA} for its element.
+
+Base R's options map onto these arguments: \code{ignore.case = TRUE} is
+\code{flags = "i"}, \code{fixed = TRUE} is \code{literal = TRUE}, \code{invert = TRUE} is
+\code{re_detect(negate = TRUE)}, and \code{useBytes = TRUE} is a raw vector or
+strings marked as \code{"bytes"} (see Strings and bytes). \code{perl = TRUE} is
+always on.
 }
 
 \section{Strings and bytes}{
@@ -64,6 +81,8 @@ x <- c("apple", "banana", "cherry", NA)
 re_detect(x, "an")
 re_detect(x, "a|b", anchor = "start")
 re_count(x, "[aeiou]")
+re_detect(x, "APPLE", flags = "i")
+re_count("a.b.c", ".", literal = TRUE)
 
 # One pattern per element
 re_detect(c("abc", "abc"), c("^a", "^b"))

@@ -55,9 +55,16 @@ re_replace <- function(
   replacement,
   n = Inf,
   syntax = c("extended", "literal"),
+  flags = "",
+  literal = FALSE,
   limits = NULL
 ) {
   call <- sys.call()
+  opts <- if (missing(flags) && missing(literal)) {
+    NULL
+  } else {
+    pattern_options(flags, literal, call)
+  }
   if (!missing(n)) {
     check_n(n, call)
   }
@@ -84,7 +91,7 @@ re_replace <- function(
         x,
         NA,
         pattern,
-        NULL,
+        opts,
         lim,
         replacement,
         0L,
@@ -98,14 +105,14 @@ re_replace <- function(
     if (!is.null(out)) {
       return(
         if (is.object(out)) {
-          fast_result(out, call, pattern, replacement)
+          fast_result(out, call, pattern, replacement, opts)
         } else {
           out
         }
       )
     }
   }
-  s <- p <- native(prepare(x, pattern, call), call)
+  s <- p <- native(prepare(x, pattern, call, opts), call)
   if (is.function(replacement)) {
     return(replace_with_function(s, p, replacement, n, lim, call))
   }
@@ -125,8 +132,20 @@ re_replace <- function(
 
 #' @rdname re_replace
 #' @export
-re_expand <- function(x, pattern, template, limits = NULL) {
+re_expand <- function(
+  x,
+  pattern,
+  template,
+  flags = "",
+  literal = FALSE,
+  limits = NULL
+) {
   call <- sys.call()
+  opts <- if (missing(flags) && missing(literal)) {
+    NULL
+  } else {
+    pattern_options(flags, literal, call)
+  }
   lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
     no_limits
   } else {
@@ -145,7 +164,7 @@ re_expand <- function(x, pattern, template, limits = NULL) {
         x,
         NA,
         pattern,
-        NULL,
+        opts,
         lim,
         template,
         0L,
@@ -158,11 +177,15 @@ re_expand <- function(x, pattern, template, limits = NULL) {
     )
     if (!is.null(out)) {
       return(
-        if (is.object(out)) fast_result(out, call, pattern, template) else out
+        if (is.object(out)) {
+          fast_result(out, call, pattern, template, opts)
+        } else {
+          out
+        }
       )
     }
   }
-  s <- p <- native(prepare(x, pattern, call), call)
+  s <- p <- native(prepare(x, pattern, call, opts), call)
   check_templates(template, "template", s$n, call, s$bytes)
   run_replace(
     s,
@@ -376,8 +399,21 @@ replace_with_function <- function(s, p, fun, n, lim, call) {
 #' re_split(c("a, b,c", "d"), ",\\s*")
 #' re_split("a1b22c", "(\\d+)", keep_groups = TRUE)
 #' re_split("a-b-c-d", "-", n = 2)
-re_split <- function(x, pattern, n = Inf, keep_groups = FALSE, limits = NULL) {
+re_split <- function(
+  x,
+  pattern,
+  n = Inf,
+  keep_groups = FALSE,
+  flags = "",
+  literal = FALSE,
+  limits = NULL
+) {
   call <- sys.call()
+  opts <- if (missing(flags) && missing(literal)) {
+    NULL
+  } else {
+    pattern_options(flags, literal, call)
+  }
   if (!missing(n)) {
     check_n(n, call)
   }
@@ -399,7 +435,7 @@ re_split <- function(x, pattern, n = Inf, keep_groups = FALSE, limits = NULL) {
         x,
         NA,
         pattern,
-        NULL,
+        opts,
         lim,
         as.double(max(n - 1, 0)),
         keep_groups
@@ -407,13 +443,13 @@ re_split <- function(x, pattern, n = Inf, keep_groups = FALSE, limits = NULL) {
       error = function(e) native_error(e, call)
     )
     if (is.object(out)) {
-      out <- fast_result(out, call, pattern)
+      out <- fast_result(out, call, pattern, opts = opts)
     }
   }
   if (is.null(out)) {
     out <- run_verb(
       {
-        s <- p <- prepare(x, pattern, call)
+        s <- p <- prepare(x, pattern, call, opts)
         .Call(
           zuregex_split_c,
           s$x,

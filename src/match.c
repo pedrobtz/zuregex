@@ -58,12 +58,27 @@ static void collect_table(SEXP table, SEXP index, zuregex_call *call);
 
 // Fast mode's pattern (see match.h): borrowed from the cache, or a reason
 // to decline or an error to return early.
-static void collect_fast_pattern(SEXP table, zuregex_call *call) {
+static void collect_fast_pattern(SEXP table, SEXP options, zuregex_call *call) {
   static const int one = 1;
   SEXP p = STRING_ELT(table, 0);
+  // The verb's `flags` and `literal`, as list(flags, literal); NULL for
+  // the defaults.
+  const char *flags = "";
+  int literal = 0;
+  if (TYPEOF(options) == VECSXP && XLENGTH(options) == 2) {
+    flags = Rf_translateCharUTF8(STRING_ELT(VECTOR_ELT(options, 0), 0));
+    literal = Rf_asLogical(VECTOR_ELT(options, 1)) == 1;
+  }
   zuregex_key key;
   memset(&key, 0, sizeof(key));
-  zuregex_parse_flags("", 0, &key.options, &key.extra);
+  key.literal = literal;
+  int bad = zuregex_parse_flags(flags, literal, &key.options, &key.extra);
+  if (bad) {
+    SEXP err = PROTECT(zuregex_flags_error_for(bad));
+    call->early = zuregex_fast_failure(err);
+    UNPROTECT(1);
+    return;
+  }
   key.dialect = ZUREGEX_DIALECT_PCRE;
   key.jit = 1;
   key.utf = !call->bytes;
@@ -174,7 +189,7 @@ void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index, SEXP limits,
   }
 
   if (call->fast) {
-    collect_fast_pattern(table, call);
+    collect_fast_pattern(table, index, call);
     if (call->declined || call->early != NULL) return;
   } else {
     collect_table(table, index, call);

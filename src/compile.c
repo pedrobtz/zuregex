@@ -46,6 +46,10 @@ SEXP zuregex_compile_error_for(const char *pattern, int errcode,
   return compile_error("compile", 1, chars + 1, (const char *) msg);
 }
 
+SEXP zuregex_flags_error_for(int offset) {
+  return compile_error("flags", 1, offset, "");
+}
+
 static SEXP result(SEXP value, SEXP error) {
   const char *names[] = {"value", "error", ""};
   SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));
@@ -134,7 +138,7 @@ SEXP zuregex_compile_c(SEXP pattern, SEXP flags, SEXP dialect, SEXP literal,
 // would together, or NULL when the R path must decide (a long vector, an
 // NA pattern, or a pattern that needs translating). Each R step the verbs
 // skip costs microseconds, which is most of a call on a short vector.
-SEXP zuregex_prepare_c(SEXP x, SEXP pattern) {
+SEXP zuregex_prepare_c(SEXP x, SEXP pattern, SEXP flags, SEXP literal) {
   if (TYPEOF(x) != STRSXP || TYPEOF(pattern) != STRSXP ||
       XLENGTH(pattern) != 1 || XLENGTH(x) > INT_MAX) {
     return R_NilValue;
@@ -153,8 +157,9 @@ SEXP zuregex_prepare_c(SEXP x, SEXP pattern) {
       break;
     }
   }
-  SEXP compiled = PROTECT(compile_table(pattern, "", ZUREGEX_DIALECT_PCRE, 0,
-                                        1, !bytes, 1));
+  SEXP compiled = PROTECT(compile_table(
+    pattern, Rf_translateCharUTF8(STRING_ELT(flags, 0)), ZUREGEX_DIALECT_PCRE,
+    Rf_asLogical(literal) == 1, 1, !bytes, 1));
   const char *names[] = {"x", "n", "bytes", "table", "index", "error", ""};
   SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));
   SET_VECTOR_ELT(out, 0, x);

@@ -191,7 +191,8 @@ API.
   element cost a third of `re_replace()`'s time (#68).
 - Every verb has a fast path for its common call: a character vector and
   one pattern string. The verb passes the pattern string itself as
-  `table`, with `bytes = NA`, to its own `.Call`. `zuregex_collect()` then
+  `table`, with `bytes = NA` and its `flags` and `literal` as `index`
+  (`NULL` for the defaults), to its own `.Call`. `zuregex_collect()` then
   scans for bytes and borrows the pattern from the cache
   (`zuregex_cache_borrow()`), and the entry point returns the bare value.
   It returns `NULL` when the general path must decide: an NA,

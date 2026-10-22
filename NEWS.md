@@ -28,6 +28,9 @@
   return matches and capture groups as vectors and data frames built in C.
   `re_match()` types its columns through `proto`, as `utils::strcapture()`
   does.
+* Every verb takes `flags` and `literal`, as `re_compile()` does, so
+  `re_detect(x, "abc", flags = "i")` is base R's `ignore.case = TRUE` and
+  `literal = TRUE` is its `fixed = TRUE`. An `re` object carries its own.
 * `re_replace()` uses PCRE2's extended templates (`$1`, `${name}`,
   `${1:-default}`, `${1:+yes:no}`, case forcing), literal text, or a
   function called once with every match. `re_expand()` expands a template
