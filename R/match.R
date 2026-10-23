@@ -10,8 +10,8 @@
 # `opts` is NULL for the default flags and literal, or what
 # pattern_options() returns.
 prepare <- function(x, pattern, call, opts = NULL) {
-  flags <- if (is.null(opts)) "" else opts[[1L]]
-  literal <- if (is.null(opts)) FALSE else opts[[2L]]
+  flags <- opts_flags(opts)
+  literal <- opts_literal(opts)
   res <- .Call(zuregex_prepare_c, x, pattern, flags, literal)
   if (is.null(res)) {
     s <- subjects(x, call)
@@ -50,6 +50,15 @@ pattern_options <- function(flags, literal, call) {
   check_flags(flags, call)
   check_flag(literal, "literal", call)
   list(flags, literal)
+}
+
+# The two halves of pattern_options()'s result, with NULL as the defaults.
+opts_flags <- function(opts) {
+  if (is.null(opts)) "" else opts[[1L]]
+}
+
+opts_literal <- function(opts) {
+  if (is.null(opts)) FALSE else opts[[2L]]
 }
 
 # x: a character vector, a raw vector (one subject) or a list of raw
@@ -122,8 +131,8 @@ patterns <- function(pattern, n, bytes, call, opts = NULL) {
     }
     return(re_patterns(pattern, bytes, call))
   }
-  flags <- if (is.null(opts)) "" else opts[[1L]]
-  literal <- if (is.null(opts)) FALSE else opts[[2L]]
+  flags <- opts_flags(opts)
+  literal <- opts_literal(opts)
   if (len == 1L && is.character(pattern) && !is.na(pattern)) {
     # The common case, one pattern string: a cache lookup in C, without
     # unique(), match() or the attributes of an `re` object.
@@ -257,8 +266,8 @@ fast_result <- function(res, call, pattern, repl = NULL, opts = NULL) {
     raise_compile_error(
       err,
       pattern,
-      if (is.null(opts)) "" else opts[[1L]],
-      if (is.null(opts)) FALSE else opts[[2L]],
+      opts_flags(opts),
+      opts_literal(opts),
       call
     )
   }

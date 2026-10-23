@@ -73,11 +73,7 @@ re_replace <- function(
   } else {
     check_choice(syntax, c("extended", "literal"), "syntax", call)
   }
-  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
-    no_limits
-  } else {
-    call_limits(limits, call)
-  }
+  lim <- verb_limits(limits, call)
   if (
     is.character(x) &&
       is.character(pattern) &&
@@ -146,11 +142,7 @@ re_expand <- function(
   } else {
     pattern_options(flags, literal, call)
   }
-  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
-    no_limits
-  } else {
-    call_limits(limits, call)
-  }
+  lim <- verb_limits(limits, call)
   if (
     is.character(x) &&
       is.character(pattern) &&
@@ -422,11 +414,7 @@ re_split <- function(
   ) {
     check_flag(keep_groups, "keep_groups", call)
   }
-  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
-    no_limits
-  } else {
-    call_limits(limits, call)
-  }
+  lim <- verb_limits(limits, call)
   out <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     out <- withCallingHandlers(

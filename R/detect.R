@@ -81,11 +81,7 @@ re_detect <- function(
   if (!is.logical(negate) || length(negate) != 1L || is.na(negate)) {
     check_flag(negate, "negate", call)
   }
-  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
-    no_limits
-  } else {
-    call_limits(limits, call)
-  }
+  lim <- verb_limits(limits, call)
   out <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     out <- withCallingHandlers(
@@ -126,11 +122,7 @@ re_count <- function(x, pattern, flags = "", literal = FALSE, limits = NULL) {
   } else {
     pattern_options(flags, literal, call)
   }
-  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
-    no_limits
-  } else {
-    call_limits(limits, call)
-  }
+  lim <- verb_limits(limits, call)
   out <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     out <- withCallingHandlers(

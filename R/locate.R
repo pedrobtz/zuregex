@@ -55,11 +55,7 @@ re_locate <- function(
   if (!is.logical(bytes) || length(bytes) != 1L || is.na(bytes)) {
     check_flag(bytes, "bytes", call)
   }
-  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
-    no_limits
-  } else {
-    call_limits(limits, call)
-  }
+  lim <- verb_limits(limits, call)
   out <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     out <- withCallingHandlers(
@@ -117,11 +113,7 @@ re_locate_all <- function(
   if (!is.logical(bytes) || length(bytes) != 1L || is.na(bytes)) {
     check_flag(bytes, "bytes", call)
   }
-  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
-    no_limits
-  } else {
-    call_limits(limits, call)
-  }
+  lim <- verb_limits(limits, call)
   cols <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     cols <- withCallingHandlers(
