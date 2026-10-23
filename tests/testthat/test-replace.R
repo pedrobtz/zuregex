@@ -299,3 +299,21 @@ test_that("a replacement longer than its template is not truncated", {
   wide <- strrep("é", 200)
   expect_identical(re_replace(wide, "(.+)", "<$1>"), paste0("<", wide, ">"))
 })
+
+test_that("template errors keep their class on the general path", {
+  # Only the fast path's template errors were tested (#83).
+  x <- c("abc", "abc")
+  for (p in list(re_compile("b"), c("b", "b"))) {
+    err <- expect_error(
+      re_replace(x, p, "x${oops"),
+      class = "zuregex_error_template"
+    )
+    expect_identical(err$element, 1)
+    expect_error(re_expand(x, p, "${1:+x}"), class = "zuregex_error_template")
+  }
+  err <- expect_error(
+    re_replace(list(charToRaw("a"), charToRaw("abc")), "b", "x${oops"),
+    class = "zuregex_error_template"
+  )
+  expect_identical(err$element, 2)
+})
