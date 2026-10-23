@@ -228,7 +228,10 @@ test_that("re_locate_all() counts characters in linear time", {
 })
 
 test_that("re_locate() checks bytes", {
-  expect_error(re_locate("a", "a", bytes = NA), class = "zuregex_error_argument")
+  expect_error(
+    re_locate("a", "a", bytes = NA),
+    class = "zuregex_error_argument"
+  )
   expect_error(
     re_locate_all("a", "a", bytes = "yes"),
     class = "zuregex_error_argument"

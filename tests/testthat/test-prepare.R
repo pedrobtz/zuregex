@@ -123,7 +123,9 @@ test_that("the paths raise the same conditions", {
   }
   compare <- function(x, pattern, f, re = TRUE) {
     paths <- list(fast = pattern, vector = rep(pattern, length(x)))
-    if (re) paths$re <- re_compile(pattern)
+    if (re) {
+      paths$re <- re_compile(pattern)
+    }
     got <- lapply(paths, function(p) condition_of(f(x, p)))
     expect_false(is.null(got$fast))
     for (path in names(got)[-1]) {
