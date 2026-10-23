@@ -7,10 +7,9 @@
 #' `pattern` is a character vector of regular expressions, compiled through
 #' the cache with `flags` and `literal`, or an `re` vector from
 #' [re_compile()], which carries its own flags and can use the JavaScript
-#' dialect. It has length 1,
-#' used for every element of `x`, or exactly the length of `x`, pairing
-#' `pattern[i]` with `x[i]`. Any other length is an error: nothing is
-#' recycled. An `NA` pattern gives `NA` for its element.
+#' dialect. It has length 1, used for every element of `x`, or exactly the
+#' length of `x`, pairing `pattern[i]` with `x[i]`. Any other length is an
+#' error: nothing is recycled. An `NA` pattern gives `NA` for its element.
 #'
 #' Base R's options map onto these arguments: `ignore.case = TRUE` is
 #' `flags = "i"`, `fixed = TRUE` is `literal = TRUE`, `invert = TRUE` is
@@ -95,13 +94,13 @@ re_detect <- function(
   if (is.null(out)) {
     out <- run_verb(
       {
-        s <- p <- prepare(x, pattern, call, opts)
+        prep <- prepare(x, pattern, call, opts)
         .Call(
           zuregex_detect_c,
-          s$x,
-          s$bytes,
-          p$table,
-          p$index,
+          prep$x,
+          prep$bytes,
+          prep$table,
+          prep$index,
           lim,
           anchor,
           negate
@@ -136,13 +135,13 @@ re_count <- function(x, pattern, flags = "", literal = FALSE, limits = NULL) {
   if (is.null(out)) {
     out <- run_verb(
       {
-        s <- p <- prepare(x, pattern, call, opts)
+        prep <- prepare(x, pattern, call, opts)
         .Call(
           zuregex_count_c,
-          s$x,
-          s$bytes,
-          p$table,
-          p$index,
+          prep$x,
+          prep$bytes,
+          prep$table,
+          prep$index,
           lim
         )
       },

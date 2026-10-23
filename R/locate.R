@@ -69,13 +69,13 @@ re_locate <- function(
   if (is.null(out)) {
     out <- run_verb(
       {
-        s <- p <- prepare(x, pattern, call, opts)
+        prep <- prepare(x, pattern, call, opts)
         .Call(
           zuregex_locate_c,
-          s$x,
-          s$bytes,
-          p$table,
-          p$index,
+          prep$x,
+          prep$bytes,
+          prep$table,
+          prep$index,
           lim,
           !bytes
         )
@@ -137,13 +137,13 @@ re_locate_all <- function(
   if (is.null(cols)) {
     cols <- run_verb(
       {
-        s <- p <- prepare(x, pattern, call, opts)
+        prep <- prepare(x, pattern, call, opts)
         .Call(
           zuregex_locate_all_c,
-          s$x,
-          s$bytes,
-          p$table,
-          p$index,
+          prep$x,
+          prep$bytes,
+          prep$table,
+          prep$index,
           lim,
           as.double(n),
           overlap,

@@ -90,10 +90,9 @@ element whose pattern lacks a group has \code{NA} there.
 \code{pattern} is a character vector of regular expressions, compiled through
 the cache with \code{flags} and \code{literal}, or an \code{re} vector from
 \code{\link[=re_compile]{re_compile()}}, which carries its own flags and can use the JavaScript
-dialect. It has length 1,
-used for every element of \code{x}, or exactly the length of \code{x}, pairing
-\code{pattern[i]} with \code{x[i]}. Any other length is an error: nothing is
-recycled. An \code{NA} pattern gives \code{NA} for its element.
+dialect. It has length 1, used for every element of \code{x}, or exactly the
+length of \code{x}, pairing \code{pattern[i]} with \code{x[i]}. Any other length is an
+error: nothing is recycled. An \code{NA} pattern gives \code{NA} for its element.
 
 Base R's options map onto these arguments: \code{ignore.case = TRUE} is
 \code{flags = "i"}, \code{fixed = TRUE} is \code{literal = TRUE}, \code{invert = TRUE} is

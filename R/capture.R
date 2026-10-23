@@ -211,6 +211,8 @@ re_match <- function(
       error = function(e) native_error(e, call)
     )
     if (!is.null(out)) {
+      # The result is a data frame, so is.object() can't tell it from an
+      # error, as the other verbs' fast paths do.
       if (oldClass(out)[1L] == "zuregex_result") {
         out <- as_data_frame(fast_result(out, call, pattern, opts = opts))
       }
@@ -271,6 +273,8 @@ re_match_all <- function(
       error = function(e) native_error(e, call)
     )
     if (!is.null(out)) {
+      # The result is a data frame, so is.object() can't tell it from an
+      # error, as the other verbs' fast paths do.
       if (oldClass(out)[1L] == "zuregex_result") {
         out <- as_data_frame(fast_result(out, call, pattern, opts = opts))
       }
@@ -310,15 +314,15 @@ group_zero <- list(0L)
 extract <- function(x, pattern, group, all, n, lim, call, opts = NULL) {
   run_verb(
     {
-      s <- p <- prepare(x, pattern, call, opts)
-      groups <- table_groups(p$table)
+      prep <- prepare(x, pattern, call, opts)
+      groups <- table_groups(prep$table)
       idx <- group_index(group, groups, call)
       .Call(
         zuregex_extract_c,
-        s$x,
-        s$bytes,
-        p$table,
-        p$index,
+        prep$x,
+        prep$bytes,
+        prep$table,
+        prep$index,
         lim,
         idx,
         all,
@@ -389,14 +393,14 @@ group_index <- function(group, groups, call) {
 match_groups <- function(x, pattern, all, n, lim, call, opts = NULL) {
   cols <- run_verb(
     {
-      s <- p <- prepare(x, pattern, call, opts)
-      layout <- group_layout(table_groups(p$table))
+      prep <- prepare(x, pattern, call, opts)
+      layout <- group_layout(table_groups(prep$table))
       .Call(
         zuregex_match_c,
-        s$x,
-        s$bytes,
-        p$table,
-        p$index,
+        prep$x,
+        prep$bytes,
+        prep$table,
+        prep$index,
         lim,
         layout$colmap,
         length(layout$names),
@@ -409,7 +413,7 @@ match_groups <- function(x, pattern, all, n, lim, call, opts = NULL) {
   )
   names(cols) <- c(if (all) c("element", "match"), layout$names)
   # A pattern with no groups gives no columns, so the rows are counted here.
-  as_data_frame(cols, n = if (all) length(cols$element) else s$n)
+  as_data_frame(cols, n = if (all) length(cols$element) else prep$n)
 }
 
 # The columns of re_match() for a table of patterns (design section 6.5): a
