@@ -149,3 +149,16 @@ test_that("the C API's argument checks, status codes and edge cases", {
   # The interpreter, which has no such stack, finishes the match.
   expect_identical(e$jit_stack_retry, 2L)
 })
+
+test_that("zr_match() searches from start and sees the text before it", {
+  # Consumers iterate matches with start; offsets stay relative to the
+  # whole subject, and lookbehind and \b see before start (#82).
+  expect_identical(capi_match("(?<=a)b", "ab", start = 1)[[1]][1, ], c(1L, 2L))
+  expect_identical(capi_match("\\bb", "ab", start = 1)[[1]], zr()$NOMATCH)
+  expect_identical(capi_match("b", "abab", start = 2)[[1]][1, ], c(3L, 4L))
+  expect_identical(capi_match("a", "ab", start = 2)[[1]], zr()$NOMATCH)
+  expect_identical(
+    capi_match("a", "ab", start = 3)[[1]],
+    zr()$ERROR_ARGUMENT
+  )
+})

@@ -34,7 +34,8 @@ capi_match <- function(
   subjects,
   flags = 0,
   dialect = 0L,
-  options = 0L
+  options = 0L,
+  start = 0
 ) {
   .Call(
     zuregex:::zuregex_capi_match_c,
@@ -42,7 +43,8 @@ capi_match <- function(
     as.double(flags),
     dialect,
     subjects,
-    options
+    options,
+    as.double(start)
   )
 }
 

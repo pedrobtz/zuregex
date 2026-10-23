@@ -31,11 +31,11 @@ static zr_pattern *compile_or_error(SEXP pattern, SEXP flags, SEXP dialect) {
   return p;
 }
 
-// For each subject, the first match's offsets as an integer matrix with a
-// row per group (start, end; -1 for a group that did not take part), or
-// the zr_match() status as an integer when there is no match.
+// For each subject, the first match from byte `start` on, as an integer
+// matrix with a row per group (start, end; -1 for a group that did not
+// take part), or the zr_match() status as an integer when there is none.
 SEXP zuregex_capi_match_c(SEXP pattern, SEXP flags, SEXP dialect,
-                          SEXP subjects, SEXP options) {
+                          SEXP subjects, SEXP options, SEXP start) {
   zr_pattern *p = compile_or_error(pattern, flags, dialect);
   zr_match_data *md = zr_match_data_create(p);
   if (md == NULL) {
@@ -49,7 +49,8 @@ SEXP zuregex_capi_match_c(SEXP pattern, SEXP flags, SEXP dialect,
     SEXP s = STRING_ELT(subjects, i);
     size_t len = (size_t) LENGTH(s);
     const char *subj = padded(CHAR(s), len);
-    int rc = zr_match(p, subj, len, 0, (uint32_t) Rf_asInteger(options), md);
+    int rc = zr_match(p, subj, len, (size_t) Rf_asReal(start),
+                      (uint32_t) Rf_asInteger(options), md);
     if (rc < 0) {
       SET_VECTOR_ELT(out, i, Rf_ScalarInteger(rc));
       continue;
