@@ -93,3 +93,98 @@ test_that("the fast path takes the common call and declines the rest", {
   local_cache(0L)
   expect_null(fast("ab", "a"))
 })
+
+test_that("the paths raise the same conditions", {
+  # Values were compared; conditions were not (#88).
+  condition_of <- function(expr) {
+    cnd <- tryCatch(
+      withCallingHandlers(
+        {
+          expr
+          NULL
+        },
+        warning = function(w) {
+          stop(w)
+        }
+      ),
+      condition = identity
+    )
+    if (is.null(cnd)) {
+      return(NULL)
+    }
+    list(
+      class = class(cnd),
+      element = cnd$element,
+      offset = cnd$offset,
+      limit = cnd$limit,
+      count = cnd$count,
+      position = cnd$position
+    )
+  }
+  compare <- function(x, pattern, f, re = TRUE) {
+    paths <- list(fast = pattern, vector = rep(pattern, length(x)))
+    if (re) paths$re <- re_compile(pattern)
+    got <- lapply(paths, function(p) condition_of(f(x, p)))
+    expect_false(is.null(got$fast))
+    for (path in names(got)[-1]) {
+      expect_identical(got[[path]], got$fast, label = path)
+    }
+  }
+  case <- pathological()
+  x <- c("aa", case$x)
+  bad_utf8 <- c("ok", "\xff")
+  for (name in names(every_verb())) {
+    verb <- every_verb()[[name]]
+    compare(x, "a(b", verb, re = FALSE)
+    compare(bad_utf8, "a", verb)
+    compare(x, case$pattern, function(x, p) {
+      verb(x, p, limits = re_limits(match = 1000))
+    })
+    compare(x, case$pattern, function(x, p) {
+      verb(x, p, limits = re_limits(match = 1000, on_limit = "na"))
+    })
+  }
+  compare("abc", "b", function(x, p) re_replace(x, p, "x${oops"))
+})
+
+test_that("the paths agree on flags, literal and every argument", {
+  x <- c(parity_subjects(), NA, "", "A1 a1", "W1")
+  pattern <- "(?<w>[a-z]+)(\\d)?"
+  for (flags in c("i", "J", "x")) {
+    fast <- every_path_result(x, pattern, flags = flags)
+    vector <- every_path_result(x, rep(pattern, length(x)), flags = flags)
+    re <- every_path_result(x, re_compile(pattern, flags = flags))
+    expect_identical(vector, fast, label = flags)
+    expect_identical(re, fast, label = flags)
+  }
+  literal <- function(x, p, ...) {
+    list(
+      re_detect(x, p, ...),
+      re_locate_all(x, p, ...),
+      re_extract_all(x, p, ...),
+      re_replace(x, p, "#", ...),
+      re_split(x, p, ...)
+    )
+  }
+  fast <- literal(x, "a1", literal = TRUE, flags = "i")
+  vector <- literal(x, rep("a1", length(x)), literal = TRUE, flags = "i")
+  re <- literal(x, re_compile("a1", literal = TRUE, flags = "i"))
+  expect_identical(vector, fast)
+  expect_identical(re, fast)
+
+  paths <- every_path(x, "a|")
+  run <- function(p) {
+    list(
+      re_detect(x, p, anchor = "start"),
+      re_detect(x, p, anchor = "full", negate = TRUE),
+      re_locate(x, p, bytes = TRUE),
+      re_locate_all(x, p, overlap = TRUE, bytes = TRUE),
+      re_extract_all(x, p, n = 2),
+      re_extract_all(x, p, group = 0),
+      re_match_all(x, p, n = 1)
+    )
+  }
+  fast <- run(paths$fast)
+  expect_identical(run(paths$vector), fast)
+  expect_identical(run(paths$re), fast)
+})
