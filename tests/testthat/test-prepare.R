@@ -55,3 +55,20 @@ test_that("inputs the fast path declines still work", {
   Encoding(pb) <- "bytes"
   expect_true(re_detect(b, pb))
 })
+
+test_that("groups that share a name under J share a column on every path", {
+  # The fast path gave each group its own column (#76).
+  x <- c("x", "y")
+  for (p in c("(?<a>x)|(?<a>y)", "(?J)(?<a>x)|(?<a>y)")) {
+    flags <- if (startsWith(p, "(?J)")) "" else "J"
+    want <- data.frame(a = c("x", "y"))
+    expect_identical(re_match(x, p, flags = flags), want)
+    expect_identical(
+      re_match(x, re_compile(p, flags = flags)),
+      want
+    )
+    all <- re_match_all(x, p, flags = flags)
+    expect_named(all, c("element", "match", "a"))
+    expect_identical(all$a, c("x", "y"))
+  }
+})

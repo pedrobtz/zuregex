@@ -385,9 +385,25 @@ SEXP zuregex_extract_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
 // colmap: per pattern table entry, an integer vector giving the 1-based
 // output column of each of its groups, preceded by group 0's column when
 // with_zero is TRUE.
+// Whether two groups share a name, as the J flag or (?J) allows. The name
+// table is sorted by name, so duplicates are adjacent.
+static int has_duplicate_names(const pcre2_code *code) {
+  uint32_t count = 0, size = 0;
+  PCRE2_SPTR table = NULL;
+  pcre2_pattern_info(code, PCRE2_INFO_NAMECOUNT, &count);
+  pcre2_pattern_info(code, PCRE2_INFO_NAMEENTRYSIZE, &size);
+  pcre2_pattern_info(code, PCRE2_INFO_NAMETABLE, &table);
+  for (uint32_t i = 1; i < count; i++) {
+    PCRE2_SPTR a = table + (size_t) (i - 1) * size + 2;
+    PCRE2_SPTR b = table + (size_t) i * size + 2;
+    if (strcmp((const char *) a, (const char *) b) == 0) return 1;
+  }
+  return 0;
+}
+
 // Fast mode's column names for one pattern: each group's name, or its
-// number where it has none, as group_layout() names them in R. Without
-// the J flag no two groups share a name.
+// number where it has none, as group_layout() names them in R. Patterns
+// whose groups share a name go to the general path, which merges them.
 static SEXP fast_group_names(const pcre2_code *code, uint32_t groups) {
   SEXP names = PROTECT(Rf_allocVector(STRSXP, groups));
   for (uint32_t g = 0; g < groups; g++) {
@@ -430,6 +446,7 @@ SEXP zuregex_match_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
   job.all = Rf_asLogical(all);
   job.with_zero = Rf_asLogical(with_zero);
   if (!call.fast) return run(&job, job.all ? Rf_asReal(n_max) : 1, build_match);
+  if (has_duplicate_names(call.patterns[0]->code)) return R_NilValue;
 
   // Fast mode: one pattern, so group g is column g, and the columns are
   // named here rather than by group_layout() in R.
