@@ -108,6 +108,9 @@ test_that("group counts, names and numbers", {
   expect_identical(info$names, c("y", NA, "z"))
   expect_identical(info$number, 3L)
   expect_identical(capi_info("(a)", "nope")$number, zr()$ERROR_GROUP)
+  # A name two groups share means the first of them.
+  dup <- capi_info("(?<a>x)|(?<a>y)", "a", flags = zr()$DUPNAMES)
+  expect_identical(dup$number, 1L)
   expect_match(info$version, "^PCRE2 10\\.48 ")
   expect_identical(capi_info("a", flags = zr()$NO_JIT)$jit, FALSE)
 })

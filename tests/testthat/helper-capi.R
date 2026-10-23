@@ -7,6 +7,7 @@ zr <- function() {
     CASELESS = 0x1,
     MULTILINE = 0x2,
     DOTALL = 0x4,
+    DUPNAMES = 0x80,
     UCP = 0x100,
     LITERAL = 0x10000,
     BYTES = 0x20000,
