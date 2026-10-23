@@ -109,10 +109,8 @@ test_that("the cache keeps the same pattern with different flags apart", {
   expect_false(re_detect("A", "a"))
   expect_true(re_detect("A", "a", flags = "i"))
   expect_false(re_detect("A", "a"))
-  expect_false(
-    re_detect("x.y", "x.y", literal = TRUE) &&
-      re_detect("xzy", "x.y", literal = TRUE)
-  )
+  expect_true(re_detect("x.y", "x.y", literal = TRUE))
+  expect_false(re_detect("xzy", "x.y", literal = TRUE))
   expect_true(re_detect("xzy", "x.y"))
 })
 
