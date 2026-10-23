@@ -108,7 +108,9 @@ are translated first. Invalid UTF-8 is an error of class
 \code{zuregex_error_utf}. A raw vector is one subject matched as bytes, as is
 each element of a list of raw vectors, and so is a character vector with
 any element marked as \code{"bytes"}. Patterns are then compiled without UTF-8
-support, so \code{.} matches one byte.
+support, so \code{.} matches one byte. \verb{\\\\C}, which matches one byte, is
+allowed only then: in a UTF-8 pattern it is a compile error, since it
+could split a character.
 }
 
 \examples{

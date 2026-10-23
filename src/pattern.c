@@ -129,9 +129,17 @@ zuregex_pattern *zuregex_pattern_compile(const zuregex_key *key, int *errcode,
     // The dialect's options change pattern syntax, which a literal does
     // not have, and PCRE2_LITERAL rejects them.
     options |= PCRE2_LITERAL;
-  } else if (key->dialect == ZUREGEX_DIALECT_JS) {
-    options |= JS_OPTIONS;
-    extra |= JS_EXTRA;
+  } else {
+    // \C matches one byte, so in UTF mode a match could end inside a
+    // character, and the next search would start there under
+    // PCRE2_NO_UTF_CHECK. Bytes patterns keep it.
+    if (key->utf) {
+      options |= PCRE2_NEVER_BACKSLASH_C;
+    }
+    if (key->dialect == ZUREGEX_DIALECT_JS) {
+      options |= JS_OPTIONS;
+      extra |= JS_EXTRA;
+    }
   }
   pcre2_set_compile_extra_options(ctx, extra);
 

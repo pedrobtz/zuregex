@@ -24,7 +24,9 @@
 #' `zuregex_error_utf`. A raw vector is one subject matched as bytes, as is
 #' each element of a list of raw vectors, and so is a character vector with
 #' any element marked as `"bytes"`. Patterns are then compiled without UTF-8
-#' support, so `.` matches one byte.
+#' support, so `.` matches one byte. `\\C`, which matches one byte, is
+#' allowed only then: in a UTF-8 pattern it is a compile error, since it
+#' could split a character.
 #'
 #' @param x A character vector, a raw vector, or a list of raw vectors.
 #'   `NA` (or `NULL` in a list) gives `NA`.

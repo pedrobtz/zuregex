@@ -15,6 +15,8 @@
   literal patterns and JIT compilation into `re` objects, which survive
   `saveRDS()`. `re_info()` describes them, and `re_escape()` quotes
   metacharacters.
+* `\C`, which matches one byte, is a compile error in a pattern matched
+  as UTF-8, because it could split a character. Bytes patterns allow it.
 * Patterns are cached, 128 by default; `re_cache_size()` and
   `re_cache_clear()` manage the cache.
 

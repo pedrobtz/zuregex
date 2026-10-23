@@ -143,3 +143,14 @@ test_that("patterns in other encodings are compiled as UTF-8", {
   expect_identical(as.character(re), "caf\u00e9")
   expect_identical(re_info(re)$min_length, 4L)
 })
+
+test_that("\\C is refused in UTF mode and allowed on bytes", {
+  # One byte of a UTF-8 subject can end inside a character, which breaks
+  # every later search and every string a verb returns (#75).
+  expect_error(re_compile("\\C"), class = "zuregex_error_compile")
+  expect_error(
+    re_extract_all("é", "\\C"),
+    class = "zuregex_error_compile"
+  )
+  expect_identical(re_count(charToRaw("é"), "\\C"), 2L)
+})
