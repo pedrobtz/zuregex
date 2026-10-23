@@ -47,14 +47,7 @@ pattern_options <- function(flags, literal, call) {
   ) {
     return(list(flags, literal))
   }
-  check_string(flags, "flags", call)
-  if (Encoding(flags) == "bytes") {
-    zuregex_abort(
-      "argument",
-      "`flags` must not be marked as \"bytes\".",
-      call = call
-    )
-  }
+  check_flags(flags, call)
   check_flag(literal, "literal", call)
   list(flags, literal)
 }

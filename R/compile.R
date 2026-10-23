@@ -80,14 +80,7 @@ re_compile <- function(
         call = call
       )
     }
-    check_string(flags, "flags", call)
-    if (Encoding(flags) == "bytes") {
-      zuregex_abort(
-        "argument",
-        "`flags` must not be marked as \"bytes\".",
-        call = call
-      )
-    }
+    check_flags(flags, call)
     check_choice(dialect, c("pcre", "js"), "dialect", call)
     check_flag(literal, "literal", call)
     check_flag(jit, "jit", call)
