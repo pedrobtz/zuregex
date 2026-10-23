@@ -280,3 +280,12 @@ test_that("a shared group name is NA when none of its groups took part", {
   expect_identical(re_match("z", p, flags = "J")$a, NA_character_)
   expect_identical(re_extract("z", p, group = "a", flags = "J"), NA_character_)
 })
+
+test_that("a group named like a leading column keeps its own column", {
+  # The name repeats; the group is reached by position (#96).
+  m <- re_match_all(c("x1", "y2"), "(?<element>[a-z])(?<match>\\d)")
+  expect_named(m, c("element", "match", "element", "match"))
+  expect_identical(m$element, 1:2)
+  expect_identical(m[[3]], c("x", "y"))
+  expect_identical(m[[4]], c("1", "2"))
+})

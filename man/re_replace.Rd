@@ -80,8 +80,9 @@ raises \code{zuregex_error_template} when a match first uses it. With
 \code{replacement} may be a function. It is called once for the whole call,
 if anything matched, with a data frame of every match: \code{element},
 \code{match} (its number within the element), \code{0} (the matched text) and one
-column per group, named as in \code{\link[=re_match]{re_match()}}. It must return a character
-vector with one replacement per row.
+column per group, named as in \code{\link[=re_match]{re_match()}}. A group named \code{element},
+\code{match} or \code{0} repeats that column's name, as in \code{\link[=re_match_all]{re_match_all()}}. It must
+return a character vector with one replacement per row.
 }
 
 \section{Patterns}{

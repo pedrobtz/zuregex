@@ -59,7 +59,9 @@ subject or pattern.
 group, all \code{NA} where there is no match. \code{re_match_all()}: a data frame
 with \code{element} and \code{match} columns, then one column per group, one row
 per match; a subject with no match has no rows, and an \code{NA} subject or
-pattern one row of \code{NA}.
+pattern one row of \code{NA}. A group named \code{element} or \code{match} repeats
+that column's name, so \code{$} gives the leading column; index the group
+by position instead.
 
 Strings from character input are in UTF-8; from bytes they are marked
 as \code{"bytes"}.

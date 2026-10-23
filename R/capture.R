@@ -35,7 +35,9 @@
 #'   group, all `NA` where there is no match. `re_match_all()`: a data frame
 #'   with `element` and `match` columns, then one column per group, one row
 #'   per match; a subject with no match has no rows, and an `NA` subject or
-#'   pattern one row of `NA`.
+#'   pattern one row of `NA`. A group named `element` or `match` repeats
+#'   that column's name, so `$` gives the leading column; index the group
+#'   by position instead.
 #'
 #'   Strings from character input are in UTF-8; from bytes they are marked
 #'   as `"bytes"`.
