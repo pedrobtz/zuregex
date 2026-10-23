@@ -67,6 +67,7 @@ static const zuregex_api_v1 *get_api_v1(void) {
 // with $(C_VISIBILITY) and stays hidden (design section 4).
 void attribute_visible R_init_zuregex(DllInfo *dll) {
   R_registerRoutines(dll, NULL, call_methods, NULL, NULL);
+  zuregex_threads_init();
   R_RegisterCCallable("zuregex", "zuregex_api_v1", (DL_FUNC) get_api_v1);
   R_useDynamicSymbols(dll, FALSE);
   R_forceSymbols(dll, TRUE);

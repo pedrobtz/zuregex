@@ -6,6 +6,7 @@
 
 SEXP zuregex_info_c(void);
 SEXP zuregex_threads_c(SEXP n);
+void zuregex_threads_init(void);
 SEXP zuregex_openmp_c(void);
 SEXP zuregex_cores_c(void);
 SEXP zuregex_serial_bytes_c(SEXP n);
