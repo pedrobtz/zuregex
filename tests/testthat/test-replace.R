@@ -158,15 +158,21 @@ test_that("a replacement function gets every match once, as a data frame", {
   expect_identical(re_replace("xyz", "\\d", f), "xyz")
   expect_identical(calls, 0L)
   # n limits the rows too.
-  re_replace(
+  calls <- 0L
+  rows <- NA_integer_
+  out <- re_replace(
     "a1b2c3",
     "\\d",
     function(m) {
-      expect_identical(nrow(m), 2L)
+      calls <<- calls + 1L
+      rows <<- nrow(m)
       rep("#", nrow(m))
     },
     n = 2
   )
+  expect_identical(calls, 1L)
+  expect_identical(rows, 2L)
+  expect_identical(out, "a#b#c3")
 })
 
 test_that("a replacement function's result is checked", {
