@@ -4,31 +4,27 @@
 
 test_that("the fast path and the R path give identical results", {
   x <- c(parity_subjects(), NA, "")
-  pattern <- "(?<w>[a-z]+)(\\d)?"
-  paths <- list(
-    fast = pattern,
-    vector = rep(pattern, length(x)),
-    re = re_compile(pattern)
-  )
-  run <- function(p) {
-    list(
-      re_detect(x, p),
-      re_count(x, p),
-      re_locate(x, p),
-      re_locate_all(x, p),
-      re_extract(x, p, group = "w"),
-      re_extract_all(x, p),
-      re_match(x, p),
-      re_match_all(x, p),
-      re_replace(x, p, "<${w}>"),
-      re_replace(x, p, function(m) toupper(m[["0"]])),
-      re_expand(x, p, "[$1]"),
-      re_split(x, p, keep_groups = TRUE)
-    )
+  paths <- every_path(x, "(?<w>[a-z]+)(\\d)?")
+  fast <- every_path_result(x, paths$fast)
+  expect_identical(every_path_result(x, paths$vector), fast)
+  expect_identical(every_path_result(x, paths$re), fast)
+})
+
+test_that("bytes-marked and latin1 subjects agree on every path", {
+  # The bytes scan in zuregex_prepare_c() was never reached (#80).
+  b <- "\u00e9"
+  Encoding(b) <- "bytes"
+  latin1 <- iconv("caf\u00e9 ab1", "UTF-8", "latin1")
+  for (x in list(c(b, "ab1", NA), c(latin1, "xy2"))) {
+    paths <- every_path(x, "(?<w>[a-z]+)(\\d)?")
+    fast <- every_path_result(x, paths$fast)
+    expect_identical(every_path_result(x, paths$vector), fast)
+    expect_identical(every_path_result(x, paths$re), fast)
   }
-  fast <- run(paths$fast)
-  expect_identical(run(paths$vector), fast)
-  expect_identical(run(paths$re), fast)
+  expect_identical(
+    re_extract(c(b, "ab"), "(?<n>^..$)", group = "n"),
+    c(b, "ab")
+  )
 })
 
 test_that("the fast path raises classed compile errors with their offset", {
