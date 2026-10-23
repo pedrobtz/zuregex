@@ -62,25 +62,21 @@ pattern_options <- function(flags, literal, call) {
 # x: a character vector, a raw vector (one subject) or a list of raw
 # vectors. Returns list(x, n, bytes).
 subjects <- function(x, call) {
-  # Element numbers and offsets come back as R integers.
-  if (length(x) > .Machine$integer.max) {
+  # Element numbers and offsets come back as R integers. A raw vector is
+  # one subject, so its length is in bytes, not elements. Neither check
+  # has a test: it would need 2 GiB of input.
+  max <- .Machine$integer.max
+  if ((is.raw(x) && length(x) > max) || (is.list(x) && any(lengths(x) > max))) {
+    zuregex_abort(
+      "argument",
+      "A raw subject may have at most 2^31 - 1 bytes.",
+      call = call
+    )
+  }
+  if (length(x) > max) {
     zuregex_abort(
       "argument",
       "`x` may have at most 2^31 - 1 elements.",
-      call = call
-    )
-  }
-  if (is.raw(x) && length(x) > .Machine$integer.max) {
-    zuregex_abort(
-      "argument",
-      "A raw subject may have at most 2^31 - 1 bytes.",
-      call = call
-    )
-  }
-  if (is.list(x) && any(lengths(x) > .Machine$integer.max)) {
-    zuregex_abort(
-      "argument",
-      "A raw subject may have at most 2^31 - 1 bytes.",
       call = call
     )
   }
