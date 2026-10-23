@@ -331,13 +331,28 @@ check_same_settings <- function(x, value, call) {
   }
 }
 
+# The positions `i` selects in `x`, by number, name or logical.
+re_index <- function(x, i) {
+  idx <- seq_along(x)
+  names(idx) <- names(x)
+  idx[i]
+}
+
 #' @export
 `[<-.re` <- function(x, i, value) {
-  check_same_settings(x, value, sys.call())
+  call <- sys.call()
+  check_same_settings(x, value, call)
   attrs <- attributes(x)
   pattern <- attrs$pattern
   ptrs <- unclass(x)
-  idx <- seq_along(pattern)[i]
+  idx <- re_index(x, i)
+  if (anyNA(idx)) {
+    zuregex_abort(
+      "argument",
+      "An `re` vector can't grow by assignment; use `c()` to add patterns.",
+      call = call
+    )
+  }
   ptrs[idx] <- rep_len(unclass(value), length(idx))
   pattern[idx] <- rep_len(attr(value, "pattern"), length(idx))
   attrs$pattern <- pattern
@@ -372,6 +387,7 @@ c.re <- function(...) {
   out <- unlist(lapply(parts, unclass), recursive = FALSE)
   attrs <- attributes(parts[[1L]])
   attrs$pattern <- unlist(lapply(parts, attr, "pattern"), use.names = FALSE)
+  attrs$names <- names(out)
   attributes(out) <- attrs
   out
 }
@@ -386,9 +402,10 @@ rep.re <- function(x, ...) {
   attrs <- attributes(x)
   pattern <- attrs$pattern
   names(pattern) <- NULL
-  idx <- seq_along(pattern)[i]
+  idx <- re_index(x, i)
   out <- unclass(x)[idx]
   attrs$pattern <- pattern[idx]
+  attrs$names <- names(out)
   attributes(out) <- attrs
   out
 }
