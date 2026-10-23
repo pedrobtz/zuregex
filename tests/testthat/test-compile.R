@@ -154,3 +154,18 @@ test_that("\\C is refused in UTF mode and allowed on bytes", {
   )
   expect_identical(re_count(charToRaw("é"), "\\C"), 2L)
 })
+
+test_that("compile errors are classed on every route into the cache", {
+  # A named group always goes through prepare(); raw subjects through the
+  # one-string branch of patterns() (#97).
+  err <- expect_error(
+    re_extract("a", "(?<n>a", group = "n"),
+    class = "zuregex_error_compile"
+  )
+  expect_identical(err$offset, 7L)
+  err <- expect_error(
+    re_detect(charToRaw("a"), "a("),
+    class = "zuregex_error_compile"
+  )
+  expect_identical(err$offset, 3L)
+})

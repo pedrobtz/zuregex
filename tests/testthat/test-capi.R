@@ -165,3 +165,15 @@ test_that("zr_match() searches from start and sees the text before it", {
     zr()$ERROR_ARGUMENT
   )
 })
+
+test_that("zr_strerror() describes every status code", {
+  # Only two of its strings were checked (#97).
+  msgs <- .Call(zuregex:::zuregex_capi_edges_c)$strerror_all
+  expect_length(msgs, 12L)
+  expect_identical(msgs[[1]], "no error")
+  expect_identical(msgs[[2]], "no match")
+  # ZR_ERROR_OTHER (-8) is PCRE2's generic text; every other code has its
+  # own description.
+  expect_identical(msgs[[9]], "PCRE2 error")
+  expect_identical(anyDuplicated(msgs), 0L)
+})

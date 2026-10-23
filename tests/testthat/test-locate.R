@@ -226,3 +226,11 @@ test_that("re_locate_all() counts characters in linear time", {
   expect_identical(out$start, seq(2L, 50000L, by = 2L))
   expect_lt(chars, 10 * bytes + 0.1)
 })
+
+test_that("re_locate() checks bytes", {
+  expect_error(re_locate("a", "a", bytes = NA), class = "zuregex_error_argument")
+  expect_error(
+    re_locate_all("a", "a", bytes = "yes"),
+    class = "zuregex_error_argument"
+  )
+})

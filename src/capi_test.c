@@ -145,7 +145,7 @@ SEXP zuregex_capi_edges_c(void) {
     "offsets_bad_group", "offsets_unset", "foreign_md_rc", "notempty_atstart",
     "substitute_bad_option", "substitute_with_md", "substitute_limit",
     "depth_limit", "heap_limit", "jit_stack", "jit_stack_retry",
-    "strerror_match_limit", "strerror_unknown", ""
+    "strerror_match_limit", "strerror_unknown", "strerror_all", ""
   };
   SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));
   char err[128];
@@ -235,6 +235,12 @@ SEXP zuregex_capi_edges_c(void) {
 
   SET_VECTOR_ELT(out, k++, Rf_mkString(zr_strerror(ZR_ERROR_MATCH_LIMIT)));
   SET_VECTOR_ELT(out, k++, Rf_mkString(zr_strerror(-1000)));
+  // Every status from ZR_OK down to ZR_ERROR_JIT_STACK.
+  SEXP all = Rf_allocVector(STRSXP, 12);
+  SET_VECTOR_ELT(out, k++, all);
+  for (int code = 0; code >= -11; code--) {
+    SET_STRING_ELT(all, -code, Rf_mkChar(zr_strerror(code)));
+  }
 
   zr_match_data_free(md);
   zr_free(p);

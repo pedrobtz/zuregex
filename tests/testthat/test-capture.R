@@ -273,3 +273,10 @@ test_that("text with a NUL byte is a classed error, not R's", {
   expect_identical(re_extract(x, "a"), "a")
   expect_identical(re_extract_all(x, "[ab]"), list(c("a", "b")))
 })
+
+test_that("a shared group name is NA when none of its groups took part", {
+  # The fallback when no group with the name is set (#97).
+  p <- "(?<a>x)|(?<a>y)|z"
+  expect_identical(re_match("z", p, flags = "J")$a, NA_character_)
+  expect_identical(re_extract("z", p, group = "a", flags = "J"), NA_character_)
+})
