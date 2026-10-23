@@ -68,3 +68,28 @@ test_that("groups that share a name under J share a column on every path", {
     expect_identical(all$a, c("x", "y"))
   }
 })
+
+test_that("the fast path takes the common call and declines the rest", {
+  # With the fast path never taken, every comparison above would compare
+  # the general path with itself (#87).
+  fast <- function(x, p) {
+    .Call(
+      zuregex:::zuregex_detect_c,
+      x,
+      NA,
+      p,
+      NULL,
+      zuregex:::no_limits,
+      0L,
+      FALSE
+    )
+  }
+  expect_identical(fast(c("ab", "cd"), "a"), c(TRUE, FALSE))
+  expect_null(fast("ab", NA_character_))
+  expect_null(fast("ab", iconv("é", "UTF-8", "latin1")))
+  bytes_pattern <- "é"
+  Encoding(bytes_pattern) <- "bytes"
+  expect_null(fast("ab", bytes_pattern))
+  local_cache(0L)
+  expect_null(fast("ab", "a"))
+})
