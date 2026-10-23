@@ -336,3 +336,20 @@ test_that("a latin1 template's error position agrees on every path", {
   expect_identical(fast$position, general$position)
   expect_false(is.na(fast$position))
 })
+
+test_that("unmatched raw subjects and latin1 templates come back right", {
+  # Branches no test reached (#90).
+  out <- re_replace(charToRaw("abc"), "z", "y")
+  expect_identical(out, "abc")
+  expect_identical(Encoding(out), "unknown")
+  expect_error(
+    re_replace(as.raw(c(0x61, 0x00, 0x62)), "z", "y"),
+    class = "zuregex_error_match"
+  )
+  tmpl <- iconv("é", "UTF-8", "latin1")
+  out <- re_replace("x", "x", tmpl)
+  expect_identical(out, "é")
+  expect_identical(Encoding(out), "UTF-8")
+  wide <- re_replace(charToRaw("é"), "z", "y")
+  expect_identical(Encoding(wide), "bytes")
+})
