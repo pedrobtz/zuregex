@@ -47,15 +47,20 @@ static void evict_lru(void) {
 zuregex_pattern *zuregex_cache_borrow(const zuregex_key *key, int *errcode,
                                       size_t *erroffset, int *uncached) {
   *uncached = 0;
-  zuregex_pattern *p = zuregex_cache_get(key, 1, errcode, erroffset);
-  if (p == NULL) return NULL;
-  // refs is 1 when the cache did not keep it (capacity 0, or too long).
-  int kept = p->refs > 1;
-  zuregex_pattern_release(p);
-  if (!kept) {
+  // A pattern the cache would not keep is left to the general path, which
+  // compiles it once.
+  if (capacity == 0 || (key->length > ZUREGEX_CACHE_MAX_PATTERN &&
+                        utf8_chars(key->pattern, key->length) >
+                          ZUREGEX_CACHE_MAX_PATTERN)) {
+    *errcode = 0;
+    *erroffset = 0;
     *uncached = 1;
     return NULL;
   }
+  zuregex_pattern *p = zuregex_cache_get(key, 1, errcode, erroffset);
+  if (p == NULL) return NULL;
+  // The cache holds its own reference, so the borrower needs none.
+  zuregex_pattern_release(p);
   return p;
 }
 

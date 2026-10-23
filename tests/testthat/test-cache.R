@@ -143,3 +143,13 @@ test_that("a cache hit costs under 5% of a compile", {
   )[["elapsed"]]
   expect_lt(cached, 0.05 * uncached)
 })
+
+test_that("the fast path does not compile a pattern the cache won't keep", {
+  # It compiled the pattern, saw the cache had not kept it, and left the
+  # general path to compile it again (#85).
+  local_cache()
+  long <- strrep("a", 65537L)
+  before <- zuregex:::cache_stats()
+  expect_true(re_detect(long, long))
+  expect_identical(stats_delta(before)[["misses"]], 1)
+})
