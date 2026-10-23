@@ -287,3 +287,15 @@ test_that("results of zero length are empty strings, not NA", {
   expect_identical(re_expand(c("", "b"), "^", ""), c("", ""))
   expect_identical(re_replace(c("x", ""), "x", ""), c("", ""))
 })
+
+test_that("a replacement longer than its template is not truncated", {
+  # The first attempt reserves the template's length plus 64 bytes; a
+  # longer expansion takes the second, sized by PCRE2 (#81).
+  long <- strrep("a", 300)
+  expect_identical(re_replace(long, "(a+)", "$1$1"), strrep("a", 600))
+  expect_identical(re_expand(long, "(a+)", "$1-$1"), paste0(long, "-", long))
+  out <- re_replace(charToRaw(long), "(a+)", "$1$1")
+  expect_identical(out, strrep("a", 600))
+  wide <- strrep("é", 200)
+  expect_identical(re_replace(wide, "(.+)", "<$1>"), paste0("<", wide, ">"))
+})
