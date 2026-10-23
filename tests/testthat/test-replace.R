@@ -317,3 +317,16 @@ test_that("template errors keep their class on the general path", {
   )
   expect_identical(err$element, 2)
 })
+
+test_that("a latin1 template's error position agrees on every path", {
+  # The fast path counted the error's byte offset in the latin1 string
+  # instead of its UTF-8 translation (#84).
+  t <- iconv("éééé${9", "UTF-8", "latin1")
+  fast <- expect_error(re_replace("ab", "a", t), class = "zuregex_error_template")
+  general <- expect_error(
+    re_replace(c("ab", "ab"), c("a", "a"), t),
+    class = "zuregex_error_template"
+  )
+  expect_identical(fast$position, general$position)
+  expect_false(is.na(fast$position))
+})

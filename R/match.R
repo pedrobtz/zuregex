@@ -274,7 +274,8 @@ fast_result <- function(res, call, pattern, repl = NULL, opts = NULL) {
     )
   }
   if (!is.null(err) && err$kind == "template") {
-    raise_template_error(err, repl, call)
+    # PCRE2's offset is into the UTF-8 template, as on the general path.
+    raise_template_error(err, enc2utf8(repl), call)
   }
   verb_result(res, call)
 }
