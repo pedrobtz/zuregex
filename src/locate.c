@@ -12,10 +12,24 @@
 #include "match.h"
 #include "omp.h"
 
+// A position in one subject, in bytes and in characters, so converting
+// the next offset counts only the bytes between the two.
+typedef struct {
+  size_t byte;
+  size_t chars;
+} cursor;
+
 static int to_offset(const zuregex_subject *s, size_t byte, int chars,
-                     int utf) {
-  size_t v = chars ? zuregex_chars(s->ptr, byte, utf) : byte;
-  return (int) v;
+                     int utf, cursor *at) {
+  if (!chars || !utf || s->ascii) return (int) byte;
+  // Offsets mostly move forward; overlap and \K can move them back.
+  if (byte >= at->byte) {
+    at->chars += zuregex_chars(s->ptr + at->byte, byte - at->byte, utf);
+  } else {
+    at->chars -= zuregex_chars(s->ptr + byte, at->byte - byte, utf);
+  }
+  at->byte = byte;
+  return (int) at->chars;
 }
 
 static zuregex_status *new_status(R_xlen_t n) {
@@ -65,8 +79,9 @@ SEXP zuregex_locate_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
       const zuregex_subject *s = &padded;
       if (zuregex_match_once(&call, p, s, 0, 0, md, &status[i]) != 1) continue;
       PCRE2_SIZE *ov = pcre2_get_ovector_pointer(md);
-      start_col[i] = to_offset(s, ov[0], chars, p->key.utf) + 1;
-      end_col[i] = to_offset(s, ov[1], chars, p->key.utf);
+      cursor at = {0, 0};
+      start_col[i] = to_offset(s, ov[0], chars, p->key.utf, &at) + 1;
+      end_col[i] = to_offset(s, ov[1], chars, p->key.utf, &at);
     }
     pcre2_match_data_free(md);
     free(pad.data);
@@ -205,6 +220,7 @@ SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limit
       const zuregex_subject *s = &padded;
       size_t start = 0;
       uint32_t options = 0;
+      cursor at = {0, 0};
       while (e->count < limit) {
         int m = zuregex_match_once(&call, p, s, start, options, md, &status[i]);
         if (m < 0) {
@@ -214,8 +230,9 @@ SEXP zuregex_locate_all_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limit
         }
         if (m == 0) break;
         PCRE2_SIZE *ov = pcre2_get_ovector_pointer(md);
-        if (!push_match(e, a, to_offset(s, ov[0], chars, p->key.utf) + 1,
-                        to_offset(s, ov[1], chars, p->key.utf))) {
+        int from = to_offset(s, ov[0], chars, p->key.utf, &at) + 1;
+        int to = to_offset(s, ov[1], chars, p->key.utf, &at);
+        if (!push_match(e, a, from, to)) {
           status[i].rc = PCRE2_ERROR_NOMEMORY;
           e->count = -1;
           break;

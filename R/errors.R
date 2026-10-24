@@ -49,6 +49,18 @@ check_flag <- function(x, arg, call) {
   }
 }
 
+# Flag letters: one string, which may not be marked as bytes.
+check_flags <- function(flags, call) {
+  check_string(flags, "flags", call)
+  if (Encoding(flags) == "bytes") {
+    zuregex_abort(
+      "argument",
+      "`flags` must not be marked as \"bytes\".",
+      call = call
+    )
+  }
+}
+
 check_choice <- function(x, choices, arg, call) {
   if (!is.character(x) || length(x) != 1L || is.na(x) || !x %in% choices) {
     zuregex_abort(

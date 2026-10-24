@@ -15,6 +15,8 @@
   literal patterns and JIT compilation into `re` objects, which survive
   `saveRDS()`. `re_info()` describes them, and `re_escape()` quotes
   metacharacters.
+* `\C`, which matches one byte, is a compile error in a pattern matched
+  as UTF-8, because it could split a character. Bytes patterns allow it.
 * Patterns are cached, 128 by default; `re_cache_size()` and
   `re_cache_clear()` manage the cache.
 
@@ -45,6 +47,8 @@
   macOS that uses the `libomp` R ships, as CRAN builds it.
   `zuregex_info()` reports whether OpenMP is on, the threads and cores it
   can use, and the input size below which a call stays on one thread.
+  A forked child, such as a `parallel::mclapply()` worker, matches on one
+  thread.
 * Each call does little work outside the match itself. Subjects that R
   marks as ASCII skip PCRE2's UTF-8 check, results are built in one buffer
   per thread, and a call with one pattern string is a single `.Call`.

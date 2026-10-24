@@ -59,7 +59,9 @@ subject or pattern.
 group, all \code{NA} where there is no match. \code{re_match_all()}: a data frame
 with \code{element} and \code{match} columns, then one column per group, one row
 per match; a subject with no match has no rows, and an \code{NA} subject or
-pattern one row of \code{NA}.
+pattern one row of \code{NA}. A group named \code{element} or \code{match} repeats
+that column's name, so \code{$} gives the leading column; index the group
+by position instead.
 
 Strings from character input are in UTF-8; from bytes they are marked
 as \code{"bytes"}.
@@ -90,10 +92,9 @@ element whose pattern lacks a group has \code{NA} there.
 \code{pattern} is a character vector of regular expressions, compiled through
 the cache with \code{flags} and \code{literal}, or an \code{re} vector from
 \code{\link[=re_compile]{re_compile()}}, which carries its own flags and can use the JavaScript
-dialect. It has length 1,
-used for every element of \code{x}, or exactly the length of \code{x}, pairing
-\code{pattern[i]} with \code{x[i]}. Any other length is an error: nothing is
-recycled. An \code{NA} pattern gives \code{NA} for its element.
+dialect. It has length 1, used for every element of \code{x}, or exactly the
+length of \code{x}, pairing \code{pattern[i]} with \code{x[i]}. Any other length is an
+error: nothing is recycled. An \code{NA} pattern gives \code{NA} for its element.
 
 Base R's options map onto these arguments: \code{ignore.case = TRUE} is
 \code{flags = "i"}, \code{fixed = TRUE} is \code{literal = TRUE}, \code{invert = TRUE} is
@@ -109,7 +110,9 @@ are translated first. Invalid UTF-8 is an error of class
 \code{zuregex_error_utf}. A raw vector is one subject matched as bytes, as is
 each element of a list of raw vectors, and so is a character vector with
 any element marked as \code{"bytes"}. Patterns are then compiled without UTF-8
-support, so \code{.} matches one byte.
+support, so \code{.} matches one byte. \verb{\\\\C}, which matches one byte, is
+allowed only then: in a UTF-8 pattern it is a compile error, since it
+could split a character.
 }
 
 \examples{

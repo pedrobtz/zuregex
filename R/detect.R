@@ -7,10 +7,9 @@
 #' `pattern` is a character vector of regular expressions, compiled through
 #' the cache with `flags` and `literal`, or an `re` vector from
 #' [re_compile()], which carries its own flags and can use the JavaScript
-#' dialect. It has length 1,
-#' used for every element of `x`, or exactly the length of `x`, pairing
-#' `pattern[i]` with `x[i]`. Any other length is an error: nothing is
-#' recycled. An `NA` pattern gives `NA` for its element.
+#' dialect. It has length 1, used for every element of `x`, or exactly the
+#' length of `x`, pairing `pattern[i]` with `x[i]`. Any other length is an
+#' error: nothing is recycled. An `NA` pattern gives `NA` for its element.
 #'
 #' Base R's options map onto these arguments: `ignore.case = TRUE` is
 #' `flags = "i"`, `fixed = TRUE` is `literal = TRUE`, `invert = TRUE` is
@@ -24,7 +23,9 @@
 #' `zuregex_error_utf`. A raw vector is one subject matched as bytes, as is
 #' each element of a list of raw vectors, and so is a character vector with
 #' any element marked as `"bytes"`. Patterns are then compiled without UTF-8
-#' support, so `.` matches one byte.
+#' support, so `.` matches one byte. `\\C`, which matches one byte, is
+#' allowed only then: in a UTF-8 pattern it is a compile error, since it
+#' could split a character.
 #'
 #' @param x A character vector, a raw vector, or a list of raw vectors.
 #'   `NA` (or `NULL` in a list) gives `NA`.
@@ -79,11 +80,7 @@ re_detect <- function(
   if (!is.logical(negate) || length(negate) != 1L || is.na(negate)) {
     check_flag(negate, "negate", call)
   }
-  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
-    no_limits
-  } else {
-    call_limits(limits, call)
-  }
+  lim <- verb_limits(limits, call)
   out <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     out <- withCallingHandlers(
@@ -97,13 +94,13 @@ re_detect <- function(
   if (is.null(out)) {
     out <- run_verb(
       {
-        s <- p <- prepare(x, pattern, call, opts)
+        prep <- prepare(x, pattern, call, opts)
         .Call(
           zuregex_detect_c,
-          s$x,
-          s$bytes,
-          p$table,
-          p$index,
+          prep$x,
+          prep$bytes,
+          prep$table,
+          prep$index,
           lim,
           anchor,
           negate
@@ -124,11 +121,7 @@ re_count <- function(x, pattern, flags = "", literal = FALSE, limits = NULL) {
   } else {
     pattern_options(flags, literal, call)
   }
-  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
-    no_limits
-  } else {
-    call_limits(limits, call)
-  }
+  lim <- verb_limits(limits, call)
   out <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     out <- withCallingHandlers(
@@ -142,13 +135,13 @@ re_count <- function(x, pattern, flags = "", literal = FALSE, limits = NULL) {
   if (is.null(out)) {
     out <- run_verb(
       {
-        s <- p <- prepare(x, pattern, call, opts)
+        prep <- prepare(x, pattern, call, opts)
         .Call(
           zuregex_count_c,
-          s$x,
-          s$bytes,
-          p$table,
-          p$index,
+          prep$x,
+          prep$bytes,
+          prep$table,
+          prep$index,
           lim
         )
       },

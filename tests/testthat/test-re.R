@@ -65,3 +65,25 @@ test_that("an edited re object is refused with a class", {
   expect_error(re_detect("a", re), class = "zuregex_error_argument")
   expect_error(re_info(re), class = "zuregex_error_argument")
 })
+
+test_that("named re vectors subset and assign by name", {
+  # [.re kept the full-length names on a shorter vector (#78).
+  re <- re_compile(c("a", "b"))
+  names(re) <- c("p", "q")
+  expect_identical(names(re[2]), "q")
+  expect_identical(as.character(re["q"]), "b")
+  expect_identical(re_detect(c("a", "b"), re["q"]), c(FALSE, TRUE))
+  re["p"] <- re_compile("z")
+  expect_identical(as.character(re), c("z", "b"))
+  expect_named(re, c("p", "q"))
+  expect_named(c(re, re_compile("y")), c("p", "q", ""))
+})
+
+test_that("assigning past the end or to a new name is refused", {
+  # It used to do nothing, silently (#78).
+  re <- re_compile(c("a", "b"))
+  expect_error(re[3] <- re_compile("z"), class = "zuregex_error_argument")
+  expect_error(re[[3]] <- re_compile("z"), class = "zuregex_error_argument")
+  expect_error(re["x"] <- re_compile("z"), class = "zuregex_error_argument")
+  expect_identical(as.character(re), c("a", "b"))
+})

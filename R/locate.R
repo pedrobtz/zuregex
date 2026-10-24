@@ -55,11 +55,7 @@ re_locate <- function(
   if (!is.logical(bytes) || length(bytes) != 1L || is.na(bytes)) {
     check_flag(bytes, "bytes", call)
   }
-  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
-    no_limits
-  } else {
-    call_limits(limits, call)
-  }
+  lim <- verb_limits(limits, call)
   out <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     out <- withCallingHandlers(
@@ -73,13 +69,13 @@ re_locate <- function(
   if (is.null(out)) {
     out <- run_verb(
       {
-        s <- p <- prepare(x, pattern, call, opts)
+        prep <- prepare(x, pattern, call, opts)
         .Call(
           zuregex_locate_c,
-          s$x,
-          s$bytes,
-          p$table,
-          p$index,
+          prep$x,
+          prep$bytes,
+          prep$table,
+          prep$index,
           lim,
           !bytes
         )
@@ -117,11 +113,7 @@ re_locate_all <- function(
   if (!is.logical(bytes) || length(bytes) != 1L || is.na(bytes)) {
     check_flag(bytes, "bytes", call)
   }
-  lim <- if (is.null(limits) && is.null(getOption("zuregex.limits"))) {
-    no_limits
-  } else {
-    call_limits(limits, call)
-  }
+  lim <- verb_limits(limits, call)
   cols <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     cols <- withCallingHandlers(
@@ -145,13 +137,13 @@ re_locate_all <- function(
   if (is.null(cols)) {
     cols <- run_verb(
       {
-        s <- p <- prepare(x, pattern, call, opts)
+        prep <- prepare(x, pattern, call, opts)
         .Call(
           zuregex_locate_all_c,
-          s$x,
-          s$bytes,
-          p$table,
-          p$index,
+          prep$x,
+          prep$bytes,
+          prep$table,
+          prep$index,
           lim,
           as.double(n),
           overlap,

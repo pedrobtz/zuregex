@@ -7,6 +7,7 @@ zr <- function() {
     CASELESS = 0x1,
     MULTILINE = 0x2,
     DOTALL = 0x4,
+    DUPNAMES = 0x80,
     UCP = 0x100,
     LITERAL = 0x10000,
     BYTES = 0x20000,
@@ -34,7 +35,8 @@ capi_match <- function(
   subjects,
   flags = 0,
   dialect = 0L,
-  options = 0L
+  options = 0L,
+  start = 0
 ) {
   .Call(
     zuregex:::zuregex_capi_match_c,
@@ -42,7 +44,8 @@ capi_match <- function(
     as.double(flags),
     dialect,
     subjects,
-    options
+    options,
+    as.double(start)
   )
 }
 

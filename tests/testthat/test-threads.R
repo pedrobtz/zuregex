@@ -178,3 +178,20 @@ test_that("limited elements between good ones keep no partial results", {
   expect_identical(one[[1]][!bad], re_extract_all(x[!bad], p))
   expect_identical(one[[3]][!bad], re_replace(x[!bad], p, "<$0>"))
 })
+
+test_that("a forked child matches on one thread", {
+  # GNU OpenMP is not fork-safe: a child that enters a parallel region
+  # after its parent used one can hang (#86).
+  skip_on_os("windows")
+  x <- big_subjects()
+  parent <- with_serial_bytes(0, function() re_count(x, "\\d+"))
+  child <- parallel::mclapply(
+    1:2,
+    function(i) list(threads = re_threads(), count = re_count(x, "\\d+")),
+    mc.cores = 2
+  )
+  for (res in child) {
+    expect_identical(res$threads, 1L)
+    expect_identical(res$count, parent)
+  }
+})

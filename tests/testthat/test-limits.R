@@ -175,3 +175,36 @@ test_that("a replacement function stays aligned around a limited element", {
   expect_identical(out, c("a<1>", NA, "b<2>c<3>"))
   expect_identical(seen$element, c(1L, 3L, 3L))
 })
+
+test_that("limits apply on the general path too", {
+  # Character x with one pattern string takes each verb's fast path; an re
+  # object, a pattern per element and raw subjects take the general one,
+  # which computes its limits separately (#79).
+  withr::local_options(zuregex.limits = NULL)
+  case <- pathological()
+  lim <- re_limits(match = 1000)
+  x <- c("aa", case$x)
+  calls <- list(
+    re = list(x = x, p = re_compile(case$pattern)),
+    vector = list(x = x, p = rep(case$pattern, 2)),
+    raw = list(x = list(charToRaw("aa"), charToRaw(case$x)), p = case$pattern)
+  )
+  for (path in names(calls)) {
+    for (name in names(every_verb())) {
+      label <- paste(path, name)
+      verb <- every_verb()[[name]]
+      args <- calls[[path]]
+      expect_no_error(verb(args$x, args$p), message = label)
+      err <- expect_error(
+        verb(args$x, args$p, limits = lim),
+        class = "zuregex_error_limit"
+      )
+      expect_identical(err$element, 2, label = label)
+    }
+  }
+  err <- expect_error(
+    re_extract(case$x, case$pattern, group = 1, limits = lim),
+    class = "zuregex_error_limit"
+  )
+  expect_identical(err$limit, "match")
+})

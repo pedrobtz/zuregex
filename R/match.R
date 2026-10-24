@@ -10,8 +10,8 @@
 # `opts` is NULL for the default flags and literal, or what
 # pattern_options() returns.
 prepare <- function(x, pattern, call, opts = NULL) {
-  flags <- if (is.null(opts)) "" else opts[[1L]]
-  literal <- if (is.null(opts)) FALSE else opts[[2L]]
+  flags <- opts_flags(opts)
+  literal <- opts_literal(opts)
   res <- .Call(zuregex_prepare_c, x, pattern, flags, literal)
   if (is.null(res)) {
     s <- subjects(x, call)
@@ -47,40 +47,38 @@ pattern_options <- function(flags, literal, call) {
   ) {
     return(list(flags, literal))
   }
-  check_string(flags, "flags", call)
-  if (Encoding(flags) == "bytes") {
-    zuregex_abort(
-      "argument",
-      "`flags` must not be marked as \"bytes\".",
-      call = call
-    )
-  }
+  check_flags(flags, call)
   check_flag(literal, "literal", call)
   list(flags, literal)
+}
+
+# The two halves of pattern_options()'s result, with NULL as the defaults.
+opts_flags <- function(opts) {
+  if (is.null(opts)) "" else opts[[1L]]
+}
+
+opts_literal <- function(opts) {
+  if (is.null(opts)) FALSE else opts[[2L]]
 }
 
 # x: a character vector, a raw vector (one subject) or a list of raw
 # vectors. Returns list(x, n, bytes).
 subjects <- function(x, call) {
-  # Element numbers and offsets come back as R integers.
-  if (length(x) > .Machine$integer.max) {
+  # Element numbers and offsets come back as R integers. A raw vector is
+  # one subject, so its length is in bytes, not elements. Neither check
+  # has a test: it would need 2 GiB of input.
+  max <- .Machine$integer.max
+  if ((is.raw(x) && length(x) > max) || (is.list(x) && any(lengths(x) > max))) {
+    zuregex_abort(
+      "argument",
+      "A raw subject may have at most 2^31 - 1 bytes.",
+      call = call
+    )
+  }
+  if (length(x) > max) {
     zuregex_abort(
       "argument",
       "`x` may have at most 2^31 - 1 elements.",
-      call = call
-    )
-  }
-  if (is.raw(x) && length(x) > .Machine$integer.max) {
-    zuregex_abort(
-      "argument",
-      "A raw subject may have at most 2^31 - 1 bytes.",
-      call = call
-    )
-  }
-  if (is.list(x) && any(lengths(x) > .Machine$integer.max)) {
-    zuregex_abort(
-      "argument",
-      "A raw subject may have at most 2^31 - 1 bytes.",
       call = call
     )
   }
@@ -133,8 +131,8 @@ patterns <- function(pattern, n, bytes, call, opts = NULL) {
     }
     return(re_patterns(pattern, bytes, call))
   }
-  flags <- if (is.null(opts)) "" else opts[[1L]]
-  literal <- if (is.null(opts)) FALSE else opts[[2L]]
+  flags <- opts_flags(opts)
+  literal <- opts_literal(opts)
   if (len == 1L && is.character(pattern) && !is.na(pattern)) {
     # The common case, one pattern string: a cache lookup in C, without
     # unique(), match() or the attributes of an `re` object.
@@ -268,13 +266,14 @@ fast_result <- function(res, call, pattern, repl = NULL, opts = NULL) {
     raise_compile_error(
       err,
       pattern,
-      if (is.null(opts)) "" else opts[[1L]],
-      if (is.null(opts)) FALSE else opts[[2L]],
+      opts_flags(opts),
+      opts_literal(opts),
       call
     )
   }
   if (!is.null(err) && err$kind == "template") {
-    raise_template_error(err, repl, call)
+    # PCRE2's offset is into the UTF-8 template, as on the general path.
+    raise_template_error(err, enc2utf8(repl), call)
   }
   verb_result(res, call)
 }

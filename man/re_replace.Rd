@@ -80,8 +80,9 @@ raises \code{zuregex_error_template} when a match first uses it. With
 \code{replacement} may be a function. It is called once for the whole call,
 if anything matched, with a data frame of every match: \code{element},
 \code{match} (its number within the element), \code{0} (the matched text) and one
-column per group, named as in \code{\link[=re_match]{re_match()}}. It must return a character
-vector with one replacement per row.
+column per group, named as in \code{\link[=re_match]{re_match()}}. A group named \code{element},
+\code{match} or \code{0} repeats that column's name, as in \code{\link[=re_match_all]{re_match_all()}}. It must
+return a character vector with one replacement per row.
 }
 
 \section{Patterns}{
@@ -89,10 +90,9 @@ vector with one replacement per row.
 \code{pattern} is a character vector of regular expressions, compiled through
 the cache with \code{flags} and \code{literal}, or an \code{re} vector from
 \code{\link[=re_compile]{re_compile()}}, which carries its own flags and can use the JavaScript
-dialect. It has length 1,
-used for every element of \code{x}, or exactly the length of \code{x}, pairing
-\code{pattern[i]} with \code{x[i]}. Any other length is an error: nothing is
-recycled. An \code{NA} pattern gives \code{NA} for its element.
+dialect. It has length 1, used for every element of \code{x}, or exactly the
+length of \code{x}, pairing \code{pattern[i]} with \code{x[i]}. Any other length is an
+error: nothing is recycled. An \code{NA} pattern gives \code{NA} for its element.
 
 Base R's options map onto these arguments: \code{ignore.case = TRUE} is
 \code{flags = "i"}, \code{fixed = TRUE} is \code{literal = TRUE}, \code{invert = TRUE} is
@@ -108,7 +108,9 @@ are translated first. Invalid UTF-8 is an error of class
 \code{zuregex_error_utf}. A raw vector is one subject matched as bytes, as is
 each element of a list of raw vectors, and so is a character vector with
 any element marked as \code{"bytes"}. Patterns are then compiled without UTF-8
-support, so \code{.} matches one byte.
+support, so \code{.} matches one byte. \verb{\\\\C}, which matches one byte, is
+allowed only then: in a UTF-8 pattern it is a compile error, since it
+could split a character.
 }
 
 \examples{

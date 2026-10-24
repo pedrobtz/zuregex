@@ -108,6 +108,9 @@ test_that("group counts, names and numbers", {
   expect_identical(info$names, c("y", NA, "z"))
   expect_identical(info$number, 3L)
   expect_identical(capi_info("(a)", "nope")$number, zr()$ERROR_GROUP)
+  # A name two groups share means the first of them.
+  dup <- capi_info("(?<a>x)|(?<a>y)", "a", flags = zr()$DUPNAMES)
+  expect_identical(dup$number, 1L)
   expect_match(info$version, "^PCRE2 10\\.48 ")
   expect_identical(capi_info("a", flags = zr()$NO_JIT)$jit, FALSE)
 })
@@ -148,4 +151,29 @@ test_that("the C API's argument checks, status codes and edge cases", {
   expect_identical(e$jit_stack, zr()$ERROR_JIT_STACK)
   # The interpreter, which has no such stack, finishes the match.
   expect_identical(e$jit_stack_retry, 2L)
+})
+
+test_that("zr_match() searches from start and sees the text before it", {
+  # Consumers iterate matches with start; offsets stay relative to the
+  # whole subject, and lookbehind and \b see before start (#82).
+  expect_identical(capi_match("(?<=a)b", "ab", start = 1)[[1]][1, ], c(1L, 2L))
+  expect_identical(capi_match("\\bb", "ab", start = 1)[[1]], zr()$NOMATCH)
+  expect_identical(capi_match("b", "abab", start = 2)[[1]][1, ], c(3L, 4L))
+  expect_identical(capi_match("a", "ab", start = 2)[[1]], zr()$NOMATCH)
+  expect_identical(
+    capi_match("a", "ab", start = 3)[[1]],
+    zr()$ERROR_ARGUMENT
+  )
+})
+
+test_that("zr_strerror() describes every status code", {
+  # Only two of its strings were checked (#97).
+  msgs <- .Call(zuregex:::zuregex_capi_edges_c)$strerror_all
+  expect_length(msgs, 12L)
+  expect_identical(msgs[[1]], "no error")
+  expect_identical(msgs[[2]], "no match")
+  # ZR_ERROR_OTHER (-8) is PCRE2's generic text; every other code has its
+  # own description.
+  expect_identical(msgs[[9]], "PCRE2 error")
+  expect_identical(anyDuplicated(msgs), 0L)
 })

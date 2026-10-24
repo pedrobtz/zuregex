@@ -11,6 +11,10 @@
 #' always 1 and a cap has no effect; [zuregex_info()] reports which build
 #' this is.
 #'
+#' A forked child, such as a worker of [parallel::mclapply()], matches on
+#' one thread, because GNU OpenMP can hang in a child whose parent has used
+#' it.
+#'
 #' @param n `NULL` to query the effective maximum, a whole number of at
 #'   least 1 to cap the threads, or `0` to remove the cap. Values above the
 #'   machine's thread count are allowed and are the same as no cap.

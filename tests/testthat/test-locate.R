@@ -200,3 +200,40 @@ test_that("locate rejects invalid UTF-8 and bad arguments", {
     class = "zuregex_error_argument"
   )
 })
+
+test_that("character offsets stay right when a match starts before the last", {
+  # \K and overlap move the next offset back, behind the counted prefix.
+  x <- "éaébéc"
+  out <- re_locate_all(x, "(?<=é)[abc]\\K|é", overlap = TRUE)
+  ref <- gregexpr("(?<=é)[abc]\\K|é", x, perl = TRUE)[[1]]
+  expect_identical(out$start, as.integer(ref))
+  expect_identical(
+    re_locate_all(x, "é.", overlap = TRUE)$start,
+    c(1L, 3L, 5L)
+  )
+  expect_identical(
+    re_locate_all(x, "(?=(é.))", overlap = TRUE)$start,
+    c(1L, 3L, 5L)
+  )
+})
+
+test_that("re_locate_all() counts characters in linear time", {
+  skip_unless_timing()
+  # Each match used to recount the subject from its start (#77).
+  x <- strrep("éa", 25000)
+  bytes <- system.time(re_locate_all(x, "a", bytes = TRUE))[["elapsed"]]
+  chars <- system.time(out <- re_locate_all(x, "a"))[["elapsed"]]
+  expect_identical(out$start, seq(2L, 50000L, by = 2L))
+  expect_lt(chars, 10 * bytes + 0.1)
+})
+
+test_that("re_locate() checks bytes", {
+  expect_error(
+    re_locate("a", "a", bytes = NA),
+    class = "zuregex_error_argument"
+  )
+  expect_error(
+    re_locate_all("a", "a", bytes = "yes"),
+    class = "zuregex_error_argument"
+  )
+})

@@ -39,7 +39,8 @@ test_that("zuregex_info() returns its documented fields with their types", {
     expect_identical(info$cores, NA_integer_)
     expect_identical(info$threads, 1L)
   }
-  expect_identical(info$serial_bytes, 16384)
+  # The value itself is pinned once, in test-threads.R.
+  expect_identical(info$serial_bytes, zuregex:::serial_bytes())
   expect_identical(info$cache_size, re_cache_size())
   for (field in c("unicode", "jit", "jit_usable", "openmp")) {
     expect_true(is_flag(info[[field]]), label = field)

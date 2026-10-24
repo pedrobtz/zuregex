@@ -158,15 +158,21 @@ test_that("a replacement function gets every match once, as a data frame", {
   expect_identical(re_replace("xyz", "\\d", f), "xyz")
   expect_identical(calls, 0L)
   # n limits the rows too.
-  re_replace(
+  calls <- 0L
+  rows <- NA_integer_
+  out <- re_replace(
     "a1b2c3",
     "\\d",
     function(m) {
-      expect_identical(nrow(m), 2L)
+      calls <<- calls + 1L
+      rows <<- nrow(m)
       rep("#", nrow(m))
     },
     n = 2
   )
+  expect_identical(calls, 1L)
+  expect_identical(rows, 2L)
+  expect_identical(out, "a#b#c3")
 })
 
 test_that("a replacement function's result is checked", {
@@ -286,4 +292,67 @@ test_that("results of zero length are empty strings, not NA", {
   expect_identical(re_replace("", "^", ""), "")
   expect_identical(re_expand(c("", "b"), "^", ""), c("", ""))
   expect_identical(re_replace(c("x", ""), "x", ""), c("", ""))
+})
+
+test_that("a replacement longer than its template is not truncated", {
+  # The first attempt reserves the template's length plus 64 bytes; a
+  # longer expansion takes the second, sized by PCRE2 (#81).
+  long <- strrep("a", 300)
+  expect_identical(re_replace(long, "(a+)", "$1$1"), strrep("a", 600))
+  expect_identical(re_expand(long, "(a+)", "$1-$1"), paste0(long, "-", long))
+  out <- re_replace(charToRaw(long), "(a+)", "$1$1")
+  expect_identical(out, strrep("a", 600))
+  wide <- strrep("é", 200)
+  expect_identical(re_replace(wide, "(.+)", "<$1>"), paste0("<", wide, ">"))
+})
+
+test_that("template errors keep their class on the general path", {
+  # Only the fast path's template errors were tested (#83).
+  x <- c("abc", "abc")
+  for (p in list(re_compile("b"), c("b", "b"))) {
+    err <- expect_error(
+      re_replace(x, p, "x${oops"),
+      class = "zuregex_error_template"
+    )
+    expect_identical(err$element, 1)
+    expect_error(re_expand(x, p, "${1:+x}"), class = "zuregex_error_template")
+  }
+  err <- expect_error(
+    re_replace(list(charToRaw("a"), charToRaw("abc")), "b", "x${oops"),
+    class = "zuregex_error_template"
+  )
+  expect_identical(err$element, 2)
+})
+
+test_that("a latin1 template's error position agrees on every path", {
+  # The fast path counted the error's byte offset in the latin1 string
+  # instead of its UTF-8 translation (#84).
+  t <- iconv("éééé${9", "UTF-8", "latin1")
+  fast <- expect_error(
+    re_replace("ab", "a", t),
+    class = "zuregex_error_template"
+  )
+  general <- expect_error(
+    re_replace(c("ab", "ab"), c("a", "a"), t),
+    class = "zuregex_error_template"
+  )
+  expect_identical(fast$position, general$position)
+  expect_false(is.na(fast$position))
+})
+
+test_that("unmatched raw subjects and latin1 templates come back right", {
+  # Branches no test reached (#90).
+  out <- re_replace(charToRaw("abc"), "z", "y")
+  expect_identical(out, "abc")
+  expect_identical(Encoding(out), "unknown")
+  expect_error(
+    re_replace(as.raw(c(0x61, 0x00, 0x62)), "z", "y"),
+    class = "zuregex_error_match"
+  )
+  tmpl <- iconv("é", "UTF-8", "latin1")
+  out <- re_replace("x", "x", tmpl)
+  expect_identical(out, "é")
+  expect_identical(Encoding(out), "UTF-8")
+  wide <- re_replace(charToRaw("é"), "z", "y")
+  expect_identical(Encoding(wide), "bytes")
 })

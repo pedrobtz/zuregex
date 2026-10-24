@@ -28,6 +28,10 @@ Results never depend on the number of threads, so this is a performance
 control, not a reproducibility one. In a build without OpenMP the value is
 always 1 and a cap has no effect; \code{\link[=zuregex_info]{zuregex_info()}} reports which build
 this is.
+
+A forked child, such as a worker of \code{\link[parallel:mclapply]{parallel::mclapply()}}, matches on
+one thread, because GNU OpenMP can hang in a child whose parent has used
+it.
 }
 \examples{
 re_threads()
