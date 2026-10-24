@@ -22,6 +22,8 @@
   describes them, and
   [`re_escape()`](https://pedrobtz.github.io/zuregex/reference/re_escape.md)
   quotes metacharacters.
+- `\C`, which matches one byte, is a compile error in a pattern matched
+  as UTF-8, because it could split a character. Bytes patterns allow it.
 - Patterns are cached, 128 by default;
   [`re_cache_size()`](https://pedrobtz.github.io/zuregex/reference/re_cache_size.md)
   and
@@ -71,7 +73,10 @@
   caps them. On macOS that uses the `libomp` R ships, as CRAN builds it.
   [`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md)
   reports whether OpenMP is on, the threads and cores it can use, and
-  the input size below which a call stays on one thread.
+  the input size below which a call stays on one thread. A forked child,
+  such as a
+  [`parallel::mclapply()`](https://rdrr.io/r/parallel/mclapply.html)
+  worker, matches on one thread.
 - Each call does little work outside the match itself. Subjects that R
   marks as ASCII skip PCRE2’s UTF-8 check, results are built in one
   buffer per thread, and a call with one pattern string is a single

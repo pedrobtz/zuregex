@@ -76,6 +76,9 @@ returns the previous cap invisibly, <code>0</code> meaning none was set, so
 control, not a reproducibility one. In a build without OpenMP the value is
 always 1 and a cap has no effect; <code><a href="zuregex_info.html">zuregex_info()</a></code> reports which build
 this is.</p>
+<p>A forked child, such as a worker of <code><a href="https://rdrr.io/r/parallel/mclapply.html" class="external-link">parallel::mclapply()</a></code>, matches on
+one thread, because GNU OpenMP can hang in a child whose parent has used
+it.</p>
     </div>
 
     <div class="section level2">

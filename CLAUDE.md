@@ -337,9 +337,9 @@ when a stage establishes it.
   checks results before it times, asserts a speedup only where the
   measured margin is wide, and “no slower” with room for noise where it
   is close. Timing tests add about 18 seconds to the suite.
-- **Keep the suite inside the CRAN time budget.** About 4 seconds on a
-  2026 laptop at Stage 4, timing tests off. Re-measure when a stage adds
-  a large corpus.
+- **Keep the suite inside the CRAN time budget.** About 12 seconds on a
+  2026 laptop after the second critical review, timing tests off.
+  Re-measure when a change adds a large corpus.
 
 ## Definition of done
 

@@ -86,7 +86,9 @@ subject or pattern.
 group, all `NA` where there is no match. `re_match_all()`: a data frame
 with `element` and `match` columns, then one column per group, one row
 per match; a subject with no match has no rows, and an `NA` subject or
-pattern one row of `NA`.
+pattern one row of `NA`. A group named `element` or `match` repeats that
+column's name, so `$` gives the leading column; index the group by
+position instead.
 
 Strings from character input are in UTF-8; from bytes they are marked as
 `"bytes"`.
@@ -126,7 +128,9 @@ are translated first. Invalid UTF-8 is an error of class
 `zuregex_error_utf`. A raw vector is one subject matched as bytes, as is
 each element of a list of raw vectors, and so is a character vector with
 any element marked as `"bytes"`. Patterns are then compiled without
-UTF-8 support, so `.` matches one byte.
+UTF-8 support, so `.` matches one byte. `\\C`, which matches one byte,
+is allowed only then: in a UTF-8 pattern it is a compile error, since it
+could split a character.
 
 ## Examples
 

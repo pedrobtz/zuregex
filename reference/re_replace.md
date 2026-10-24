@@ -102,6 +102,9 @@ if anything matched, with a data frame of every match: `element`,
 `match` (its number within the element), `0` (the matched text) and one
 column per group, named as in
 [`re_match()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md).
+A group named `element`, `match` or `0` repeats that column's name, as
+in
+[`re_match_all()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md).
 It must return a character vector with one replacement per row.
 
 ## Patterns
@@ -127,7 +130,9 @@ are translated first. Invalid UTF-8 is an error of class
 `zuregex_error_utf`. A raw vector is one subject matched as bytes, as is
 each element of a list of raw vectors, and so is a character vector with
 any element marked as `"bytes"`. Patterns are then compiled without
-UTF-8 support, so `.` matches one byte.
+UTF-8 support, so `.` matches one byte. `\\C`, which matches one byte,
+is allowed only then: in a UTF-8 pattern it is a compile error, since it
+could split a character.
 
 ## Examples
 

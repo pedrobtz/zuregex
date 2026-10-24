@@ -43,6 +43,8 @@
 <h3 id="compiling-0-1-0">Compiling<a class="anchor" aria-label="anchor" href="#compiling-0-1-0"></a></h3>
 <ul><li>
 <code><a href="../reference/re_compile.html">re_compile()</a></code> compiles patterns with flag letters, a JavaScript dialect, literal patterns and JIT compilation into <code>re</code> objects, which survive <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code>. <code><a href="../reference/re_info.html">re_info()</a></code> describes them, and <code><a href="../reference/re_escape.html">re_escape()</a></code> quotes metacharacters.</li>
+<li>
+<code>\C</code>, which matches one byte, is a compile error in a pattern matched as UTF-8, because it could split a character. Bytes patterns allow it.</li>
 <li>Patterns are cached, 128 by default; <code><a href="../reference/re_cache_size.html">re_cache_size()</a></code> and <code><a href="../reference/re_cache_size.html">re_cache_clear()</a></code> manage the cache.</li>
 </ul></div>
 <div class="section level3">
@@ -56,7 +58,7 @@
 <code><a href="../reference/re_replace.html">re_replace()</a></code> uses PCRE2’s extended templates (<code>$1</code>, <code>${name}</code>, <code>${1:-default}</code>, <code>${1:+yes:no}</code>, case forcing), literal text, or a function called once with every match. <code><a href="../reference/re_replace.html">re_expand()</a></code> expands a template with the first match, and <code><a href="../reference/re_split.html">re_split()</a></code> splits as Python’s <code>re.split()</code> does.</li>
 <li>
 <code><a href="../reference/re_limits.html">re_limits()</a></code> bounds the work of a match, per call or through the <code>zuregex.limits</code> option. An element that hits a limit raises <code>zuregex_error_limit</code>, or gives <code>NA</code> and one warning with <code>on_limit = "na"</code>.</li>
-<li>Matching runs on several threads with OpenMP on large inputs, with the same results on any number of threads; <code><a href="../reference/re_threads.html">re_threads()</a></code> caps them. On macOS that uses the <code>libomp</code> R ships, as CRAN builds it. <code><a href="../reference/zuregex_info.html">zuregex_info()</a></code> reports whether OpenMP is on, the threads and cores it can use, and the input size below which a call stays on one thread.</li>
+<li>Matching runs on several threads with OpenMP on large inputs, with the same results on any number of threads; <code><a href="../reference/re_threads.html">re_threads()</a></code> caps them. On macOS that uses the <code>libomp</code> R ships, as CRAN builds it. <code><a href="../reference/zuregex_info.html">zuregex_info()</a></code> reports whether OpenMP is on, the threads and cores it can use, and the input size below which a call stays on one thread. A forked child, such as a <code><a href="https://rdrr.io/r/parallel/mclapply.html" class="external-link">parallel::mclapply()</a></code> worker, matches on one thread.</li>
 <li>Each call does little work outside the match itself. Subjects that R marks as ASCII skip PCRE2’s UTF-8 check, results are built in one buffer per thread, and a call with one pattern string is a single <code>.Call</code>. Extraction and captures are 10 to 40 times faster than base R’s <code>perl = TRUE</code>. Detection, replacement, splitting and calls on a few strings run about level with base R and stringi, a little ahead or behind depending on the platform.</li>
 <li>Errors are classed conditions inheriting from <code>zuregex_error</code>.</li>
 </ul></div>

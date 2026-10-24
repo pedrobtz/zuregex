@@ -131,8 +131,9 @@ raises <code>zuregex_error_template</code> when a match first uses it. With
 <p><code>replacement</code> may be a function. It is called once for the whole call,
 if anything matched, with a data frame of every match: <code>element</code>,
 <code>match</code> (its number within the element), <code>0</code> (the matched text) and one
-column per group, named as in <code><a href="re_extract.html">re_match()</a></code>. It must return a character
-vector with one replacement per row.</p>
+column per group, named as in <code><a href="re_extract.html">re_match()</a></code>. A group named <code>element</code>,
+<code>match</code> or <code>0</code> repeats that column's name, as in <code><a href="re_extract.html">re_match_all()</a></code>. It must
+return a character vector with one replacement per row.</p>
     </div>
     <div class="section level2">
     <h2 id="patterns">Patterns<a class="anchor" aria-label="anchor" href="#patterns"></a></h2>
@@ -141,10 +142,9 @@ vector with one replacement per row.</p>
 <p><code>pattern</code> is a character vector of regular expressions, compiled through
 the cache with <code>flags</code> and <code>literal</code>, or an <code>re</code> vector from
 <code><a href="re_compile.html">re_compile()</a></code>, which carries its own flags and can use the JavaScript
-dialect. It has length 1,
-used for every element of <code>x</code>, or exactly the length of <code>x</code>, pairing
-<code>pattern[i]</code> with <code>x[i]</code>. Any other length is an error: nothing is
-recycled. An <code>NA</code> pattern gives <code>NA</code> for its element.</p>
+dialect. It has length 1, used for every element of <code>x</code>, or exactly the
+length of <code>x</code>, pairing <code>pattern[i]</code> with <code>x[i]</code>. Any other length is an
+error: nothing is recycled. An <code>NA</code> pattern gives <code>NA</code> for its element.</p>
 <p>Base R's options map onto these arguments: <code>ignore.case = TRUE</code> is
 <code>flags = "i"</code>, <code>fixed = TRUE</code> is <code>literal = TRUE</code>, <code>invert = TRUE</code> is
 <code>re_detect(negate = TRUE)</code>, and <code>useBytes = TRUE</code> is a raw vector or
@@ -160,7 +160,9 @@ are translated first. Invalid UTF-8 is an error of class
 <code>zuregex_error_utf</code>. A raw vector is one subject matched as bytes, as is
 each element of a list of raw vectors, and so is a character vector with
 any element marked as <code>"bytes"</code>. Patterns are then compiled without UTF-8
-support, so <code>.</code> matches one byte.</p>
+support, so <code>.</code> matches one byte. <code>\\C</code>, which matches one byte, is
+allowed only then: in a UTF-8 pattern it is a compile error, since it
+could split a character.</p>
     </div>
 
     <div class="section level2">

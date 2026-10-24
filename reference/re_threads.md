@@ -34,6 +34,11 @@ is always 1 and a cap has no effect;
 [`zuregex_info()`](https://pedrobtz.github.io/zuregex/reference/zuregex_info.md)
 reports which build this is.
 
+A forked child, such as a worker of
+[`parallel::mclapply()`](https://rdrr.io/r/parallel/mclapply.html),
+matches on one thread, because GNU OpenMP can hang in a child whose
+parent has used it.
+
 ## Examples
 
 ``` r
