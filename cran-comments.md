@@ -13,7 +13,7 @@ hidden, so it cannot bind to the PCRE2 R itself loads.
 * local macOS, R 4.5.2
 * GitHub Actions: ubuntu-latest (R release, oldrel-1), macOS-latest
   (R release), windows-latest (R release, R-devel)
-* R-hub containers, R-devel: `clang23`, `ubuntu-clang`, `ubuntu-gcc16`
+* r-actions R-devel containers: `clang23`, `ubuntu-clang`, `ubuntu-gcc16`
 * `nosuggests` (without suggested packages) and `nold` (without a long
   double)
 * UBSan, ASan, valgrind, gctorture, rchk, LTO and `-fanalyzer`
@@ -37,7 +37,9 @@ requires compilers to support. No message changes.
 
 ## Threads
 
-Matching uses OpenMP on large inputs. The tests cap it at two threads.
+Matching uses OpenMP on large inputs. The tests cap it at two threads. A
+forked child, such as a `parallel::mclapply()` worker, matches on one
+thread, because GNU OpenMP can hang in a child whose parent used it.
 
 ## Network use
 

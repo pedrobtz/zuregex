@@ -18,3 +18,8 @@
 ^src/Makevars$
 ^src/Makevars\.win$
 ^tools/.*\.(o|so|dll|dylib)$
+^tools/consumer$
+^tools/fuzz$
+^tools/oracles$
+^tools/pcre2-testdata$
+^tools/revdep$
