@@ -27,7 +27,14 @@ packages reach through `LinkingTo`.
 
 ## Installation
 
-zuregex is not on CRAN yet. Install the development version from
+Install zuregex from CRAN with:
+
+``` r
+
+install.packages("zuregex")
+```
+
+Or install the development version from
 [GitHub](https://github.com/pedrobtz/zuregex) with:
 
 ``` r

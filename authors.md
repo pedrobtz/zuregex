@@ -4,14 +4,15 @@
 
 - **Pedro Baltazar**. Author, maintainer, copyright holder.
 
-- **Philip Hazel**. Copyright holder.  
-  PCRE2, bundled in src/vendor/pcre2
+- **Philip Hazel**. Contributor, copyright holder.  
+  Author of PCRE2, bundled in src/vendor/pcre2
 
 - **University of Cambridge**. Copyright holder.  
   PCRE2, bundled in src/vendor/pcre2
 
-- **Zoltan Herczeg**. Copyright holder.  
-  PCRE2 JIT compiler and sljit, bundled in src/vendor/pcre2
+- **Zoltan Herczeg**. Contributor, copyright holder.  
+  Author of the PCRE2 JIT compiler and sljit, bundled in
+  src/vendor/pcre2
 
 - **Nicholas Wilson**. Contributor.  
   PCRE2 maintainer, bundled in src/vendor/pcre2
