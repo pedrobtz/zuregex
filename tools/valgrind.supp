@@ -1,6 +1,6 @@
 # Valgrind suppressions for the valgrind job in native-checks.yaml.
 #
-# One entry, and the block is glibc's. When libgomp starts its worker
+# Two entries, and both blocks are glibc's. When libgomp starts its worker
 # threads for the first parallel region, pthread_create() allocates each
 # thread's TLS (_dl_allocate_tls). libgomp keeps the thread pool alive until
 # the process exits, so valgrind reports that block as "possibly lost"
@@ -20,4 +20,20 @@
    fun:pthread_create*
    ...
    fun:GOMP_parallel
+}
+
+# cli, which testthat loads, starts a ticking thread from its own .Call
+# and keeps it until the process exits, so its TLS is reported the same way
+# (run 40072248842: 368 bytes, pthread_create from cli.so). Matched on cli's
+# object and on "possible" only.
+{
+   cli-ticking-thread-tls
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   ...
+   fun:_dl_allocate_tls
+   ...
+   fun:pthread_create*
+   obj:*/cli.so
 }

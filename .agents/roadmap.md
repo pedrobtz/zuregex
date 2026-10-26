@@ -29,7 +29,7 @@ identity, Full CI and v0.1.0 readiness bracket the feature work.
 | 8 | [OpenMP](#stage-8--openmp) | full | [#10](https://github.com/pedrobtz/zuregex/issues/10) | [#24](https://github.com/pedrobtz/zuregex/pull/24) | 2026-10-21 |
 | 9 | [C API and consumers](#stage-9--c-api-and-consumers) | quick | [#11](https://github.com/pedrobtz/zuregex/issues/11) | [#64](https://github.com/pedrobtz/zuregex/pull/64) | 2026-10-21 |
 | 10 | [Full CI](#stage-10--full-ci) | full | [#12](https://github.com/pedrobtz/zuregex/issues/12) | [#65](https://github.com/pedrobtz/zuregex/pull/65) | 2026-10-22 |
-| 11 | [v0.1.0 readiness](#stage-11--v010-readiness) | full | [#13](https://github.com/pedrobtz/zuregex/issues/13) | [#67](https://github.com/pedrobtz/zuregex/pull/67) | 2026-10-22 |
+| 11 | [v0.1.0 readiness](#stage-11--v010-readiness) | full | [#13](https://github.com/pedrobtz/zuregex/issues/13) | [#67](https://github.com/pedrobtz/zuregex/pull/67), [#103](https://github.com/pedrobtz/zuregex/pull/103) | 2026-10-22 |
 
 <!-- markdownlint-enable MD013 -->
 

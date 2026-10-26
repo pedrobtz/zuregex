@@ -29,3 +29,6 @@ jobs:
       seed-corpus: tools/fuzz/corpus
       dictionary: tools/fuzz/regex.dict
       max-total-time: ${{ github.event_name == 'schedule' && 1800 || 120 }}
+      # The nightly's 30 minutes of fuzzing, plus building and merging the
+      # corpus; r-actions refuses a timeout that would cut the fuzzer off.
+      timeout-minutes: 40
