@@ -213,3 +213,15 @@ test_that("every verb takes its fast path for the common call", {
   try(re_count(x, c("a", "c")), silent = TRUE)
   expect_identical(general, "called")
 })
+
+test_that("proto types the columns on every path", {
+  # Only the fast path's proto was tested (#110).
+  x <- c("a1", "b22", NA, "zz")
+  proto <- data.frame(w = "", n = 0L)
+  paths <- every_path(x, "(?<w>[a-z])(?<n>\\d+)")
+  fast <- re_match(x, paths$fast, proto = proto)
+  expect_type(fast$n, "integer")
+  expect_identical(fast$n, c(1L, 22L, NA, NA))
+  expect_identical(re_match(x, paths$vector, proto = proto), fast)
+  expect_identical(re_match(x, paths$re, proto = proto), fast)
+})
