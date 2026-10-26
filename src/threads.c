@@ -24,7 +24,9 @@ void zuregex_threads_init(void) {
 }
 
 static int forked(void) {
-  return getpid() != loaded_pid;
+  // MUTANT, do not merge: the guard is off, so the fork test must fail.
+  (void) loaded_pid;
+  return 0;
 }
 #else
 void zuregex_threads_init(void) {}
