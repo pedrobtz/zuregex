@@ -202,3 +202,11 @@ test_that("(*NO_JIT) patterns run on the interpreter", {
   expect_identical(re_count(x, "(*NO_JIT)b"), c(1L, 0L))
   expect_identical(re_count(charToRaw("abc"), "(*NO_JIT)b"), 1L)
 })
+
+test_that("a bar inside a character class does not end the literal prefix", {
+  # The class branch of has_top_level_bar(), including ] first in a
+  # class (#117).
+  expect_identical(re_info(re_compile("ab[]|]c"))$prefix, "ab")
+  expect_identical(re_info(re_compile("ab[^]|]c"))$prefix, "ab")
+  expect_identical(re_info(re_compile("ab|cd"))$prefix, "")
+})

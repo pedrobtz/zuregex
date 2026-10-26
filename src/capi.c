@@ -73,11 +73,8 @@ zr_pattern *zuregex_capi_compile(const char *pattern, size_t len,
   }
   // SIZE_MAX is PCRE2's PCRE2_ZERO_TERMINATED, which consumers pass by
   // habit: read it as a NUL-terminated pattern.
+  // A NULL pattern with it was refused above.
   if (len == (size_t) -1) {
-    if (pattern == NULL) {
-      set_error(errbuf, errlen, "pattern is NULL", -1);
-      return NULL;
-    }
     len = strlen(pattern);
   }
   if ((flags & ~KNOWN_FLAGS) != 0 ||
