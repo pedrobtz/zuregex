@@ -12,22 +12,26 @@ static int thread_cap = 0;
 
 // GNU OpenMP is not fork-safe: a forked child (parallel::mclapply()) that
 // enters a parallel region after its parent used one can hang. Children
-// match on one thread, as data.table's do.
+// match on one thread, as data.table's do. A child is a process whose pid
+// differs from the one that loaded the package: unlike a pthread_atfork()
+// handler, that needs no registration and survives the DLL being unloaded.
 #if defined(ZUREGEX_OPENMP) && !defined(_WIN32)
-#include <pthread.h>
-static int forked = 0;
-
-static void after_fork_child(void) {
-  forked = 1;
-}
+#include <unistd.h>
+static pid_t loaded_pid = 0;
 
 void zuregex_threads_init(void) {
-  pthread_atfork(NULL, NULL, after_fork_child);
+  loaded_pid = getpid();
+}
+
+static int forked(void) {
+  return getpid() != loaded_pid;
 }
 #else
-static const int forked = 0;
-
 void zuregex_threads_init(void) {}
+
+static int forked(void) {
+  return 0;
+}
 #endif
 
 // The serial threshold, in total subject bytes. Settable internally so the
@@ -36,7 +40,7 @@ void zuregex_threads_init(void) {}
 static double serial_bytes = ZUREGEX_SERIAL_BYTES;
 
 static int max_threads(void) {
-  if (forked) return 1;
+  if (forked()) return 1;
 #ifdef ZUREGEX_OPENMP
   int max = omp_get_max_threads();
   return (thread_cap > 0 && thread_cap < max) ? thread_cap : max;
