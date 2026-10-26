@@ -169,3 +169,44 @@ test_that("compile errors are classed on every route into the cache", {
   )
   expect_identical(err$offset, 3L)
 })
+
+test_that("(*UTF) is refused in patterns matched as bytes", {
+  # It turned on UTF matching without any UTF-8 check, and let \C back in
+  # (#104).
+  raw <- as.raw(c(0x61, 0xff, 0xfe, 0x80, 0x62))
+  expect_error(re_count(raw, "(*UTF)."), class = "zuregex_error_compile")
+  expect_error(
+    re_count(list(raw, raw), c("(*UTF).", "(*UTF).")),
+    class = "zuregex_error_compile"
+  )
+  b <- "é"
+  Encoding(b) <- "bytes"
+  expect_error(re_detect(b, "(*UTF)\\C"), class = "zuregex_error_compile")
+  expect_error(
+    re_detect(c(b, "a"), re_compile("(*UTF).")),
+    class = "zuregex_error_compile"
+  )
+  # Character input is UTF-8 already, so (*UTF) is harmless there.
+  expect_identical(re_count("éa", "(*UTF)."), 2L)
+})
+
+test_that("(*NO_JIT) patterns run on the interpreter", {
+  # pcre2_jit_compile() succeeds for them without making JIT code, and
+  # every verb failed with "bad JIT option" (#105).
+  skip_if_not(zuregex_info()$jit_usable, "JIT is not usable here")
+  expect_false(re_info(re_compile("(*NO_JIT)b"))$jit)
+  x <- c("abc", "xyz")
+  for (name in names(every_verb())) {
+    expect_no_error(every_verb()[[name]](x, "(*NO_JIT)b"))
+  }
+  expect_identical(re_count(x, "(*NO_JIT)b"), c(1L, 0L))
+  expect_identical(re_count(charToRaw("abc"), "(*NO_JIT)b"), 1L)
+})
+
+test_that("a bar inside a character class does not end the literal prefix", {
+  # The class branch of has_top_level_bar(), including ] first in a
+  # class (#117).
+  expect_identical(re_info(re_compile("ab[]|]c"))$prefix, "ab")
+  expect_identical(re_info(re_compile("ab[^]|]c"))$prefix, "ab")
+  expect_identical(re_info(re_compile("ab|cd"))$prefix, "")
+})

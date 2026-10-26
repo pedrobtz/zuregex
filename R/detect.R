@@ -25,7 +25,8 @@
 #' any element marked as `"bytes"`. Patterns are then compiled without UTF-8
 #' support, so `.` matches one byte. `\\C`, which matches one byte, is
 #' allowed only then: in a UTF-8 pattern it is a compile error, since it
-#' could split a character.
+#' could split a character. A bytes pattern may not turn UTF-8 back on with
+#' `(*UTF)`.
 #'
 #' @param x A character vector, a raw vector, or a list of raw vectors.
 #'   `NA` (or `NULL` in a list) gives `NA`.
@@ -81,35 +82,37 @@ re_detect <- function(
     check_flag(negate, "negate", call)
   }
   lim <- verb_limits(limits, call)
-  out <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     out <- withCallingHandlers(
       .Call(zuregex_detect_c, x, NA, pattern, opts, lim, anchor, negate),
       error = function(e) native_error(e, call)
     )
-    if (is.object(out)) {
-      out <- fast_result(out, call, pattern, opts = opts)
+    if (!is.null(out)) {
+      return(
+        if (is.object(out)) {
+          fast_result(out, call, pattern, opts = opts)
+        } else {
+          out
+        }
+      )
     }
   }
-  if (is.null(out)) {
-    out <- run_verb(
-      {
-        prep <- prepare(x, pattern, call, opts)
-        .Call(
-          zuregex_detect_c,
-          prep$x,
-          prep$bytes,
-          prep$table,
-          prep$index,
-          lim,
-          anchor,
-          negate
-        )
-      },
-      call
-    )
-  }
-  out
+  run_verb(
+    {
+      prep <- prepare(x, pattern, call, opts)
+      .Call(
+        zuregex_detect_c,
+        prep$x,
+        prep$bytes,
+        prep$table,
+        prep$index,
+        lim,
+        anchor,
+        negate
+      )
+    },
+    call
+  )
 }
 
 #' @rdname re_detect
@@ -122,31 +125,33 @@ re_count <- function(x, pattern, flags = "", literal = FALSE, limits = NULL) {
     pattern_options(flags, literal, call)
   }
   lim <- verb_limits(limits, call)
-  out <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     out <- withCallingHandlers(
       .Call(zuregex_count_c, x, NA, pattern, opts, lim),
       error = function(e) native_error(e, call)
     )
-    if (is.object(out)) {
-      out <- fast_result(out, call, pattern, opts = opts)
+    if (!is.null(out)) {
+      return(
+        if (is.object(out)) {
+          fast_result(out, call, pattern, opts = opts)
+        } else {
+          out
+        }
+      )
     }
   }
-  if (is.null(out)) {
-    out <- run_verb(
-      {
-        prep <- prepare(x, pattern, call, opts)
-        .Call(
-          zuregex_count_c,
-          prep$x,
-          prep$bytes,
-          prep$table,
-          prep$index,
-          lim
-        )
-      },
-      call
-    )
-  }
-  out
+  run_verb(
+    {
+      prep <- prepare(x, pattern, call, opts)
+      .Call(
+        zuregex_count_c,
+        prep$x,
+        prep$bytes,
+        prep$table,
+        prep$index,
+        lim
+      )
+    },
+    call
+  )
 }

@@ -105,7 +105,7 @@ re_extract <- function(
     group,
     all = FALSE,
     n = 1,
-    lim,
+    lim = lim,
     call = call,
     opts = opts
   )
@@ -171,7 +171,7 @@ re_extract_all <- function(
     group,
     all = TRUE,
     n = n,
-    lim,
+    lim = lim,
     call = call,
     opts = opts
   )
@@ -213,8 +213,8 @@ re_match <- function(
       error = function(e) native_error(e, call)
     )
     if (!is.null(out)) {
-      # The result is a data frame, so is.object() can't tell it from an
-      # error, as the other verbs' fast paths do.
+      # Unlike the other verbs' fast paths, is.object() can't tell this
+      # result from an error: both are classed lists.
       if (oldClass(out)[1L] == "zuregex_result") {
         out <- as_data_frame(fast_result(out, call, pattern, opts = opts))
       }
@@ -226,7 +226,7 @@ re_match <- function(
     pattern,
     all = FALSE,
     n = 1,
-    lim,
+    lim = lim,
     call = call,
     opts = opts
   )
@@ -275,15 +275,23 @@ re_match_all <- function(
       error = function(e) native_error(e, call)
     )
     if (!is.null(out)) {
-      # The result is a data frame, so is.object() can't tell it from an
-      # error, as the other verbs' fast paths do.
+      # Unlike the other verbs' fast paths, is.object() can't tell this
+      # result from an error: both are classed lists.
       if (oldClass(out)[1L] == "zuregex_result") {
         out <- as_data_frame(fast_result(out, call, pattern, opts = opts))
       }
       return(out)
     }
   }
-  match_groups(x, pattern, all = TRUE, n = n, lim, call = call, opts = opts)
+  match_groups(
+    x,
+    pattern,
+    all = TRUE,
+    n = n,
+    lim = lim,
+    call = call,
+    opts = opts
+  )
 }
 
 check_n <- function(n, call) {

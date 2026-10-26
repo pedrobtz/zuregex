@@ -102,7 +102,7 @@ re_replace <- function(
     if (!is.null(out)) {
       return(
         if (is.object(out)) {
-          fast_result(out, call, pattern, replacement, opts)
+          fast_result(out, call, pattern, replacement, opts = opts)
         } else {
           out
         }
@@ -170,7 +170,7 @@ re_expand <- function(
     if (!is.null(out)) {
       return(
         if (is.object(out)) {
-          fast_result(out, call, pattern, template, opts)
+          fast_result(out, call, pattern, template, opts = opts)
         } else {
           out
         }

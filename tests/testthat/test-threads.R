@@ -183,6 +183,10 @@ test_that("a forked child matches on one thread", {
   # GNU OpenMP is not fork-safe: a child that enters a parallel region
   # after its parent used one can hang (#86).
   skip_on_os("windows")
+  skip_unless_fork_tests()
+  # Without OpenMP every process has one thread, guard or not (#109).
+  skip_if_not(zuregex_info()$openmp, "a build without OpenMP")
+  skip_if(re_threads() < 2L, "fewer than two threads")
   x <- big_subjects()
   parent <- with_serial_bytes(0, function() re_count(x, "\\d+"))
   child <- parallel::mclapply(

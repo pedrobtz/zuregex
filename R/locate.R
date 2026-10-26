@@ -56,34 +56,36 @@ re_locate <- function(
     check_flag(bytes, "bytes", call)
   }
   lim <- verb_limits(limits, call)
-  out <- NULL
   if (is.character(x) && is.character(pattern) && length(pattern) == 1L) {
     out <- withCallingHandlers(
       .Call(zuregex_locate_c, x, NA, pattern, opts, lim, !bytes),
       error = function(e) native_error(e, call)
     )
-    if (is.object(out)) {
-      out <- fast_result(out, call, pattern, opts = opts)
+    if (!is.null(out)) {
+      return(
+        if (is.object(out)) {
+          fast_result(out, call, pattern, opts = opts)
+        } else {
+          out
+        }
+      )
     }
   }
-  if (is.null(out)) {
-    out <- run_verb(
-      {
-        prep <- prepare(x, pattern, call, opts)
-        .Call(
-          zuregex_locate_c,
-          prep$x,
-          prep$bytes,
-          prep$table,
-          prep$index,
-          lim,
-          !bytes
-        )
-      },
-      call
-    )
-  }
-  out
+  run_verb(
+    {
+      prep <- prepare(x, pattern, call, opts)
+      .Call(
+        zuregex_locate_c,
+        prep$x,
+        prep$bytes,
+        prep$table,
+        prep$index,
+        lim,
+        !bytes
+      )
+    },
+    call
+  )
 }
 
 #' @rdname re_locate

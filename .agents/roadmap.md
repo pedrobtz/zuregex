@@ -736,6 +736,13 @@ branch's code and everything it finds is fixed.
   element errors or classed errors and reviewed by reading. There is no
   interrupt check: limits bound the work per element (#42 tracks adding
   one).
+- Also not tested from R (#107): in the C API's `status_of()`,
+  `PCRE2_ERROR_NULL`, `BADOFFSET` and `BADOPTION` are refused by
+  `zr_match()`'s own argument checks before PCRE2 sees them, and
+  `ZR_ERROR_OTHER` is what PCRE2 reports for errors no valid call can
+  cause (callouts and DFA matching are not exposed). The version-mismatch
+  error in `zuregex-r.h` needs a consumer built against another table
+  version. `BADUTFOFFSET`, a start inside a character, is tested.
 - Lifecycle: the README carries an `experimental` badge for the package;
   no function is marked separately, since nothing in 0.1.0 is less settled
   than the rest (design §15).

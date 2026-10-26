@@ -67,15 +67,18 @@ subjects <- function(x, call) {
   # Element numbers and offsets come back as R integers. A raw vector is
   # one subject, so its length is in bytes, not elements. Neither check
   # has a test: it would need 2 GiB of input.
-  max <- .Machine$integer.max
-  if ((is.raw(x) && length(x) > max) || (is.list(x) && any(lengths(x) > max))) {
+  int_max <- .Machine$integer.max
+  if (
+    (is.raw(x) && length(x) > int_max) ||
+      (is.list(x) && any(lengths(x) > int_max))
+  ) {
     zuregex_abort(
       "argument",
       "A raw subject may have at most 2^31 - 1 bytes.",
       call = call
     )
   }
-  if (length(x) > max) {
+  if (length(x) > int_max) {
     zuregex_abort(
       "argument",
       "`x` may have at most 2^31 - 1 elements.",
@@ -259,7 +262,9 @@ raise_match_error <- function(err, call) {
 # The fast path: a verb's .Call given `x` and one pattern string, which
 # returns the value itself, NULL when the call needs the general path, or
 # a "zuregex_result" list when something went wrong. fast_result() turns
-# that list into its error or warning.
+# that list into its error or warning. A verb returns the fast result at
+# once, unless both paths share work after it (re_locate_all(), re_split()),
+# which then starts from out <- NULL.
 fast_result <- function(res, call, pattern, repl = NULL, opts = NULL) {
   err <- res$error
   if (!is.null(err) && err$kind %in% c("compile", "flags")) {

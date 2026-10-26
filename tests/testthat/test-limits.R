@@ -6,7 +6,8 @@ test_that("every verb stops a pathological match at the match limit", {
     verb <- every_verb()[[name]]
     # Under PCRE2's defaults the same call finishes, so only the limit
     # passed here can stop it.
-    expect_no_error(verb(case$x, case$pattern), message = name)
+    out <- tryCatch(verb(case$x, case$pattern), error = identity)
+    expect_false(inherits(out, "error"), label = name)
     err <- expect_error(
       verb(case$x, case$pattern, limits = lim),
       class = "zuregex_error_limit"
@@ -194,7 +195,8 @@ test_that("limits apply on the general path too", {
       label <- paste(path, name)
       verb <- every_verb()[[name]]
       args <- calls[[path]]
-      expect_no_error(verb(args$x, args$p), message = label)
+      out <- tryCatch(verb(args$x, args$p), error = identity)
+      expect_false(inherits(out, "error"), label = label)
       err <- expect_error(
         verb(args$x, args$p, limits = lim),
         class = "zuregex_error_limit"

@@ -15,11 +15,13 @@ test_that("bytes-marked and latin1 subjects agree on every path", {
   b <- "\u00e9"
   Encoding(b) <- "bytes"
   latin1 <- iconv("caf\u00e9 ab1", "UTF-8", "latin1")
-  for (x in list(c(b, "ab1", NA), c(latin1, "xy2"))) {
+  cases <- list(bytes = c(b, "ab1", NA), latin1 = c(latin1, "xy2"))
+  for (case in names(cases)) {
+    x <- cases[[case]]
     paths <- every_path(x, "(?<w>[a-z]+)(\\d)?")
     fast <- every_path_result(x, paths$fast)
-    expect_identical(every_path_result(x, paths$vector), fast)
-    expect_identical(every_path_result(x, paths$re), fast)
+    expect_identical(every_path_result(x, paths$vector), fast, label = case)
+    expect_identical(every_path_result(x, paths$re), fast, label = case)
   }
   expect_identical(
     re_extract(c(b, "ab"), "(?<n>^..$)", group = "n"),
@@ -58,14 +60,15 @@ test_that("groups that share a name under J share a column on every path", {
   for (p in c("(?<a>x)|(?<a>y)", "(?J)(?<a>x)|(?<a>y)")) {
     flags <- if (startsWith(p, "(?J)")) "" else "J"
     want <- data.frame(a = c("x", "y"))
-    expect_identical(re_match(x, p, flags = flags), want)
+    expect_identical(re_match(x, p, flags = flags), want, label = p)
     expect_identical(
       re_match(x, re_compile(p, flags = flags)),
-      want
+      want,
+      label = p
     )
     all <- re_match_all(x, p, flags = flags)
-    expect_named(all, c("element", "match", "a"))
-    expect_identical(all$a, c("x", "y"))
+    expect_named(all, c("element", "match", "a"), label = p)
+    expect_identical(all$a, c("x", "y"), label = p)
   }
 })
 
@@ -121,15 +124,15 @@ test_that("the paths raise the same conditions", {
       position = cnd$position
     )
   }
-  compare <- function(x, pattern, f, re = TRUE) {
+  compare <- function(x, pattern, f, what, re = TRUE) {
     paths <- list(fast = pattern, vector = rep(pattern, length(x)))
     if (re) {
       paths$re <- re_compile(pattern)
     }
     got <- lapply(paths, function(p) condition_of(f(x, p)))
-    expect_false(is.null(got$fast))
+    expect_false(is.null(got$fast), label = what)
     for (path in names(got)[-1]) {
-      expect_identical(got[[path]], got$fast, label = path)
+      expect_identical(got[[path]], got$fast, label = paste(what, path))
     }
   }
   case <- pathological()
@@ -137,16 +140,29 @@ test_that("the paths raise the same conditions", {
   bad_utf8 <- c("ok", "\xff")
   for (name in names(every_verb())) {
     verb <- every_verb()[[name]]
-    compare(x, "a(b", verb, re = FALSE)
-    compare(bad_utf8, "a", verb)
-    compare(x, case$pattern, function(x, p) {
-      verb(x, p, limits = re_limits(match = 1000))
-    })
-    compare(x, case$pattern, function(x, p) {
-      verb(x, p, limits = re_limits(match = 1000, on_limit = "na"))
-    })
+    compare(x, "a(b", verb, paste(name, "compile"), re = FALSE)
+    compare(bad_utf8, "a", verb, paste(name, "utf"))
+    compare(
+      x,
+      case$pattern,
+      function(x, p) verb(x, p, limits = re_limits(match = 1000)),
+      paste(name, "limit")
+    )
+    compare(
+      x,
+      case$pattern,
+      function(x, p) {
+        verb(x, p, limits = re_limits(match = 1000, on_limit = "na"))
+      },
+      paste(name, "limit na")
+    )
   }
-  compare("abc", "b", function(x, p) re_replace(x, p, "x${oops"))
+  compare(
+    "abc",
+    "b",
+    function(x, p) re_replace(x, p, "x${oops"),
+    "re_replace template"
+  )
 })
 
 test_that("the paths agree on flags, literal and every argument", {
@@ -189,4 +205,39 @@ test_that("the paths agree on flags, literal and every argument", {
   fast <- run(paths$fast)
   expect_identical(run(paths$vector), fast)
   expect_identical(run(paths$re), fast)
+})
+
+test_that("every verb takes its fast path for the common call", {
+  # Only re_detect()'s fast path was shown to be taken, so the comparisons
+  # above could compare the general path with itself (#106).
+  general <- character()
+  local_mocked_bindings(
+    prepare = function(...) {
+      general <<- c(general, "called")
+      stop("the general path ran")
+    }
+  )
+  x <- c("ab", "cd")
+  verbs <- every_verb()
+  # A replacement function always takes the general path.
+  verbs$re_replace_fun <- NULL
+  for (name in names(verbs)) {
+    verbs[[name]](x, "a")
+    expect_identical(general, character(), label = name)
+  }
+  # And the mock is what the general path runs.
+  try(re_count(x, c("a", "c")), silent = TRUE)
+  expect_identical(general, "called")
+})
+
+test_that("proto types the columns on every path", {
+  # Only the fast path's proto was tested (#110).
+  x <- c("a1", "b22", NA, "zz")
+  proto <- data.frame(w = "", n = 0L)
+  paths <- every_path(x, "(?<w>[a-z])(?<n>\\d+)")
+  fast <- re_match(x, paths$fast, proto = proto)
+  expect_type(fast$n, "integer")
+  expect_identical(fast$n, c(1L, 22L, NA, NA))
+  expect_identical(re_match(x, paths$vector, proto = proto), fast)
+  expect_identical(re_match(x, paths$re, proto = proto), fast)
 })
