@@ -162,7 +162,13 @@ zuregex_pattern *zuregex_pattern_compile(const zuregex_key *key, int *errcode,
   if (key->jit) {
     // Failure is not an error: the interpreter runs instead, and re_info()
     // says which one this pattern uses (design section 4).
-    p->jit_in_use = pcre2_jit_compile(p->code, PCRE2_JIT_COMPLETE) == 0;
+    // (*NO_JIT) makes it succeed without JIT code, so ask for the code's
+    // size rather than trusting the return value.
+    size_t jit_size = 0;
+    p->jit_in_use =
+      pcre2_jit_compile(p->code, PCRE2_JIT_COMPLETE) == 0 &&
+      pcre2_pattern_info(p->code, PCRE2_INFO_JITSIZE, &jit_size) == 0 &&
+      jit_size > 0;
   }
   p->refs = 1;
   p->pattern = copy;

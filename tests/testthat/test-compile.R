@@ -189,3 +189,16 @@ test_that("(*UTF) is refused in patterns matched as bytes", {
   # Character input is UTF-8 already, so (*UTF) is harmless there.
   expect_identical(re_count("éa", "(*UTF)."), 2L)
 })
+
+test_that("(*NO_JIT) patterns run on the interpreter", {
+  # pcre2_jit_compile() succeeds for them without making JIT code, and
+  # every verb failed with "bad JIT option" (#105).
+  skip_if_not(zuregex_info()$jit_usable, "JIT is not usable here")
+  expect_false(re_info(re_compile("(*NO_JIT)b"))$jit)
+  x <- c("abc", "xyz")
+  for (name in names(every_verb())) {
+    expect_no_error(every_verb()[[name]](x, "(*NO_JIT)b"))
+  }
+  expect_identical(re_count(x, "(*NO_JIT)b"), c(1L, 0L))
+  expect_identical(re_count(charToRaw("abc"), "(*NO_JIT)b"), 1L)
+})
