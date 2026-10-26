@@ -24,8 +24,15 @@ jobs:
   valgrind:
     uses: pedrobtz/r-actions/.github/workflows/valgrind.yml@v1
     with:
-      # libgomp's worker threads outlive the tests; see the file.
+      # libgomp's and cli's threads outlive the tests; see the file.
       suppressions: tools/valgrind.supp
+      # The default, plus --child-silent-after-fork: test-threads.R forks
+      # with parallel::mclapply(), whose children the parent kills, so
+      # valgrind would report whatever each child still held (glibc's
+      # environment and loader blocks, cli's thread), none of it zuregex's.
+      valgrind-opts: >-
+        --leak-check=full --track-origins=yes --num-callers=30
+        --child-silent-after-fork=yes
       profile: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci') && 'quick' || 'full' }}
 
   lto:
