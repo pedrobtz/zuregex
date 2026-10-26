@@ -27,9 +27,9 @@ Authors:
 
 Other contributors:
 \itemize{
-  \item Philip Hazel (PCRE2, bundled in src/vendor/pcre2) [copyright holder]
+  \item Philip Hazel (Author of PCRE2, bundled in src/vendor/pcre2) [contributor, copyright holder]
   \item University of Cambridge (PCRE2, bundled in src/vendor/pcre2) [copyright holder]
-  \item Zoltan Herczeg (PCRE2 JIT compiler and sljit, bundled in src/vendor/pcre2) [copyright holder]
+  \item Zoltan Herczeg (Author of the PCRE2 JIT compiler and sljit, bundled in src/vendor/pcre2) [contributor, copyright holder]
   \item Nicholas Wilson (PCRE2 maintainer, bundled in src/vendor/pcre2) [contributor]
   \item PCRE2 contributors (see inst/COPYRIGHTS) [copyright holder]
 }
