@@ -262,7 +262,9 @@ raise_match_error <- function(err, call) {
 # The fast path: a verb's .Call given `x` and one pattern string, which
 # returns the value itself, NULL when the call needs the general path, or
 # a "zuregex_result" list when something went wrong. fast_result() turns
-# that list into its error or warning.
+# that list into its error or warning. A verb returns the fast result at
+# once, unless both paths share work after it (re_locate_all(), re_split()),
+# which then starts from out <- NULL.
 fast_result <- function(res, call, pattern, repl = NULL, opts = NULL) {
   err <- res$error
   if (!is.null(err) && err$kind %in% c("compile", "flags")) {
