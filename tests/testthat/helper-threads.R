@@ -30,3 +30,15 @@ with_serial_bytes <- function(bytes, f) {
   on.exit(zuregex:::serial_bytes(old))
   f()
 }
+
+# The fork test forks with parallel::mclapply(), whose children the parent
+# kills; CRAN's valgrind would report what each still held. It runs where
+# ZUREGEX_FORK_TESTS=true, which the R-CMD-check and macos-openmp workflows
+# set, or under NOT_CRAN=true, as devtools::test() and native-checks have.
+skip_unless_fork_tests <- function() {
+  skip_if_not(
+    identical(Sys.getenv("ZUREGEX_FORK_TESTS"), "true") ||
+      identical(Sys.getenv("NOT_CRAN"), "true"),
+    "fork tests run only with ZUREGEX_FORK_TESTS=true or NOT_CRAN=true"
+  )
+}

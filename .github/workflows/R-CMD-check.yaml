@@ -23,9 +23,12 @@ jobs:
       # `full-ci` label runs the full set on a pull request before merging.
       profile: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci') && 'quick' || 'full' }}
       # Timing bounds hold only on uninstrumented builds, so this workflow
-      # alone asks for them (tests/testthat/helper-timing.R).
+      # alone asks for them (tests/testthat/helper-timing.R). The fork test
+      # stays off CRAN, whose valgrind would report the children
+      # mclapply() kills (tests/testthat/helper-threads.R).
       env: |
         ZUREGEX_TIMING_TESTS=true
+        ZUREGEX_FORK_TESTS=true
       # CRAN's NOSUGGESTS and NOLD flavours, full profile only. The package
       # has Suggests (stringr, testthat, withr) that must degrade cleanly,
       # and doubles cross the R/C boundary as limits and offsets.
