@@ -105,7 +105,7 @@ re_extract <- function(
     group,
     all = FALSE,
     n = 1,
-    lim,
+    lim = lim,
     call = call,
     opts = opts
   )
@@ -171,7 +171,7 @@ re_extract_all <- function(
     group,
     all = TRUE,
     n = n,
-    lim,
+    lim = lim,
     call = call,
     opts = opts
   )
@@ -226,7 +226,7 @@ re_match <- function(
     pattern,
     all = FALSE,
     n = 1,
-    lim,
+    lim = lim,
     call = call,
     opts = opts
   )
@@ -283,7 +283,15 @@ re_match_all <- function(
       return(out)
     }
   }
-  match_groups(x, pattern, all = TRUE, n = n, lim, call = call, opts = opts)
+  match_groups(
+    x,
+    pattern,
+    all = TRUE,
+    n = n,
+    lim = lim,
+    call = call,
+    opts = opts
+  )
 }
 
 check_n <- function(n, call) {
