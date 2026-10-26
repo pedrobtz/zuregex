@@ -177,3 +177,11 @@ test_that("zr_strerror() describes every status code", {
   expect_identical(msgs[[9]], "PCRE2 error")
   expect_identical(anyDuplicated(msgs), 0L)
 })
+
+test_that("a start inside a UTF-8 character is ZR_ERROR_ARGUMENT", {
+  # The one PCRE2 argument error zuregex's own checks let through (#107).
+  expect_identical(
+    capi_match("a", "éa", start = 1)[[1]],
+    zr()$ERROR_ARGUMENT
+  )
+})
