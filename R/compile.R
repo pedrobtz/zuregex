@@ -85,7 +85,15 @@ re_compile <- function(
     check_flag(literal, "literal", call)
     check_flag(jit, "jit", call)
   }
-  compile_patterns(enc2utf8(pattern), flags, dialect, literal, jit)
+  out <- compile_patterns(
+    unname(enc2utf8(pattern)),
+    flags,
+    dialect,
+    literal,
+    jit
+  )
+  names(out) <- names(pattern)
+  out
 }
 
 is_string <- function(x) {
@@ -355,7 +363,15 @@ re_index <- function(x, i) {
 
 #' @export
 `[[.re` <- function(x, i) {
-  x[i]
+  idx <- if (length(i) == 1L) re_index(x, i) else NA
+  if (anyNA(idx)) {
+    zuregex_abort(
+      "argument",
+      "`[[` takes one element of an `re` vector that exists.",
+      call = sys.call()
+    )
+  }
+  x[idx]
 }
 
 #' @export

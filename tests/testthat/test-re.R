@@ -87,3 +87,26 @@ test_that("assigning past the end or to a new name is refused", {
   expect_error(re["x"] <- re_compile("z"), class = "zuregex_error_argument")
   expect_identical(as.character(re), c("a", "b"))
 })
+
+test_that("re_compile() keeps pattern names", {
+  # Names were dropped, so name indexing needed names<- first (#116).
+  re <- re_compile(c(year = "\\d{4}", word = "[a-z]+"))
+  expect_named(re, c("year", "word"))
+  expect_identical(as.character(re["word"]), "[a-z]+")
+  expect_null(names(attr(re, "pattern")))
+})
+
+test_that("[[ on an re vector takes exactly one existing element", {
+  # [[.re was x[i], so it returned NA elements and length-2 vectors (#116).
+  re <- re_compile(c(a = "x", b = "y"))
+  expect_identical(as.character(re[["b"]]), "y")
+  expect_identical(as.character(re[[1]]), "x")
+  expect_error(re[[5]], class = "zuregex_error_argument")
+  expect_error(re[["zz"]], class = "zuregex_error_argument")
+  expect_error(re[[1:2]], class = "zuregex_error_argument")
+  # [[<- takes one re object (#117).
+  expect_error(
+    re[[1]] <- re_compile(c("p", "q")),
+    class = "zuregex_error_argument"
+  )
+})

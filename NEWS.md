@@ -14,7 +14,8 @@
 * `re_compile()` compiles patterns with flag letters, a JavaScript dialect,
   literal patterns and JIT compilation into `re` objects, which survive
   `saveRDS()`. `re_info()` describes them, and `re_escape()` quotes
-  metacharacters.
+  metacharacters. An `re` vector keeps its patterns' names and subsets by
+  them.
 * `\C`, which matches one byte, is a compile error in a pattern matched
   as UTF-8, because it could split a character. Bytes patterns allow it,
   and may not use `(*UTF)`, which would match UTF-8 nothing has checked.
