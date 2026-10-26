@@ -21,9 +21,11 @@
   [`re_info()`](https://pedrobtz.github.io/zuregex/reference/re_info.md)
   describes them, and
   [`re_escape()`](https://pedrobtz.github.io/zuregex/reference/re_escape.md)
-  quotes metacharacters.
+  quotes metacharacters. An `re` vector keeps its patterns’ names and
+  subsets by them.
 - `\C`, which matches one byte, is a compile error in a pattern matched
-  as UTF-8, because it could split a character. Bytes patterns allow it.
+  as UTF-8, because it could split a character. Bytes patterns allow it,
+  and may not use `(*UTF)`, which would match UTF-8 nothing has checked.
 - Patterns are cached, 128 by default;
   [`re_cache_size()`](https://pedrobtz.github.io/zuregex/reference/re_cache_size.md)
   and

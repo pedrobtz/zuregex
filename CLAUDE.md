@@ -174,7 +174,7 @@ without the R API.
 - `tools/oracles/python-re.py` records Python’s results for
   `tests/testthat/test-python.R`.
 - Limits reach C as one double vector (match, depth, heap, on_limit),
-  made by `call_limits()` in `R/limits.R`. `zuregex_collect()` turns it
+  made by `verb_limits()` in `R/limits.R`. `zuregex_collect()` turns it
   into a PCRE2 match context whose memory comes from `R_alloc()`, so it
   needs no freeing. A replacement function makes two passes; R passes
   each element’s first row to the second, so a limited element cannot

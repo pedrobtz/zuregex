@@ -30,13 +30,14 @@ Authors:
 
 Other contributors:
 
-- Philip Hazel (PCRE2, bundled in src/vendor/pcre2) \[copyright holder\]
+- Philip Hazel (Author of PCRE2, bundled in src/vendor/pcre2)
+  \[contributor, copyright holder\]
 
 - University of Cambridge (PCRE2, bundled in src/vendor/pcre2)
   \[copyright holder\]
 
-- Zoltan Herczeg (PCRE2 JIT compiler and sljit, bundled in
-  src/vendor/pcre2) \[copyright holder\]
+- Zoltan Herczeg (Author of the PCRE2 JIT compiler and sljit, bundled in
+  src/vendor/pcre2) \[contributor, copyright holder\]
 
 - Nicholas Wilson (PCRE2 maintainer, bundled in src/vendor/pcre2)
   \[contributor\]

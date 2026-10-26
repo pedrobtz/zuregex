@@ -155,7 +155,8 @@ each element of a list of raw vectors, and so is a character vector with
 any element marked as <code>"bytes"</code>. Patterns are then compiled without UTF-8
 support, so <code>.</code> matches one byte. <code>\\C</code>, which matches one byte, is
 allowed only then: in a UTF-8 pattern it is a compile error, since it
-could split a character.</p>
+could split a character. A bytes pattern may not turn UTF-8 back on with
+<code>(*UTF)</code>.</p>
     </div>
 
     <div class="section level2">

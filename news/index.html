@@ -42,9 +42,9 @@
 <div class="section level3">
 <h3 id="compiling-0-1-0">Compiling<a class="anchor" aria-label="anchor" href="#compiling-0-1-0"></a></h3>
 <ul><li>
-<code><a href="../reference/re_compile.html">re_compile()</a></code> compiles patterns with flag letters, a JavaScript dialect, literal patterns and JIT compilation into <code>re</code> objects, which survive <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code>. <code><a href="../reference/re_info.html">re_info()</a></code> describes them, and <code><a href="../reference/re_escape.html">re_escape()</a></code> quotes metacharacters.</li>
+<code><a href="../reference/re_compile.html">re_compile()</a></code> compiles patterns with flag letters, a JavaScript dialect, literal patterns and JIT compilation into <code>re</code> objects, which survive <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code>. <code><a href="../reference/re_info.html">re_info()</a></code> describes them, and <code><a href="../reference/re_escape.html">re_escape()</a></code> quotes metacharacters. An <code>re</code> vector keeps its patterns’ names and subsets by them.</li>
 <li>
-<code>\C</code>, which matches one byte, is a compile error in a pattern matched as UTF-8, because it could split a character. Bytes patterns allow it.</li>
+<code>\C</code>, which matches one byte, is a compile error in a pattern matched as UTF-8, because it could split a character. Bytes patterns allow it, and may not use <code>(*UTF)</code>, which would match UTF-8 nothing has checked.</li>
 <li>Patterns are cached, 128 by default; <code><a href="../reference/re_cache_size.html">re_cache_size()</a></code> and <code><a href="../reference/re_cache_size.html">re_cache_clear()</a></code> manage the cache.</li>
 </ul></div>
 <div class="section level3">
