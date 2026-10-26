@@ -190,3 +190,26 @@ test_that("the paths agree on flags, literal and every argument", {
   expect_identical(run(paths$vector), fast)
   expect_identical(run(paths$re), fast)
 })
+
+test_that("every verb takes its fast path for the common call", {
+  # Only re_detect()'s fast path was shown to be taken, so the comparisons
+  # above could compare the general path with itself (#106).
+  general <- character()
+  local_mocked_bindings(
+    prepare = function(...) {
+      general <<- c(general, "called")
+      stop("the general path ran")
+    }
+  )
+  x <- c("ab", "cd")
+  verbs <- every_verb()
+  # A replacement function always takes the general path.
+  verbs$re_replace_fun <- NULL
+  for (name in names(verbs)) {
+    verbs[[name]](x, "a")
+    expect_identical(general, character(), label = name)
+  }
+  # And the mock is what the general path runs.
+  try(re_count(x, c("a", "c")), silent = TRUE)
+  expect_identical(general, "called")
+})
