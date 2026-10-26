@@ -16,7 +16,8 @@
   `saveRDS()`. `re_info()` describes them, and `re_escape()` quotes
   metacharacters.
 * `\C`, which matches one byte, is a compile error in a pattern matched
-  as UTF-8, because it could split a character. Bytes patterns allow it.
+  as UTF-8, because it could split a character. Bytes patterns allow it,
+  and may not use `(*UTF)`, which would match UTF-8 nothing has checked.
 * Patterns are cached, 128 by default; `re_cache_size()` and
   `re_cache_clear()` manage the cache.
 

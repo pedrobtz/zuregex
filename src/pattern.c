@@ -135,6 +135,11 @@ zuregex_pattern *zuregex_pattern_compile(const zuregex_key *key, int *errcode,
     // PCRE2_NO_UTF_CHECK. Bytes patterns keep it.
     if (key->utf) {
       options |= PCRE2_NEVER_BACKSLASH_C;
+    } else {
+      // A bytes pattern must stay bytes: (*UTF) would turn on UTF matching
+      // that nothing has checked the subject for, and phase 2 would trust
+      // it, as key.utf says the pattern is not UTF.
+      options |= PCRE2_NEVER_UTF;
     }
     if (key->dialect == ZUREGEX_DIALECT_JS) {
       options |= JS_OPTIONS;

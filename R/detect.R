@@ -25,7 +25,8 @@
 #' any element marked as `"bytes"`. Patterns are then compiled without UTF-8
 #' support, so `.` matches one byte. `\\C`, which matches one byte, is
 #' allowed only then: in a UTF-8 pattern it is a compile error, since it
-#' could split a character.
+#' could split a character. A bytes pattern may not turn UTF-8 back on with
+#' `(*UTF)`.
 #'
 #' @param x A character vector, a raw vector, or a list of raw vectors.
 #'   `NA` (or `NULL` in a list) gives `NA`.

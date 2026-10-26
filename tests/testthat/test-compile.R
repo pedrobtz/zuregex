@@ -169,3 +169,23 @@ test_that("compile errors are classed on every route into the cache", {
   )
   expect_identical(err$offset, 3L)
 })
+
+test_that("(*UTF) is refused in patterns matched as bytes", {
+  # It turned on UTF matching without any UTF-8 check, and let \C back in
+  # (#104).
+  raw <- as.raw(c(0x61, 0xff, 0xfe, 0x80, 0x62))
+  expect_error(re_count(raw, "(*UTF)."), class = "zuregex_error_compile")
+  expect_error(
+    re_count(list(raw, raw), c("(*UTF).", "(*UTF).")),
+    class = "zuregex_error_compile"
+  )
+  b <- "é"
+  Encoding(b) <- "bytes"
+  expect_error(re_detect(b, "(*UTF)\\C"), class = "zuregex_error_compile")
+  expect_error(
+    re_detect(c(b, "a"), re_compile("(*UTF).")),
+    class = "zuregex_error_compile"
+  )
+  # Character input is UTF-8 already, so (*UTF) is harmless there.
+  expect_identical(re_count("éa", "(*UTF)."), 2L)
+})

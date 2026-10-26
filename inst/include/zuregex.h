@@ -32,7 +32,9 @@ typedef struct zr_pattern zr_pattern;
  * thread. */
 typedef struct zr_match_data zr_match_data;
 
-/* zr_compile() flags, the bit form of re_compile()'s letters. */
+/* zr_compile() flags, the bit form of re_compile()'s letters. Without
+ * ZR_BYTES a pattern is UTF-8 and may not use \C, which could end a match
+ * inside a character; with it, the pattern may not use (*UTF). */
 #define ZR_CASELESS          0x00000001u /* i */
 #define ZR_MULTILINE         0x00000002u /* m */
 #define ZR_DOTALL            0x00000004u /* s */
