@@ -15,8 +15,8 @@
 # C99 and C++ with nothing else, zuregex-r.h as a consumer's translation
 # unit would. A warning there is a broken build in someone else's package.
 on:
-  push:
-    branches: [main, master]
+  # No `push:`: a pull request already checks its merge with main,
+  # and the schedule checks main (r-actions README, "Pushes to main").
   pull_request:
   workflow_dispatch:
 

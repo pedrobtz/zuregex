@@ -16,7 +16,7 @@ on:
   # Weekly: a consumer whose own branch has moved on can break against this
   # one without a pull request on either side.
   schedule:
-    - cron: "37 5 * * 3"
+    - cron: "52 17 * * 0"
   workflow_dispatch:
 
 name: revdep

@@ -7,7 +7,7 @@ on:
   schedule:
     # A long run nightly. The corpus cache is what makes the short pull
     # request runs and this one add up to a single campaign.
-    - cron: "0 3 * * *"
+    - cron: "42 17 * * *"
   workflow_dispatch:
 
 name: fuzz
