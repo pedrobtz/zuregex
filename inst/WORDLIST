@@ -3,6 +3,7 @@ CMake
 Lifecycle
 LinkingTo
 OpenMP
+PyPcre
 R's
 R’s
 pcre

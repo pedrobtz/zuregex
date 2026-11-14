@@ -8,6 +8,20 @@
 \description{
 Matches regular expressions with a bundled copy of the 'PCRE2' library (\url{https://github.com/PCRE2Project/pcre2}), so that every platform runs the same version with its just-in-time compiler. Patterns are compiled once and cached, matching runs on several threads, and capture groups are returned as character vectors and data frames built in C. Replacements use the full 'PCRE2' substitution language, and each call can bound its work with match, depth and heap limits. Other packages reach the same library from C through 'LinkingTo', instead of bundling their own copy.
 }
+\section{Scope}{
+
+zuregex matches with PCRE2's 8-bit library and its just-in-time
+compiler. It leaves out, by design:
+\itemize{
+\item A linear-time guarantee. PCRE2 backtracks; \code{\link[=re_limits]{re_limits()}} bounds the
+work of a match, and the re2 package matches in linear time.
+\item Pattern syntax of its own. Patterns are PCRE2's, as with base R's
+\code{perl = TRUE}.
+\item PCRE2's 16-bit and 32-bit libraries, and its \code{pcre2grep} and
+\code{pcre2test} programs.
+}
+}
+
 \seealso{
 Useful links:
 \itemize{

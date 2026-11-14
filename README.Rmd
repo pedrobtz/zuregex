@@ -21,28 +21,19 @@ knitr::opts_chunk$set(
 [![coverage](https://raw.githubusercontent.com/pedrobtz/zuregex/gh-pages/badges/coverage.svg)](https://github.com/pedrobtz/zuregex/actions/workflows/coverage.yaml)
 <!-- badges: end -->
 
-Base R already matches regular expressions with
-[PCRE2](https://github.com/PCRE2Project/pcre2) when you ask for
-`perl = TRUE`. But it compiles the pattern again on every call, matches on
-one thread, hands back capture groups as attributes you have to take apart,
-and knows only `\\1` to `\\9` in replacements. A package that needs PCRE2
-from C has to bundle its own copy, as vectorscan does.
+zuregex is a regular expression package that matches with a bundled
+[PCRE2](https://github.com/PCRE2Project/pcre2), the same version on every
+platform, from R and from C.
 
-zuregex bundles one PCRE2, the same version on every platform, and builds
-on it twice: as `re_*()` functions for R, and as a C API other packages
-reach through `LinkingTo`.
+Base R's `perl = TRUE` uses PCRE2 too. zuregex adds what that leaves out:
 
-* **Captures as data.** `re_match()` returns a data frame with a column per
-  group, built in C, and can type the columns as `utils::strcapture()`
-  does.
-* **Compiled once.** Patterns go through a cache, so a pattern used in a
-  loop is compiled once, JIT included.
-* **Many cores.** Matching runs on several threads with OpenMP on large
-  inputs, with the same results on any number of threads.
-* **PCRE2's full replacement language.** Groups by name, past nine, with
-  defaults and conditionals, and case forcing.
-* **Bounded work.** Match, depth and heap limits per call, so one
-  pathological subject gives an error or an `NA` instead of a stall.
+* Capture groups come back as a data frame, one column per group.
+* A pattern is compiled once and cached, and matching runs on several
+  threads where the build has OpenMP.
+* Replacements use PCRE2's full template language: groups by name, past
+  nine, with defaults and case forcing.
+* Other packages reach the same PCRE2 from C through `LinkingTo`, instead
+  of bundling a copy.
 
 ## Installation
 
@@ -62,11 +53,13 @@ pak::pak("pedrobtz/zuregex")
 
 ## Usage
 
-```{r, message = FALSE}
+```{r}
 library(zuregex)
 ```
 
-Take a few lines from a web server's log.
+`re_match()` turns the named groups of a pattern into the columns of a data
+frame, one row per string. The last string is not a log line, so its row
+is `NA`.
 
 ```{r}
 log <- c(
@@ -75,85 +68,28 @@ log <- c(
   "2026-10-21 08:16:44 GET /missing 404 128",
   "not a log line"
 )
-```
-
-`re_detect()` and `re_count()` work as `grepl()` and `stringr::str_count()`
-do, element by element.
-
-```{r}
-re_detect(log, "\\s(?:GET|POST)\\s")
-re_count(log, "\\d+")
-```
-
-`re_match()` turns named groups into columns. A line that does not match is
-a row of `NA`. `proto` gives the columns types, here an integer status.
-
-```{r}
 pattern <- "(?<time>\\S+ \\S+) (?<method>[A-Z]+) (?<path>\\S+) (?<status>\\d+)"
 re_match(log, pattern)
-typed <- re_match(
-  log,
-  pattern,
-  proto = data.frame(time = "", method = "", path = "", status = 0L)
-)
-str(typed)
 ```
 
-Replacements use PCRE2's templates: `${name}` for a named group, and
-`${n:-default}` for a group that may not take part.
-
-```{r}
-re_replace(log, "^(?<y>\\d+)-(?<m>\\d+)-(?<d>\\d+)", "${d}/${m}/${y}")
-re_replace(c("v1.2", "v3"), "v(\\d+)(?:\\.(\\d+))?", "major $1, minor ${2:-0}")
-```
-
-A function works too. It is called once, with a data frame of every match.
-
-```{r}
-re_replace(log, "/\\w+", function(m) toupper(m[["0"]]))
-```
-
-`re_compile()` sets flags once:
-
-```{r}
-re_detect(c("Hello", "hello"), re_compile("HELLO", flags = "i"))
-```
-
-and `re_limits()` bounds the work. `^(a+)+$` backtracks exponentially on a
-long run of `a` that ends in something else. With a limit, that element
-stops early and gives `NA`, with one warning for the call.
-
-```{r}
-re_detect(
-  c(paste0(strrep("a", 30), "!"), "aaa"),
-  "^(a+)+$",
-  limits = re_limits(match = 1e4, on_limit = "na")
-)
-```
-
-Every function follows the same pattern: `x` first, then `pattern`, which is
-one pattern for every element or one per element, never recycled.
-
-## From C
-
-Packages that need PCRE2 from C add `zuregex` to `Imports` and `LinkingTo`
-and include `<zuregex-r.h>`, instead of bundling their own copy. Patterns and
-match data are opaque handles, so an upgrade of the bundled PCRE2 never
-changes a consumer's build. The header documents the API.
+zuregex also detects, extracts, replaces and splits with the same patterns;
+[Get started](https://pedrobtz.github.io/zuregex/articles/zuregex.html)
+walks through them on this log.
 
 ## Learn more
 
+* [Get started](https://pedrobtz.github.io/zuregex/articles/zuregex.html)
+  takes the log above through every main function.
+* [Move from base R and stringr](https://pedrobtz.github.io/zuregex/articles/from-base-r.html)
+  maps `grepl()`, `sub()`, `regmatches()` and the `str_*()` functions onto
+  `re_*()`, and shows what behaves differently.
+* [Bound the work of a match](https://pedrobtz.github.io/zuregex/articles/limits.html)
+  sets match, depth and heap limits for patterns or input you do not
+  trust.
+* [Link to zuregex from C](https://pedrobtz.github.io/zuregex/articles/c-api.html)
+  uses the bundled PCRE2 from another package's C code.
 * The [reference index](https://pedrobtz.github.io/zuregex/reference/)
   lists every function, grouped as the API is.
-* `?re_compile` has the flag letters, `?re_replace` the template syntax,
-  and `?re_limits` what limits can and cannot promise.
 
-## Related work
-
-zuregex bundles [PCRE2](https://github.com/PCRE2Project/pcre2) and checks
-itself against PCRE2's own test results, base R's `perl = TRUE` and
-[stringr](https://stringr.tidyverse.org). Its API borrows from Python's
-[pcre2.py](https://github.com/grtetrault/pcre2.py), JavaScript's
-[node-pcre2](https://github.com/segevfiner/node-pcre2) and Go's
-[go-re2](https://github.com/wasilibs/go-re2). For matching in linear time,
-which PCRE2 cannot promise, use [re2](https://CRAN.R-project.org/package=re2).
+zuregex builds on PCRE2, which backtracks. For matching in linear time, use
+[re2](https://CRAN.R-project.org/package=re2).

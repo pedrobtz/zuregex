@@ -1,0 +1,146 @@
+---
+title: "Move from base R and stringr"
+description: >
+  The re_*() function for each base R and stringr function, and the
+  places where the result differs.
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+This guide is for someone who already matches regular expressions with
+`grepl()`, `sub()` and `regmatches()`, or with stringr, and wants the
+zuregex call that does the same. It gives the equivalents in two tables,
+then shows the differences you would otherwise find by surprise.
+
+```{r setup}
+library(zuregex)
+```
+
+## The equivalent functions
+
+Patterns that work in base R with `perl = TRUE` work unchanged: both use
+PCRE2. stringr matches with ICU, whose syntax is close but not the same,
+so check a pattern that uses anything beyond the common core.
+
+| Task | Base R, `perl = TRUE` | stringr | zuregex |
+| --- | --- | --- | --- |
+| Does it match? | `grepl()` | `str_detect()` | `re_detect()` |
+| How many matches? | `lengths(gregexpr())` | `str_count()` | `re_count()` |
+| Where is the first match? | `regexpr()` | `str_locate()` | `re_locate()` |
+| Where is every match? | `gregexpr()` | `str_locate_all()` | `re_locate_all()` |
+| The first match | `regmatches()` with `regexpr()` | `str_extract()` | `re_extract()` |
+| Every match | `regmatches()` with `gregexpr()` | `str_extract_all()` | `re_extract_all()` |
+| The groups of the first match | `regmatches()` with `regexec()`, `utils::strcapture()` | `str_match()` | `re_match()` |
+| The groups of every match | `gregexec()` | `str_match_all()` | `re_match_all()` |
+| Replace the first match | `sub()` | `str_replace()` | `re_replace(n = 1)` |
+| Replace every match | `gsub()` | `str_replace_all()` | `re_replace()` |
+| Split | `strsplit()` | `str_split()` | `re_split()` |
+| Quote metacharacters | | `str_escape()` | `re_escape()` |
+
+Base R's options become arguments that every `re_*()` function has.
+
+| Base R | zuregex |
+| --- | --- |
+| `perl = TRUE` | always on |
+| `ignore.case = TRUE` | `flags = "i"` |
+| `fixed = TRUE` | `literal = TRUE` |
+| `invert = TRUE` | `re_detect(negate = TRUE)` |
+| `useBytes = TRUE` | a raw vector, or strings marked as `"bytes"` |
+
+The subject comes first and the pattern second, as in stringr. With
+`grepl()` and `sub()` it is the other way round.
+
+```{r}
+x <- c("2026-10-21 GET /index.html", "no date")
+grepl("get", x, ignore.case = TRUE, perl = TRUE)
+re_detect(x, "get", flags = "i")
+```
+
+## Replacement replaces every match
+
+`re_replace()` is `gsub()`, not `sub()`: it replaces all the matches
+unless `n` says otherwise. Compare the first two results, where only the
+year changes, with the third.
+
+```{r}
+sub("\\d+", "#", x, perl = TRUE)
+re_replace(x, "\\d+", "#", n = 1)
+re_replace(x, "\\d+", "#")
+```
+
+## Templates use `$`, and know more
+
+A replacement is a template in PCRE2's syntax, where a group is `$1` or
+`${name}`. Base R writes `\\1` and stops at nine groups, with no names.
+
+```{r}
+sub("(\\d+)-(\\d+)", "\\2/\\1", x, perl = TRUE)
+re_replace(x, "(?<year>\\d+)-(?<month>\\d+)", "${month}/${year}", n = 1)
+```
+
+A template can also give a default for a group that took no part in the
+match. The second version has no minor number, so `${2:-0}` writes `0`.
+
+```{r}
+re_replace(c("v1.2", "v3"), "v(\\d+)(?:\\.(\\d+))?", "major $1, minor ${2:-0}")
+```
+
+`?re_replace` has the whole syntax, and replacement by a function.
+
+## No match is `NA`, not a missing element
+
+`regmatches()` drops the elements that did not match, so its result is
+shorter than its input. `re_extract()` keeps one result per element.
+
+```{r}
+regmatches(x, regexpr("\\d+", x, perl = TRUE))
+re_extract(x, "\\d+")
+```
+
+## Groups come back as a data frame
+
+`str_match()` returns a character matrix whose first column is the whole
+match. `re_match()` returns a data frame of the groups only, named after
+them.
+
+```{r}
+stringr::str_match(x, "(?<year>\\d+)-(?<month>\\d+)")
+re_match(x, "(?<year>\\d+)-(?<month>\\d+)")
+```
+
+With `proto` it does the work of `utils::strcapture()`, and the two calls
+give the same typed data frame.
+
+```{r}
+proto <- data.frame(year = 0L, month = 0L)
+utils::strcapture("(\\d+)-(\\d+)", x, proto, perl = TRUE)
+re_match(x, "(\\d+)-(\\d+)", proto = proto)
+```
+
+## Patterns are never recycled
+
+Base R uses only the first pattern of several, with a warning. zuregex
+follows stringr: a pattern has length one or the length of `x`. Anything
+else is an error, here three patterns for two strings.
+
+```{r, error = TRUE}
+re_detect(x, c("GET", "POST", "PUT"))
+```
+
+## Splitting keeps a trailing empty piece
+
+`strsplit()` drops an empty string after the last separator. `re_split()`
+keeps it, as Python's `re.split()` and `stringr::str_split()` do.
+
+```{r}
+strsplit("a,b,", ",", perl = TRUE)
+re_split("a,b,", ",")
+```
+
+## See also
+
+`?re_detect` describes the arguments every function shares. For the
+reasons behind these choices, read
+[Design and motivation](https://pedrobtz.github.io/zuregex/articles/design.html).
