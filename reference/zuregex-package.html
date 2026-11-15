@@ -15,7 +15,16 @@
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
-      <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/zuregex.html">Get started</a></li>
+<li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/from-base-r.html">Move from base R and stringr</a></li>
+    <li><a class="dropdown-item" href="../articles/limits.html">Bound the work of a match</a></li>
+    <li><a class="dropdown-item" href="../articles/c-api.html">Link to zuregex from C</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
+  </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -38,6 +47,18 @@
     </div>
 
 
+    <div class="section level2">
+    <h2 id="scope">Scope<a class="anchor" aria-label="anchor" href="#scope"></a></h2>
+
+
+<p>zuregex matches with PCRE2's 8-bit library and its just-in-time
+compiler. It leaves out, by design:</p><ul><li><p>A linear-time guarantee. PCRE2 backtracks; <code><a href="re_limits.html">re_limits()</a></code> bounds the
+work of a match, and the re2 package matches in linear time.</p></li>
+<li><p>Pattern syntax of its own. Patterns are PCRE2's, as with base R's
+<code>perl = TRUE</code>.</p></li>
+<li><p>PCRE2's 16-bit and 32-bit libraries, and its <code>pcre2grep</code> and
+<code>pcre2test</code> programs.</p></li>
+</ul></div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p>Useful links:</p><ul><li><p><a href="https://github.com/pedrobtz/zuregex" class="external-link">https://github.com/pedrobtz/zuregex</a></p></li>

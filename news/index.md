@@ -95,3 +95,10 @@
   `zr_pattern` and `zr_match_data` handles, so an upgrade of the bundled
   PCRE2 never changes a consumer’s build. Offsets there are zero-based,
   half-open and in bytes.
+
+### Documentation
+
+- [`vignette("zuregex")`](https://pedrobtz.github.io/zuregex/articles/zuregex.md)
+  is a Get started tutorial that takes one log through the main
+  functions. The website adds articles on moving from base R and
+  stringr, bounding the work of a match, linking from C, and the design.

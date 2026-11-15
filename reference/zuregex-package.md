@@ -10,6 +10,22 @@ can bound its work with match, depth and heap limits. Other packages
 reach the same library from C through 'LinkingTo', instead of bundling
 their own copy.
 
+## Scope
+
+zuregex matches with PCRE2's 8-bit library and its just-in-time
+compiler. It leaves out, by design:
+
+- A linear-time guarantee. PCRE2 backtracks;
+  [`re_limits()`](https://pedrobtz.github.io/zuregex/reference/re_limits.md)
+  bounds the work of a match, and the re2 package matches in linear
+  time.
+
+- Pattern syntax of its own. Patterns are PCRE2's, as with base R's
+  `perl = TRUE`.
+
+- PCRE2's 16-bit and 32-bit libraries, and its `pcre2grep` and
+  `pcre2test` programs.
+
 ## See also
 
 Useful links:
