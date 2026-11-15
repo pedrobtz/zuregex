@@ -1,0 +1,96 @@
+---
+title: "Bound the work of a match"
+description: >
+  Set match, depth and heap limits so that a pattern or input you do not
+  trust gives an error or an NA instead of a stall.
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+This guide is for code that matches patterns or strings it did not write:
+a pattern typed by a user, lines from a file someone uploaded. It shows
+how a match can take very long, how `re_limits()` stops it, and what the
+limits do not promise.
+
+```{r setup}
+library(zuregex)
+```
+
+## The problem
+
+PCRE2 matches by backtracking: when one way of matching fails, it goes
+back and tries the next. A pattern with a repeat inside a repeat, such as
+`^(a+)+$`, has a number of ways that doubles with each extra `a`, and a
+subject that almost matches makes PCRE2 try them all. Twenty `a`s and a
+`!` still get an answer. Thirty do not: the search runs into PCRE2's own
+limit of ten million steps, and the call fails.
+
+```{r, error = TRUE}
+subject <- function(n) paste0(strrep("a", n), "!")
+re_detect(subject(20), "^(a+)+$")
+re_detect(subject(30), "^(a+)+$")
+```
+
+So a match cannot run for ever. But ten million steps is a lot of work to
+spend on each bad string in a long vector, and the error loses the
+answers for the good ones.
+
+## Set a limit for a call
+
+Every matching function takes `limits`, made by `re_limits()`. `match`
+is the number of steps one search may take. Here it is ten thousand, a
+thousandth of the default. The error has the class `zuregex_error_limit`,
+so you can tell it from a pattern that does not compile, and handle it.
+
+```{r}
+x <- c(subject(30), "aaa")
+tryCatch(
+  re_detect(x, "^(a+)+$", limits = re_limits(match = 1e4)),
+  zuregex_error_limit = function(e) "too much work"
+)
+```
+
+## Keep the elements that finished
+
+One bad string should not always lose the whole vector. With
+`on_limit = "na"`, an element that hits a limit is `NA`, the others are
+matched as usual, and the call gives one warning that counts the `NA`s.
+The second element here is `TRUE`.
+
+```{r}
+re_detect(x, "^(a+)+$", limits = re_limits(match = 1e4, on_limit = "na"))
+```
+
+The warning has the class `zuregex_warning_limit`.
+
+## Set a limit for the session
+
+The option `zuregex.limits` applies to every call that does not pass
+`limits` itself. Printing the object shows what it holds.
+
+```{r}
+old <- options(zuregex.limits = re_limits(match = 1e5, on_limit = "na"))
+getOption("zuregex.limits")
+options(old)
+```
+
+## What the limits do not promise
+
+* **Not linear time.** A limit bounds the work for each element; it does
+  not make the pattern cheap. For a guarantee that matching time grows
+  only with the length of the input, use the
+  [re2](https://CRAN.R-project.org/package=re2) package.
+* **Not a time in seconds.** `match` counts PCRE2's steps, which differ
+  in cost from pattern to pattern. Choose it by trying your real
+  patterns.
+* **`depth` and `heap` bind only the interpreter.** PCRE2's just-in-time
+  compiler honours `match` and ignores the other two, so `match` is the
+  limit to rely on.
+
+## See also
+
+`?re_limits` describes each limit and PCRE2's defaults. The C API has the
+same limits; see
+[Link to zuregex from C](https://pedrobtz.github.io/zuregex/articles/c-api.html).

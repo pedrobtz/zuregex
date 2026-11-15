@@ -2,6 +2,17 @@ url: https://pedrobtz.github.io/zuregex/
 template:
   bootstrap: 5
 
+articles:
+  - title: Guides
+    navbar: ~
+    contents:
+      - articles/from-base-r
+      - articles/limits
+      - articles/c-api
+  - title: Concepts
+    contents:
+      - articles/design
+
 reference:
   - title: Compiling and inspecting
     contents:

@@ -1,6 +1,6 @@
 ^LICENSE\.md$
 ^\.agents$
-^vignettes$
+^vignettes/articles$
 ^CLAUDE\.md$
 ^\.claude$
 ^AGENTS\.md$
