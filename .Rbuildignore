@@ -23,3 +23,4 @@
 ^tools/oracles$
 ^tools/pcre2-testdata$
 ^tools/revdep$
+^tools/bench$

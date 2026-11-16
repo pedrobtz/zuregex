@@ -12,6 +12,7 @@ articles:
   - title: Concepts
     contents:
       - articles/design
+      - articles/benchmarks
 
 reference:
   - title: Compiling and inspecting
