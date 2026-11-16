@@ -113,6 +113,38 @@ size_t zuregex_set_max_compiled(size_t bytes) {
   return old;
 }
 
+// Whether `needle` occurs in the first n bytes of s, which may hold NULs.
+static int contains(const char *s, size_t n, const char *needle) {
+  size_t k = strlen(needle);
+  for (size_t i = 0; i + k <= n; i++) {
+    if (memcmp(s + i, needle, k) == 0) return 1;
+  }
+  return 0;
+}
+
+// Whether a compiled pattern has a variable-length lookbehind. PCRE2's JIT
+// matches those wrongly: inside one it takes the lookbehind point for the
+// end of the subject, so \b, $, lookaheads and (*THEN) there misbehave
+// (#167; upstream PCRE2 #974, fixed by the unmerged #1004). Recompiling with
+// no variable-length lookbehind allowed fails with exactly this error when
+// the pattern has one. Only text that could hold a lookbehind is checked,
+// so the second compile costs other patterns nothing; a false alarm from
+// the text only costs that compile. Remove this once the vendored PCRE2
+// has the fix.
+static int has_variable_lookbehind(const char *s, size_t n, uint32_t options,
+                                   pcre2_compile_context *ctx) {
+  if (!contains(s, n, "(?<=") && !contains(s, n, "(?<!") &&
+      !contains(s, n, "lb:") && !contains(s, n, "lookbehind:")) {
+    return 0;
+  }
+  pcre2_set_max_varlookbehind(ctx, 0);
+  int err;
+  PCRE2_SIZE off;
+  pcre2_code *probe = pcre2_compile((PCRE2_SPTR) s, n, options, &err, &off, ctx);
+  pcre2_code_free(probe);
+  return probe == NULL && err == PCRE2_ERROR_MAX_VAR_LOOKBEHIND_EXCEEDED;
+}
+
 zuregex_pattern *zuregex_pattern_compile(const zuregex_key *key, int *errcode,
                                          size_t *erroffset) {
   *errcode = 0;
@@ -164,15 +196,19 @@ zuregex_pattern *zuregex_pattern_compile(const zuregex_key *key, int *errcode,
   PCRE2_SIZE off = 0;
   p->code = pcre2_compile((PCRE2_SPTR) copy, key->length, options, errcode,
                           &off, ctx);
-  pcre2_compile_context_free(ctx);
   if (p->code == NULL) {
+    pcre2_compile_context_free(ctx);
     *erroffset = off;
     free(copy);
     free(p);
     return NULL;
   }
   *errcode = 0;
-  if (key->jit) {
+  int jit = key->jit &&
+            (key->literal ||
+             !has_variable_lookbehind(copy, key->length, options, ctx));
+  pcre2_compile_context_free(ctx);
+  if (jit) {
     // Failure is not an error: the interpreter runs instead, and re_info()
     // says which one this pattern uses (design section 4).
     // (*NO_JIT) makes it succeed without JIT code, so ask for the code's

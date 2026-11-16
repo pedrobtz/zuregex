@@ -252,7 +252,9 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
             break;
           }
         } else {
-          int e = expand(p, s, start, options, md, tmpl, syntax, a, &status[i]);
+          // pcre2_substitute() refuses options that differ from the match's.
+          uint32_t used = options | (status[i].no_jit ? PCRE2_NO_JIT : 0);
+          int e = expand(p, s, start, used, md, tmpl, syntax, a, &status[i]);
           if (e == 0) {
             oom = 1;
             break;
