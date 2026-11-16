@@ -84,7 +84,10 @@ limit compiles to about 150 KB. The cap bounds compiling only; to bound
 matching, use <code><a href="re_limits.html">re_limits()</a></code>.</p>
 <p>The cap applies to every compile in the session, including compiles
 through the C API. A pattern already in the cache keeps working when the
-cap is lowered; <code><a href="re_cache_size.html">re_cache_clear()</a></code> drops it.</p>
+cap is lowered; <code><a href="re_cache_size.html">re_cache_clear()</a></code> drops it. An <code>re</code> object's pattern is
+compiled again for bytes subjects and after <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">readRDS()</a></code>, and that compile
+is held to the cap of the moment, so an object made under a higher cap
+may refuse raw subjects once the cap is lowered.</p>
     </div>
 
     <div class="section level2">

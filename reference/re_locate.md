@@ -40,7 +40,9 @@ re_locate_all(
 
 - bytes:
 
-  If `TRUE`, offsets count bytes instead of characters.
+  If `TRUE`, offsets count bytes instead of characters. A string in
+  another encoding, such as latin1, is matched as UTF-8, so the bytes
+  counted are those of its UTF-8 form.
 
 - flags:
 

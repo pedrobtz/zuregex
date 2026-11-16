@@ -35,7 +35,10 @@ The cap applies to every compile in the session, including compiles
 through the C API. A pattern already in the cache keeps working when the
 cap is lowered;
 [`re_cache_clear()`](https://pedrobtz.github.io/zuregex/reference/re_cache_size.md)
-drops it.
+drops it. An `re` object's pattern is compiled again for bytes subjects
+and after [`readRDS()`](https://rdrr.io/r/base/readRDS.html), and that
+compile is held to the cap of the moment, so an object made under a
+higher cap may refuse raw subjects once the cap is lowered.
 
 ## Examples
 
