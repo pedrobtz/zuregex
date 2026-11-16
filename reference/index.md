@@ -43,6 +43,8 @@
 - [`re_cache_size()`](https://pedrobtz.github.io/zuregex/reference/re_cache_size.md)
   [`re_cache_clear()`](https://pedrobtz.github.io/zuregex/reference/re_cache_size.md)
   : The compiled-pattern cache
+- [`re_compile_size()`](https://pedrobtz.github.io/zuregex/reference/re_compile_size.md)
+  : Cap the size of a compiled pattern
 
 ## The package
 

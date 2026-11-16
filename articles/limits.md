@@ -92,6 +92,10 @@ options(old)
 - **Not a time in seconds.** `match` counts PCRE2’s steps, which differ
   in cost from pattern to pattern. Choose it by trying your real
   patterns.
+- **Not compiling.** The limits bound matching. Compiling is bounded
+  separately: a compiled pattern may take at most 16 MiB, which
+  [`re_compile_size()`](https://pedrobtz.github.io/zuregex/reference/re_compile_size.md)
+  changes.
 - **`depth` and `heap` bind only the interpreter.** PCRE2’s just-in-time
   compiler honours `match` and ignores the other two, so `match` is the
   limit to rely on.

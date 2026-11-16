@@ -155,6 +155,10 @@ matching time grows only with the length of the input, use the <a href="https://
 PCRE2’s steps, which differ in cost from pattern to pattern. Choose it
 by trying your real patterns.</li>
 <li>
+<strong>Not compiling.</strong> The limits bound matching. Compiling
+is bounded separately: a compiled pattern may take at most 16 MiB, which
+<code><a href="../reference/re_compile_size.html">re_compile_size()</a></code> changes.</li>
+<li>
 <strong><code>depth</code> and <code>heap</code> bind only the
 interpreter.</strong> PCRE2’s just-in-time compiler honours
 <code>match</code> and ignores the other two, so <code>match</code> is

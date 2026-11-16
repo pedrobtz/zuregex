@@ -55,6 +55,7 @@
 <li>
 <code>\C</code>, which matches one byte, is a compile error in a pattern matched as UTF-8, because it could split a character. Bytes patterns allow it, and may not use <code>(*UTF)</code>, which would match UTF-8 nothing has checked.</li>
 <li>Patterns are cached, 128 by default; <code><a href="../reference/re_cache_size.html">re_cache_size()</a></code> and <code><a href="../reference/re_cache_size.html">re_cache_clear()</a></code> manage the cache.</li>
+<li>A compiled pattern may take at most 16 MiB, so a short pattern of nested counted repeats cannot take gigabytes of memory to compile. A larger one is a compile error, refused before PCRE2 allocates; <code><a href="../reference/re_compile_size.html">re_compile_size()</a></code> changes the cap.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="matching-0-1-0">Matching<a class="anchor" aria-label="anchor" href="#matching-0-1-0"></a></h3>

@@ -31,6 +31,11 @@
   and
   [`re_cache_clear()`](https://pedrobtz.github.io/zuregex/reference/re_cache_size.md)
   manage the cache.
+- A compiled pattern may take at most 16 MiB, so a short pattern of
+  nested counted repeats cannot take gigabytes of memory to compile. A
+  larger one is a compile error, refused before PCRE2 allocates;
+  [`re_compile_size()`](https://pedrobtz.github.io/zuregex/reference/re_compile_size.md)
+  changes the cap.
 
 ### Matching
 
