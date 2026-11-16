@@ -175,3 +175,9 @@ use [re2](https://CRAN.R-project.org/package=re2).
 
   Why zuregex exists next to base R’s own PCRE2, how the cache and the
   threads work, what it was checked against, and what it leaves out.
+
+- [Performance against base R and
+  stringi](https://pedrobtz.github.io/zuregex/articles/benchmarks.md):
+
+  How long zuregex takes for common tasks, next to base R’s perl = TRUE
+  functions and stringi, and what the numbers do and do not show.
