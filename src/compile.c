@@ -4,6 +4,15 @@
 // holding one reference to a zuregex_pattern. An NA pattern is NULL in the
 // list. An external pointer read back from saveRDS() has a NULL address;
 // re_valid_c() lets the R side find and recompile those.
+//
+// Each pointer is tagged, so a pointer from another package put into an
+// `re` object reads as stale and is recompiled, never dereferenced (#159).
+// Its finalizer is registered through a weak reference kept in a registry:
+// when the package unloads, .onUnload() calls zuregex_unload_c(), which runs
+// every pending finalizer while
+// the code is still loaded, as Writing R Extensions asks of a DLL with C
+// finalizers. A finalizer left behind would point into unmapped code and
+// crash the next gc() (#168).
 
 #include <limits.h>
 #include <string.h>
@@ -11,12 +20,73 @@
 #include "zuregex.h"
 #include "pattern.h"
 
+static SEXP pattern_tag(void) {
+  static SEXP tag = NULL;
+  if (tag == NULL) tag = Rf_install("zuregex_pattern");
+  return tag;
+}
+
+zuregex_pattern *zuregex_pattern_of(SEXP ptr) {
+  if (TYPEOF(ptr) != EXTPTRSXP || R_ExternalPtrTag(ptr) != pattern_tag()) {
+    return NULL;
+  }
+  return R_ExternalPtrAddr(ptr);
+}
+
 static void finalize_pattern(SEXP ptr) {
-  zuregex_pattern *p = R_ExternalPtrAddr(ptr);
+  zuregex_pattern *p = zuregex_pattern_of(ptr);
   if (p != NULL) {
     R_ClearExternalPtr(ptr);
     zuregex_pattern_release(p);
   }
+}
+
+// The weak references that carry the finalizers, in a preserved list.
+// Entries whose pointer has been collected are dropped when it fills.
+static SEXP registry = NULL;
+static R_xlen_t registry_n = 0;
+
+static void registry_add(SEXP weak) {
+  if (registry == NULL) {
+    registry = Rf_allocVector(VECSXP, 64);
+    R_PreserveObject(registry);
+  }
+  if (registry_n == XLENGTH(registry)) {
+    R_xlen_t kept = 0;
+    for (R_xlen_t i = 0; i < registry_n; i++) {
+      SEXP w = VECTOR_ELT(registry, i);
+      if (R_WeakRefKey(w) != R_NilValue) SET_VECTOR_ELT(registry, kept++, w);
+    }
+    for (R_xlen_t i = kept; i < registry_n; i++) {
+      SET_VECTOR_ELT(registry, i, R_NilValue);
+    }
+    registry_n = kept;
+    // Grow when more than half is still live, so pruning stays rare.
+    if (registry_n > XLENGTH(registry) / 2) {
+      SEXP bigger = PROTECT(Rf_allocVector(VECSXP, 2 * XLENGTH(registry)));
+      for (R_xlen_t i = 0; i < registry_n; i++) {
+        SET_VECTOR_ELT(bigger, i, VECTOR_ELT(registry, i));
+      }
+      R_PreserveObject(bigger);
+      R_ReleaseObject(registry);
+      registry = bigger;
+      UNPROTECT(1);
+    }
+  }
+  SET_VECTOR_ELT(registry, registry_n++, weak);
+}
+
+SEXP zuregex_unload_c(void) {
+  if (registry != NULL) {
+    for (R_xlen_t i = 0; i < registry_n; i++) {
+      R_RunWeakRefFinalizer(VECTOR_ELT(registry, i));
+    }
+    R_ReleaseObject(registry);
+    registry = NULL;
+    registry_n = 0;
+  }
+  zuregex_cache_clear();
+  return R_NilValue;
 }
 
 // An error description for the R side to raise: list(kind, element,
@@ -105,8 +175,10 @@ static SEXP compile_table(SEXP pattern, const char *f, int dialect,
     if (s == NA_STRING) continue;
     // The external pointer exists before the pattern does, so an
     // allocation error here cannot leak a reference.
-    SEXP ptr = PROTECT(R_MakeExternalPtr(NULL, R_NilValue, R_NilValue));
-    R_RegisterCFinalizerEx(ptr, finalize_pattern, TRUE);
+    SEXP ptr = PROTECT(R_MakeExternalPtr(NULL, pattern_tag(), R_NilValue));
+    SEXP weak = PROTECT(R_MakeWeakRefC(ptr, R_NilValue, finalize_pattern, TRUE));
+    registry_add(weak);
+    UNPROTECT(1);
     key.pattern = CHAR(s);
     key.length = (size_t) LENGTH(s);
     int errcode;
@@ -180,9 +252,7 @@ SEXP zuregex_prepare_c(SEXP x, SEXP pattern, SEXP flags, SEXP literal) {
 }
 
 static zuregex_pattern *pattern_at(SEXP re, R_xlen_t i) {
-  SEXP ptr = VECTOR_ELT(re, i);
-  if (TYPEOF(ptr) != EXTPTRSXP) return NULL;
-  return R_ExternalPtrAddr(ptr);
+  return zuregex_pattern_of(VECTOR_ELT(re, i));
 }
 
 // TRUE where an element holds a live pattern; FALSE for NA patterns and
