@@ -15,7 +15,7 @@ zuregex_info()
 
 A list with elements:
 
-- `pcre2_version`: the bundled PCRE2 version, such as `"10.48"`.
+- `pcre2_version`: the bundled PCRE2 version, such as `"10.49"`.
 
 - `pcre2_date`: its release date.
 
@@ -59,10 +59,10 @@ pattern.
 ``` r
 zuregex_info()
 #> $pcre2_version
-#> [1] "10.48"
+#> [1] "10.49"
 #> 
 #> $pcre2_date
-#> [1] "2026-08-31"
+#> [1] "2026-09-28"
 #> 
 #> $unicode
 #> [1] TRUE

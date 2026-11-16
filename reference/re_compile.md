@@ -90,8 +90,8 @@ re_info(re)
 #> 1 (\\d+)-(\\d+)     i    pcre   FALSE      2          ,  TRUE          3       
 #> 2      ^[a-z]+$     i    pcre   FALSE      0             TRUE          1       
 #>   backrefs pcre2_version
-#> 1    FALSE         10.48
-#> 2    FALSE         10.48
+#> 1    FALSE         10.49
+#> 2    FALSE         10.49
 
 # A literal pattern needs no escaping
 re_compile("1+1=2", literal = TRUE)

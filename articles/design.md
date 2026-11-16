@@ -45,7 +45,7 @@ same wherever zuregex is installed, the second is not.
 ``` r
 
 zuregex_info()$pcre2_version
-#> [1] "10.48"
+#> [1] "10.49"
 extSoftVersion()[["PCRE"]]
 #> [1] "10.42 2022-12-11"
 ```

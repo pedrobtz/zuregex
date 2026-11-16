@@ -49,6 +49,6 @@ re_info(re_compile(c("(?<year>\\d{4})-(\\d{2})", "abc+")))
 #> 1 (?<year>\\d{4})-(\\d{2})          pcre   FALSE      2      year,  TRUE
 #> 2                     abc+          pcre   FALSE      0             TRUE
 #>   min_length prefix backrefs pcre2_version
-#> 1          7           FALSE         10.48
-#> 2          3     ab    FALSE         10.48
+#> 1          7           FALSE         10.49
+#> 2          3     ab    FALSE         10.49
 ```
