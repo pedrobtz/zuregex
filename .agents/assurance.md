@@ -28,14 +28,14 @@ call to r-actions.
 | analyzers     | done      | native-checks.yaml |
 | alloc-failure | gap #134 |                    |
 | mutation      | gap #135 |                    |
-| fuzz          | gap #136 | fuzz.yaml          |
+| fuzz          | done     | fuzz.yaml          |
 | fuzz-reach    | gap #137 | fuzz.yaml          |
 
-`fuzz.yaml` runs `tools/fuzz/harness.c` under ASan and UBSan, but the
-harness fails only on a crash or a sanitizer report: it compares no
-result, so it is not yet an oracle. `fuzz.yml` reports the corpus's reach,
-but `fuzz.yaml` sets no `reach-floor`, so a harness that stops reaching
-code never fails.
+`fuzz.yaml` runs `tools/fuzz/harness.c` under ASan and UBSan. Its oracle
+is a differential: every input is compiled and matched with JIT code and
+without, and any difference in status or offsets traps (#136). `fuzz.yml`
+reports the corpus's reach, but `fuzz.yaml` sets no `reach-floor`, so a
+harness that stops reaching code never fails.
 
 ## Boundaries
 
@@ -54,7 +54,7 @@ One row per boundary the package crosses. An oracle knows the answer:
 | --- | --- | --- |
 | Pattern syntax to match, UTF-8, through the C API | PCRE2's own `testoutput4`: every group's bytes against what `pcre2test` printed, and compile errors; JIT only; 349 cases skipped and listed | tests/testthat/test-pcre2-testdata.R, tools/pcre2-testdata/convert.py, tools/pcre2-testdata/skipped.tsv |
 | Pattern syntax to match, bytes, through the C API | PCRE2's own `testoutput1` with `ZR_BYTES`; JIT only | tests/testthat/test-pcre2-testdata.R, tests/testthat/helper-pcre2.R |
-| The same corpus through the interpreter | none: every case runs with JIT | gap #50 |
+| The same corpus through the interpreter | PCRE2's recorded results, every case run again with `ZR_NO_JIT` | tests/testthat/test-pcre2-testdata.R |
 | The same corpus through the R verbs | none: the corpus reaches only `zr_match()`, never `re_locate_all()` or `re_match()` and their offset conversion | gap #138 |
 | Pattern to match, R verbs, character subjects | base R `perl = TRUE` and stringr on the parity corpus, with each difference marked `# GAP` | tests/testthat/helper-corpus.R, test-detect.R, test-locate.R, test-capture.R |
 | Pattern to match, bytes and raw subjects | none: raw and bytes strings are compared only with each other | gap #139 |
@@ -67,14 +67,14 @@ One row per boundary the package crosses. An oracle knows the answer:
 | Captures, unset groups and `proto` typing | stringr `str_match()`, `str_match_all()` and `str_extract()`, `regmatches()` and `utils::strcapture()` | tests/testthat/test-capture.R |
 | Replacement templates, PCRE2 extended syntax | `$`-free templates against `gsub()`, `sub()` and stringr; six Python `re.sub()` cases; every other form written by hand | tests/testthat/test-replace.R, test-python.R; PCRE2's `replace=` cases gap #143 |
 | `re_split()` | Python `re.split()`, 15 cases recorded from `tools/oracles/python-re.py` | tests/testthat/test-python.R |
-| `re_escape()` output | none yet: the round trip in test-escape.R matches with base R's `grepl()` and lets `$` be commented out under `x`, so it cannot fail; JS dialect, bytes and C locale untried | gap #171 |
-| Encodings in: latin1, native and bytes to UTF-8 | known answers in a C and a Latin-1 locale, and on the fast and general paths; the invalid-pattern and template cases accept any error | tests/testthat/test-locale.R, test-prepare.R; classes gap #131; bytes mode gap #173 |
+| `re_escape()` output | round trip through zuregex: the escaped text matches the whole input under `""`, `x` and `xx`, in both dialects and on its bytes | tests/testthat/test-escape.R |
+| Encodings in: latin1, native and bytes to UTF-8 | known answers in a C and a Latin-1 locale, and on the fast and general paths; invalid patterns and templates asserted by class; bytes mode against base R's `useBytes = TRUE` | tests/testthat/test-locale.R, test-prepare.R, test-errors.R |
 | `re` objects through `saveRDS()` | round trip, but only `re_info()` is compared; no restored object is matched with | gap #53 |
 | C API offsets and substitution | the PCRE2 corpus above, and the consumer fixture against `re_locate(bytes = TRUE)` | tests/testthat/test-capi.R, tools/consumer/zuregexlink |
 | Results at any thread count | one thread against the cap, and against base R | tests/testthat/test-threads.R |
-| `re_info()` prefix and min_length | none: values written by hand | gap #169 |
-| Replacement-function results into the output | type and length, one side only | gap #175 |
-| JIT against the interpreter | none: the default engine is compared only with itself | gap #167 |
+| `re_info()` prefix and min_length | property: every match in the parity corpus starts with `prefix` and is at least `min_length` long | tests/testthat/test-compile.R |
+| Replacement-function results into the output | type and length both ways, encoding and bytes mark as for a template | tests/testthat/test-replace.R |
+| JIT against the interpreter | `jit = FALSE` and known answers on variable-length lookbehinds; the corpus through both engines; the fuzz differential | tests/testthat/test-jit.R, test-pcre2-testdata.R, tools/fuzz/harness.c |
 <!-- markdownlint-enable MD013 -->
 
 ## Objects
@@ -92,7 +92,7 @@ cannot apply.
 | Pattern borrowed by the fast path | fast and general paths agree: test-prepare.R; nothing pins that no finalizer can evict it mid-call gap #146 | as for the cache entry | n/a: nothing after the borrow calls R code | the cache; lives for one `.Call` |
 | C API `zr_pattern` | one fixed order in tools/fuzz/harness.c; edge cases in src/capi_test.c through test-capi.R; no model-based target gap #147 | n/a: holds no process state; a consumer's fork copies the handle | n/a: no R API in src/capi.c | `zr_free()` releases the one reference |
 | C API `zr_match_data` | match data used with another pattern: test-capi.R; freed after its pattern, and reused after `zr_substitute()`, untested gap #148 | n/a: as for `zr_pattern` | n/a: no R API | `zr_match_data_free()` frees the match data and its context |
-| The DLL, with live `re` objects across `library.dynam.unload()` | none | n/a: process-wide | none: unloading then `gc()` segfaults | gap #168 |
+| The DLL, with live `re` objects across `library.dynam.unload()` | compile, unload, `gc()`, reload, match, in a child process | n/a: process-wide | `.onUnload()` runs the finalizers first: test-pointers.R | the weak-reference registry in `src/compile.c` |
 | Phase-2 arenas and result buffers (one call) | n/a: they do not outlive the call | a forked child runs on one thread: test-threads.R | phase 3 runs under `R_ExecWithCleanup()`; the error description is built before it, so an allocation failure there leaks them (#43); no allocation-failure test gap #134 | `free_matches()`, `free_out()` and `free_caps()` on every path |
 <!-- markdownlint-enable MD013 -->
 
@@ -106,7 +106,7 @@ One row per limit the package enforces. "Straddled by" is the test of
 | --- | --- | --- |
 | Cache capacity, 0 to 256, default 128 | patterns | values -1, 0, 256 and 257: test-cache.R; eviction at capacity 3 through `re_compile()` only; at 256 and through the fast path gap #149 |
 | Longest cached pattern, 65,536 | characters (bytes for a bytes pattern) | 65,536 and 65,537 ASCII characters through `re_compile()`, 65,537 on the fast path: test-cache.R; multibyte and bytes patterns on every path gap #150 |
-| JIT stack, PCRE2's built-in 32 KiB | bytes of stack | overflow at 400 KB only: test-limits.R; no size that must succeed, and ordinary 1 KB inputs fail gap #166 |
+| JIT stack, PCRE2's built-in 32 KiB | bytes of stack | an overflow retries in the interpreter: perl parity at 1, 4 and 64 KB and a 400 KB subject, test-jit.R |
 | `re_threads()` and `group` ranges | threads, group number | -1 and 1.5; -1, NA and `c(1, 2)`; the upper ends gap #195 |
 | Compiled-size cap, `re_compile_size()`, default 16 MiB | compiled bytes | the default, a 458 MB pattern on every path and the C API, and one pattern under a cap of 1,000: test-compile-size.R; the cap - 1, cap, cap + 1 boundary gap #151 |
 | PCRE2's compile limits: nesting 250, group names 128, lookbehind 255, 10,000 names | depth, bytes, characters, names | gap #152 |
