@@ -300,13 +300,15 @@ SEXP zuregex_cache_clear_c(void) {
 
 SEXP zuregex_cache_stats_c(void) {
   zuregex_cache_stats s = zuregex_cache_get_stats();
-  const char *names[] = {"size", "capacity", "hits", "misses", "evictions", ""};
+  const char *names[] = {"size", "capacity", "hits", "misses", "evictions",
+                         "live", ""};
   SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));
   SET_VECTOR_ELT(out, 0, Rf_ScalarInteger(s.size));
   SET_VECTOR_ELT(out, 1, Rf_ScalarInteger(s.capacity));
   SET_VECTOR_ELT(out, 2, Rf_ScalarReal(s.hits));
   SET_VECTOR_ELT(out, 3, Rf_ScalarReal(s.misses));
   SET_VECTOR_ELT(out, 4, Rf_ScalarReal(s.evictions));
+  SET_VECTOR_ELT(out, 5, Rf_ScalarReal((double) zuregex_patterns_live()));
   UNPROTECT(1);
   return out;
 }

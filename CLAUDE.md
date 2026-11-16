@@ -191,7 +191,7 @@ API.
   installs and tests it. `tools/fuzz/` holds the libFuzzer harness and
   seeds; `tools/pcre2-testdata/convert.py` turns PCRE2's own test results
   into `tests/testthat/fixtures/pcre2-testdata.tsv.gz`, with every case it
-  leaves out in `tools/pcre2-testdata/skipped.tsv`.
+  leaves out in `tests/testthat/fixtures/pcre2-skipped.tsv`.
 - `src/locate.c` converts byte offsets to one-based characters in phase 2.
   Phase 3 runs under `R_ExecWithCleanup()`, so phase 2's buffers are freed
   even if an R allocation fails.
@@ -317,8 +317,9 @@ stage establishes it.
 - **Timing tests are opt-in.** `skip_unless_timing()` runs them only with
   `ZUREGEX_TIMING_TESTS=true`, which `R-CMD-check.yaml` sets. Coverage,
   sanitizers, valgrind and gctorture distort timings. The thread speedup
-  test also needs `ZUREGEX_BENCH_THREADS=true` and four free cores, which
-  GitHub's shared runners do not have. `test-bench.R` checks results before
+  test runs on every timing leg with four threads, asserting 1.25 times;
+  the 2.5 times of four free cores, which GitHub's shared runners do not
+  have, needs `ZUREGEX_BENCH_THREADS=true` as well. `test-bench.R` checks results before
   it times, asserts a speedup only where the measured margin is wide, and
   "no slower" with room for noise where it is close. Timing tests add about
   18 seconds to the suite.

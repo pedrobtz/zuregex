@@ -87,6 +87,11 @@ typedef struct {
 } zuregex_cache_stats;
 zuregex_cache_stats zuregex_cache_get_stats(void);
 
+// Compiled patterns not yet freed, wherever they are held: the cache, `re`
+// objects, the C API. Main thread only. Lets a test see finalizers run
+// (#183).
+size_t zuregex_patterns_live(void);
+
 #define ZUREGEX_CACHE_MAX 256
 #define ZUREGEX_CACHE_DEFAULT 128
 #define ZUREGEX_CACHE_MAX_PATTERN 65536  // characters

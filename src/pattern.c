@@ -102,6 +102,11 @@ void zuregex_format_flags(uint32_t options, uint32_t extra, char *buf) {
 }
 
 static size_t max_compiled = ZUREGEX_MAX_COMPILED_DEFAULT;
+static size_t live_patterns = 0;
+
+size_t zuregex_patterns_live(void) {
+  return live_patterns;
+}
 
 size_t zuregex_max_compiled(void) {
   return max_compiled;
@@ -184,6 +189,7 @@ zuregex_pattern *zuregex_pattern_compile(const zuregex_key *key, int *errcode,
       jit_size > 0;
   }
   p->refs = 1;
+  live_patterns++;
   p->pattern = copy;
   p->key = *key;
   p->key.pattern = copy;
@@ -199,4 +205,5 @@ void zuregex_pattern_release(zuregex_pattern *p) {
   pcre2_code_free(p->code);
   free(p->pattern);
   free(p);
+  live_patterns--;
 }

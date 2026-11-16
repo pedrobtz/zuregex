@@ -1,7 +1,7 @@
 # Converts PCRE2's own test results (testdata/testoutput1 and testoutput4
 # of the vendored release) into tests/testthat/fixtures/pcre2-testdata.tsv.gz,
 # the conformance corpus the C API is checked against (design section 9),
-# and tools/pcre2-testdata/skipped.tsv, every case left out and why.
+# and tests/testthat/fixtures/pcre2-skipped.tsv, every case left out and why.
 #
 #   python3 -I tools/pcre2-testdata/convert.py <pcre2-release-dir>
 #
@@ -232,7 +232,7 @@ def main():
             else:
                 e = ",".join(hexs(x) for x in exp)
             f.write(f"{source}\t{cid}\t{pat_b.hex()}\t{flags or '-'}\t{int(utf)}\t{hexs(subj) if subj is not None else '-'}\t{e}\n")
-    with open(os.path.join(root, "tools", "pcre2-testdata", "skipped.tsv"), "w") as f:
+    with open(os.path.join(root, "tests", "testthat", "fixtures", "pcre2-skipped.tsv"), "w") as f:
         f.write("source\tcase\treason\n")
         for rec in skipped:
             f.write(f"{rec[0]}\t{rec[1]}\t{rec[-1]}\n")
