@@ -1,0 +1,16 @@
+.libPaths(c("/private/tmp/claude-501/-Users-pbtz-src-github-com-pedrobtz-zuregex/e53874e6-da4a-401d-a173-3b05192b4f61/scratchpad/hunt/lib", .libPaths()))
+library(zuregex)
+T <- function(e) { r <- tryCatch(e, error = function(e) paste("ERR:", class(e)[1], gsub("\n", " | ", conditionMessage(e))), warning = function(w) paste("WARN:", class(w)[1], conditionMessage(w))); cat(deparse(substitute(e), width.cutoff = 200)[1], "\n   ->", paste(deparse(r), collapse = " "), "\n") }
+cat("== duplicate names\n")
+p <- "(?<d>\\d)x|(?<d>[a-c])y"
+T(re_match(c("1x", "by", "zz"), p, flags = "J")); T(re_extract(c("1x", "by", "zz"), p, group = "d", flags = "J")); T(re_match_all("1x by 2x", p, flags = "J")); T(re_replace("1x by", p, "<${d}>", flags = "J")); T(re_extract_all("1x by 2x", p, group = "d", flags = "J")); T(re_info(re_compile(p, flags = "J"))$group_names)
+T(re_extract("by", paste0("(?J)", p), group = "d")); T(re_match("by", paste0("(?J)", p))); T(re_extract("by", p, group = "d"))
+T(re_extract("ab", "(?|(?<n>a)(b)|(?<n>b)(a))", group = "n")); T(re_match(c("ab","ba"), "(?|(a)(b)|(b)(a))")); T(re_extract("ab", "(?J)(?<n>a)(?<n>b)", group = "n")); T(re_match("ab", "(?J)(?<n>a)(?<n>b)")); T(re_replace("ab", "(?J)(?<n>a)(?<n>b)", "[${n}]")); T(re_replace("ab", "(?J)(?<n>a)(?<n>b)", function(m) {print(m); "z"})); T(re_split("1ab2", "(?J)(?<n>a)(?<n>b)", keep_groups = TRUE))
+T(re_extract("b", "(?J)(?<n>a)?(?<n>b)", group = "n")); T(re_replace("b", "(?J)(?<n>a)?(?<n>b)", "[${n}]")); T(re_extract("ab", "(?J)(?<n>a)(?<n>b)?", group = "n")); T(re_extract("a", "(?J)(?<n>a)(?<n>b)?", group = "n"))
+cat("== groups\n")
+T(re_extract("abc", "(a)(b)?(x)?", group = 3)); T(re_extract("abc", "(a)(b)?(x)?", group = 4)); T(re_extract("abc", "(a)", group = -1)); T(re_extract("abc", "(a)", group = "zz")); T(re_extract("abc", "(a)", group = 1.5)); T(re_extract("abc", "(a)", group = NA)); T(re_extract("abc", "(a)", group = "1")); T(re_extract("abc", "(?<`1`>a)(b)", group = "1")); T(re_extract(c("ab","ab"), c("(a)(b)", "(b)"), group = 2)); T(re_extract(c("ab","ab"), c("(?<q>a)", "(b)"), group = "q"))
+T(re_match("aXbXc", "(?:(\\w)X)+")); T(re_match("abc", "((a)|(b))+")); T(re_match("abc", "(?:(a)|(b)|(c))+")); T(re_match_all("ab", "(a)|(b)")); T(re_match("ab", "(a)|b|(c)")); T(re_match("ab", "x")); T(re_match(character(), "(a)")); T(re_match("ab", "")); T(re_match_all("ab", "")); T(re_match("abc", "(?<a>a)(?<a2>b)(c)(?<`4`>z)?"))
+T(re_match(c("ab", "cd", NA), c("(a)(?<n>b)", "(?<n>c)(d)(x)?", "(q)"))); T(re_match_all(c("ab", "cd"), c("(a)(?<n>b)", "(?<m>c)|(?<n>d)")))
+T(re_match("a1", "(a)(\\d)", proto = data.frame(l = "", n = 0L))); T(re_match("a1", "(a)(\\d)", proto = list(1L)));T(re_match(c("a1","b"), "(a)(\\d)", proto = list(x = "", y = 1.5)))
+T(re_extract_all("a1b22", "[a-z](\\d)(\\d)?", group = 2)); T(re_extract_all(c("ab", NA, ""), "", group = 0)); T(re_extract_all("ab", "(x)?", group = 1))
+T(re_match("ab", "(?<=(a))b")); T(re_match("abab", "(a)\\Kb")); T(re_locate("abab", "(a)\\Kb")); T(re_match("aaa", "(a(?=(a)))+")); T(re_match("ab", "(?=(a))(?!(b))")); T(re_match("abcd", "(?<a>.)(?<b>.)(?<c>.)(?<d>.)(?<e>e)?")); T(re_match("xyz", "(?:x(y)?z|(q))")); T(re_match("aba", "(a)(b)?\\1")); T(re_match("abab", "(?<w>ab)(?&w)")); T(re_match("abab", "(?<w>a(b))(?1)")); T(re_match("((a))", "(\\((?:[^()]|(?1))*\\))"))

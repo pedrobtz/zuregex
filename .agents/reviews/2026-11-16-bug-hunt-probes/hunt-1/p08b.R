@@ -1,0 +1,7 @@
+source("pre.R")
+options(OutDec=",", warn=2)
+r <- tryCatch(print(re_limits(match=1e5)), error=function(e) e); print(class(r)); print(conditionMessage(r))
+old <- re_compile_size(20000); r <- tryCatch(re_compile("(?:(?:(?:ab|cd){200}){200}){200}"), error=function(e) e); print(class(r)); print(conditionMessage(r)); re_compile_size(old)
+r <- tryCatch(re_detect("a", "(?:(?:(?:ab|cd){200}){200}){200}"), error=function(e) e); print(class(r))
+options(OutDec=".")
+r <- tryCatch(re_extract("a", "(a)", group=2^31), error=function(e) e); print(class(r)); print(conditionMessage(r))
