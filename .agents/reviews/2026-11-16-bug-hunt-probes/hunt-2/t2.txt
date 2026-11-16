@@ -1,0 +1,14 @@
+/(?<=\R)\n/jit
+    \r\n
+
+/(?<=\R)\n/
+    \r\n
+
+/(?<=\R)\n/utf,jit
+    \r\n
+
+/(?<=\R)/g,jit
+    a\r\nb
+
+/(?<=\R)/g
+    a\r\nb
