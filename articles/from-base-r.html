@@ -243,7 +243,9 @@ changes, with the third.</p>
 </h2>
 <p>A replacement is a template in PCRE2’s syntax, where a group is
 <code>$1</code> or <code>${name}</code>. Base R writes <code>\\1</code>
-and stops at nine groups, with no names.</p>
+and stops at nine groups, with no names. A base R template still works,
+since PCRE2 reads <code>\\1</code> to <code>\\9</code> as groups
+too.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">sub</a></span><span class="op">(</span><span class="st">"(\\d+)-(\\d+)"</span>, <span class="st">"\\2/\\1"</span>, <span class="va">x</span>, perl <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "10/2026-21 GET /index.html" "no date"</span></span>

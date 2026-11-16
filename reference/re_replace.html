@@ -128,7 +128,11 @@ Other strings are in UTF-8, or marked as <code>"bytes"</code> for bytes input.</
 
 
 <p>With <code>syntax = "extended"</code>, the default, templates use PCRE2's extended
-substitution syntax, not base R's <code>\\1</code>:</p><table class="table table"><tr><td>Template</td><td>Meaning</td></tr><tr><td><code>$1</code>, <code>${12}</code>, <code>${name}</code></td><td>A group by number, past nine, or by name. <code>$0</code> is the whole match.</td></tr><tr><td><code>${1:-none}</code></td><td>The group, or <code>none</code> when it did not take part in the match.</td></tr><tr><td><code>${1:+yes:no}</code></td><td><code>yes</code> when the group took part, otherwise <code>no</code>.</td></tr><tr><td><code>\U...\E</code>, <code>\L...\E</code>, <code>\u</code>, <code>\l</code></td><td>Upper or lower case until <code>\E</code>, or for one character.</td></tr><tr><td><code>$$</code>, <code>\$</code></td><td>A literal <code>$</code>.</td></tr></table><p>A group that did not take part in the match is replaced by <code>""</code>. A
+substitution syntax:</p><table class="table table"><tr><td>Template</td><td>Meaning</td></tr><tr><td><code>$1</code>, <code>${12}</code>, <code>${name}</code></td><td>A group by number, past nine, or by name. <code>$0</code> is the whole match.</td></tr><tr><td><code>\1</code>, <code>\g&lt;1&gt;</code>, <code>\g&lt;name&gt;</code></td><td>A group, as in base R or Python.</td></tr><tr><td><code>${1:-none}</code></td><td>The group, or <code>none</code> when it did not take part in the match.</td></tr><tr><td><code>${1:+yes:no}</code></td><td><code>yes</code> when the group took part, otherwise <code>no</code>.</td></tr><tr><td><code>\U...\E</code>, <code>\L...\E</code>, <code>\u</code>, <code>\l</code></td><td>Upper or lower case until <code>\E</code>, or for one character.</td></tr><tr><td><code>$$</code>, <code>\$</code></td><td>A literal <code>$</code>.</td></tr></table><p>A backslash and digits are read as in a pattern. So <code>\12</code> is group 12
+only when the pattern has 12 groups, and otherwise the octal escape for
+a newline. Prefer <code>${12}</code> past nine. In an R string each backslash is
+doubled, as in <code>"\\1"</code>.</p>
+<p>A group that did not take part in the match is replaced by <code>""</code>. A
 reference to a group that does not exist, or a malformed template,
 raises <code>zuregex_error_template</code> when a match first uses it. With
 <code>syntax = "literal"</code> the replacement is inserted as it is.</p>

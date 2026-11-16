@@ -42,6 +42,10 @@
   match character vectors, raw vectors and lists of raw vectors, with
   one pattern for every element or one per element. Offsets are
   one-based and inclusive, in characters or bytes.
+- Strings in any declared or native encoding are matched as UTF-8. A
+  string that is invalid in its encoding raises `zuregex_error_utf` in
+  every locale, including the C locale, where R’s own translation would
+  turn a byte such as `0xff` into the text `<ff>`.
 - [`re_extract()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md),
   [`re_extract_all()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md),
   [`re_match()`](https://pedrobtz.github.io/zuregex/reference/re_extract.md)

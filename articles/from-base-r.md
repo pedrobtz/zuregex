@@ -79,6 +79,8 @@ re_replace(x, "\\d+", "#")
 
 A replacement is a template in PCRE2’s syntax, where a group is `$1` or
 `${name}`. Base R writes `\\1` and stops at nine groups, with no names.
+A base R template still works, since PCRE2 reads `\\1` to `\\9` as
+groups too.
 
 ``` r
 
