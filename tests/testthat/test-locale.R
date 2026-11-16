@@ -1,6 +1,13 @@
 test_that("a byte invalid in a C locale is not matched as <xx> text (#126)", {
   withr::local_locale(c(LC_CTYPE = "C"))
   skip_if(l10n_info()[["UTF-8"]], "LC_CTYPE could not be set to C")
+  # Only where the C locale is ASCII is 0xff invalid. Windows' C locale is
+  # single-byte, so there it is a valid character and converts. The check
+  # uses base R, so a zuregex bug cannot cause the skip.
+  skip_if(
+    !is.na(iconv("\xff", "", "UTF-8")),
+    "byte 0xff is valid in this C locale"
+  )
   # R's own translation writes byte 0xff as the four characters <ff>.
   x <- c("ok", "\xff")
   expect_error(re_detect(x, "f"), class = "zuregex_error_utf")
