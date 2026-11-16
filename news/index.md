@@ -26,6 +26,11 @@
 - `\C`, which matches one byte, is a compile error in a pattern matched
   as UTF-8, because it could split a character. Bytes patterns allow it,
   and may not use `(*UTF)`, which would match UTF-8 nothing has checked.
+- The JIT compiler is used where it gives the interpreter’s answer. A
+  match that runs out of JIT stack is retried in the interpreter, so
+  long subjects with repeated groups match as `grepl(perl = TRUE)` does.
+  A pattern with a variable-length lookbehind, which PCRE2’s JIT gets
+  wrong in some cases, is not JIT-compiled.
 - Patterns are cached, 128 by default;
   [`re_cache_size()`](https://pedrobtz.github.io/zuregex/reference/re_cache_size.md)
   and

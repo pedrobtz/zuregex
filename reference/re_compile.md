@@ -64,7 +64,12 @@ re_compile(
 
   If `TRUE`, JIT-compile each pattern when the platform allows it. If
   JIT compilation fails, the interpreter is used and `re_info()$jit` is
-  `FALSE`.
+  `FALSE`. A pattern with a variable-length lookbehind, such as
+  `(?<=a?)`, also uses the interpreter, because PCRE2's JIT matches some
+  of them wrongly. A match that needs more stack than the JIT has is
+  retried in the interpreter, so `heap` in
+  [`re_limits()`](https://pedrobtz.github.io/zuregex/reference/re_limits.md)
+  bounds it.
 
 ## Value
 

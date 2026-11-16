@@ -97,7 +97,11 @@ with no metacharacters. Only the flags <code>i</code> and <code>r</code> apply t
 <dt id="arg-jit">jit<a class="anchor" aria-label="anchor" href="#arg-jit"></a></dt>
 <dd><p>If <code>TRUE</code>, JIT-compile each pattern when the platform allows
 it. If JIT compilation fails, the interpreter is used and
-<code>re_info()$jit</code> is <code>FALSE</code>.</p></dd>
+<code>re_info()$jit</code> is <code>FALSE</code>. A pattern with a variable-length
+lookbehind, such as <code>(?&lt;=a?)</code>, also uses the interpreter, because
+PCRE2's JIT matches some of them wrongly. A match that needs more stack
+than the JIT has is retried in the interpreter, so <code>heap</code> in
+<code><a href="re_limits.html">re_limits()</a></code> bounds it.</p></dd>
 
 </dl></div>
     <div class="section level2">
