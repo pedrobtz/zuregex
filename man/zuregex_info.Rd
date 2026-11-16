@@ -9,7 +9,7 @@ zuregex_info()
 \value{
 A list with elements:
 \itemize{
-\item \code{pcre2_version}: the bundled PCRE2 version, such as \code{"10.48"}.
+\item \code{pcre2_version}: the bundled PCRE2 version, such as \code{"10.49"}.
 \item \code{pcre2_date}: its release date.
 \item \code{unicode}: whether Unicode and UTF-8 support is built in.
 \item \code{unicode_version}: the Unicode version of PCRE2's character tables.

@@ -6,7 +6,7 @@ under the MIT licence (see LICENSE). It bundles the third-party code below,
 which keeps its own licence.
 
 
-PCRE2 10.48 (src/vendor/pcre2/)
+PCRE2 10.49 (src/vendor/pcre2/)
 -------------------------------
 
 https://github.com/PCRE2Project/pcre2

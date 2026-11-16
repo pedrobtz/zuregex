@@ -12,7 +12,7 @@
 #' pattern.
 #'
 #' @return A list with elements:
-#'   * `pcre2_version`: the bundled PCRE2 version, such as `"10.48"`.
+#'   * `pcre2_version`: the bundled PCRE2 version, such as `"10.49"`.
 #'   * `pcre2_date`: its release date.
 #'   * `unicode`: whether Unicode and UTF-8 support is built in.
 #'   * `unicode_version`: the Unicode version of PCRE2's character tables.

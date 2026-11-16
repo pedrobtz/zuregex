@@ -3,7 +3,7 @@
 This is a new submission.
 
 zuregex bundles PCRE2 (<https://github.com/PCRE2Project/pcre2>, version
-10.48), the 8-bit library with its just-in-time compiler, in
+10.49), the 8-bit library with its just-in-time compiler, in
 `src/vendor/pcre2/`, so it needs no system library and every platform runs
 the same version. It is built without CMake, and every PCRE2 symbol is
 hidden, so it cannot bind to the PCRE2 R itself loads.

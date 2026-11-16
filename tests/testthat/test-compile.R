@@ -79,7 +79,7 @@ test_that("re_info() describes groups, names and lengths", {
   expect_true(info$backrefs)
   # 4 + 1 + 2, the optional group adds nothing, and \1 repeats group 1.
   expect_identical(info$min_length, 11L)
-  expect_identical(info$pcre2_version, "10.48")
+  expect_identical(info$pcre2_version, "10.49")
   expect_false(re_info(re_compile("a"))$backrefs)
 })
 

@@ -111,7 +111,7 @@ test_that("group counts, names and numbers", {
   # A name two groups share means the first of them.
   dup <- capi_info("(?<a>x)|(?<a>y)", "a", flags = zr()$DUPNAMES)
   expect_identical(dup$number, 1L)
-  expect_match(info$version, "^PCRE2 10\\.48 ")
+  expect_match(info$version, "^PCRE2 10\\.49 ")
   expect_identical(capi_info("a", flags = zr()$NO_JIT)$jit, FALSE)
 })
 
