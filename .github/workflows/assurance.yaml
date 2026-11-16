@@ -1,0 +1,12 @@
+# Holds .agents/assurance.md to the shared assurance rules: a malformed
+# file, a `done` no workflow backs, or a gap without an issue fails.
+on:
+  pull_request:
+  push:
+    branches: [main]
+name: assurance
+permissions:
+  contents: read
+jobs:
+  assurance:
+    uses: pedrobtz/r-actions/.github/workflows/assurance.yml@v1
