@@ -6,15 +6,21 @@
 #'
 #' @section Templates:
 #' With `syntax = "extended"`, the default, templates use PCRE2's extended
-#' substitution syntax, not base R's `\\1`:
+#' substitution syntax:
 #'
 #' | Template | Meaning |
 #' | --- | --- |
 #' | `$1`, `${12}`, `${name}` | A group by number, past nine, or by name. `$0` is the whole match. |
+#' | `\1`, `\g<1>`, `\g<name>` | A group, as in base R or Python. |
 #' | `${1:-none}` | The group, or `none` when it did not take part in the match. |
 #' | `${1:+yes:no}` | `yes` when the group took part, otherwise `no`. |
 #' | `\U...\E`, `\L...\E`, `\u`, `\l` | Upper or lower case until `\E`, or for one character. |
 #' | `$$`, `\$` | A literal `$`. |
+#'
+#' A backslash and digits are read as in a pattern. So `\12` is group 12
+#' only when the pattern has 12 groups, and otherwise the octal escape for
+#' a newline. Prefer `${12}` past nine. In an R string each backslash is
+#' doubled, as in `"\\1"`.
 #'
 #' A group that did not take part in the match is replaced by `""`. A
 #' reference to a group that does not exist, or a malformed template,

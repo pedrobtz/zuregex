@@ -28,6 +28,13 @@ test_that("every template form of the design's table works", {
   expect_identical(re_replace("HELLO", "(\\w+)", "\\l$1"), "hELLO")
   expect_identical(re_replace("cost", "cost", "$$5"), "$5")
   expect_identical(re_replace("cost", "cost", "\\$5"), "$5")
+  expect_identical(re_replace(x, p, "\\3/\\g<2>/\\g<y>"), "21/10/2026")
+  # \12 is group 12 only when there are 12 groups; otherwise octal 012.
+  expect_identical(
+    re_replace("abcdefghijkl", strrep("(.)", 12), "\\12"),
+    "l"
+  )
+  expect_identical(re_replace("ab", "(a)(b)", "\\12"), "\n")
   # An unset group is "".
   expect_identical(re_replace(x, p, "[$4]"), "[]")
 })
