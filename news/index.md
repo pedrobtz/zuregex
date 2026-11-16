@@ -36,6 +36,10 @@
   and
   [`re_cache_clear()`](https://pedrobtz.github.io/zuregex/reference/re_cache_size.md)
   manage the cache.
+- `re` objects outlive the package’s DLL: unloading the package, as
+  `devtools::load_all()` does, releases their patterns first, and an
+  object used after a reload is compiled again. A pointer in an `re`
+  object that zuregex did not make is recompiled, never read.
 - A compiled pattern may take at most 16 MiB, so a short pattern of
   nested counted repeats cannot take gigabytes of memory to compile. A
   larger one is a compile error, refused before PCRE2 allocates;
