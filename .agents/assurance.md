@@ -67,11 +67,14 @@ One row per boundary the package crosses. An oracle knows the answer:
 | Captures, unset groups and `proto` typing | stringr `str_match()`, `str_match_all()` and `str_extract()`, `regmatches()` and `utils::strcapture()` | tests/testthat/test-capture.R |
 | Replacement templates, PCRE2 extended syntax | `$`-free templates against `gsub()`, `sub()` and stringr; six Python `re.sub()` cases; every other form written by hand | tests/testthat/test-replace.R, test-python.R; PCRE2's `replace=` cases gap #143 |
 | `re_split()` | Python `re.split()`, 15 cases recorded from `tools/oracles/python-re.py` | tests/testthat/test-python.R |
-| `re_escape()` output | round trip: the escaped text matches the input whole under `""`, `x` and `xx` | tests/testthat/test-escape.R |
-| Encodings in: latin1, native and bytes to UTF-8 | known answers in a C and a Latin-1 locale, and on the fast and general paths | tests/testthat/test-locale.R, test-prepare.R |
+| `re_escape()` output | none yet: the round trip in test-escape.R matches with base R's `grepl()` and lets `$` be commented out under `x`, so it cannot fail; JS dialect, bytes and C locale untried | gap #171 |
+| Encodings in: latin1, native and bytes to UTF-8 | known answers in a C and a Latin-1 locale, and on the fast and general paths; the invalid-pattern and template cases accept any error | tests/testthat/test-locale.R, test-prepare.R; classes gap #131; bytes mode gap #173 |
 | `re` objects through `saveRDS()` | round trip, but only `re_info()` is compared; no restored object is matched with | gap #53 |
 | C API offsets and substitution | the PCRE2 corpus above, and the consumer fixture against `re_locate(bytes = TRUE)` | tests/testthat/test-capi.R, tools/consumer/zuregexlink |
 | Results at any thread count | one thread against the cap, and against base R | tests/testthat/test-threads.R |
+| `re_info()` prefix and min_length | none: values written by hand | gap #169 |
+| Replacement-function results into the output | type and length, one side only | gap #175 |
+| JIT against the interpreter | none: the default engine is compared only with itself | gap #167 |
 <!-- markdownlint-enable MD013 -->
 
 ## Objects
@@ -89,6 +92,7 @@ cannot apply.
 | Pattern borrowed by the fast path | fast and general paths agree: test-prepare.R; nothing pins that no finalizer can evict it mid-call gap #146 | as for the cache entry | n/a: nothing after the borrow calls R code | the cache; lives for one `.Call` |
 | C API `zr_pattern` | one fixed order in tools/fuzz/harness.c; edge cases in src/capi_test.c through test-capi.R; no model-based target gap #147 | n/a: holds no process state; a consumer's fork copies the handle | n/a: no R API in src/capi.c | `zr_free()` releases the one reference |
 | C API `zr_match_data` | match data used with another pattern: test-capi.R; freed after its pattern, and reused after `zr_substitute()`, untested gap #148 | n/a: as for `zr_pattern` | n/a: no R API | `zr_match_data_free()` frees the match data and its context |
+| The DLL, with live `re` objects across `library.dynam.unload()` | none | n/a: process-wide | none: unloading then `gc()` segfaults | gap #168 |
 | Phase-2 arenas and result buffers (one call) | n/a: they do not outlive the call | a forked child runs on one thread: test-threads.R | phase 3 runs under `R_ExecWithCleanup()`; the error description is built before it, so an allocation failure there leaks them (#43); no allocation-failure test gap #134 | `free_matches()`, `free_out()` and `free_caps()` on every path |
 <!-- markdownlint-enable MD013 -->
 
@@ -102,6 +106,8 @@ One row per limit the package enforces. "Straddled by" is the test of
 | --- | --- | --- |
 | Cache capacity, 0 to 256, default 128 | patterns | values -1, 0, 256 and 257: test-cache.R; eviction at capacity 3 through `re_compile()` only; at 256 and through the fast path gap #149 |
 | Longest cached pattern, 65,536 | characters (bytes for a bytes pattern) | 65,536 and 65,537 ASCII characters through `re_compile()`, 65,537 on the fast path: test-cache.R; multibyte and bytes patterns on every path gap #150 |
+| JIT stack, PCRE2's built-in 32 KiB | bytes of stack | overflow at 400 KB only: test-limits.R; no size that must succeed, and ordinary 1 KB inputs fail gap #166 |
+| `re_threads()` and `group` ranges | threads, group number | -1 and 1.5; -1, NA and `c(1, 2)`; the upper ends gap #195 |
 | Compiled-size cap, `re_compile_size()`, default 16 MiB | compiled bytes | the default, a 458 MB pattern on every path and the C API, and one pattern under a cap of 1,000: test-compile-size.R; the cap - 1, cap, cap + 1 boundary gap #151 |
 | PCRE2's compile limits: nesting 250, group names 128, lookbehind 255, 10,000 names | depth, bytes, characters, names | gap #152 |
 | `re_limits(match =)` | match-function calls per search | 1,000 against a far larger need, on every verb, path, thread count and the C API: test-limits.R, test-threads.R, test-capi.R; the exact boundary under JIT and the interpreter, and the range ends 1 and 2^32 - 1 gap #153 |
