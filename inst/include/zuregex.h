@@ -113,7 +113,8 @@ typedef const char *(*zr_group_name_fn)(const zr_pattern *p, int group);
 typedef int (*zr_jit_fn)(const zr_pattern *p);
 
 /* Match data with room for `p`'s groups (and any pattern with no more).
- * NULL when out of memory. */
+ * NULL when out of memory. It holds no reference to `p`, so either may be
+ * freed first. */
 typedef zr_match_data *(*zr_match_data_create_fn)(const zr_pattern *p);
 typedef void (*zr_match_data_free_fn)(zr_match_data *md);
 
@@ -122,8 +123,10 @@ typedef void (*zr_match_data_free_fn)(zr_match_data *md);
 typedef int (*zr_set_limits_fn)(zr_match_data *md, uint32_t match,
                                  uint32_t depth, uint32_t heap);
 
-/* Searches `subject` (`len` bytes) from byte `start`. Returns the number of
- * offset pairs set, ZR_NOMATCH, or a negative ZR_ERROR_* code.
+/* Searches `subject` (`len` bytes; SIZE_MAX means NUL-terminated, as for
+ * zr_compile()) from byte `start`. Returns the number of offset pairs set,
+ * ZR_NOMATCH, or a negative ZR_ERROR_* code. After anything but a match,
+ * `md` holds no match: zr_offsets() returns ZR_NOMATCH.
  *
  * JIT-compiled code may read up to 64 bytes past `subject + len` with wide
  * loads. That is safe within a page and never changes a result, but
@@ -141,12 +144,19 @@ typedef int (*zr_offsets_fn)(const zr_match_data *md, int group,
                              size_t *start, size_t *end);
 
 /* Replaces the first match, or every match with ZR_SUBSTITUTE_GLOBAL, of
- * `p` in `subject` by `tmpl` in PCRE2's extended syntax ($1, ${name},
- * ${1:-default}, \U...\E) or, with ZR_SUBSTITUTE_LITERAL, as text. Writes
- * the result to `out` and its length to *outlen, which holds the size of
- * `out` on entry. If `out` is too small, returns ZR_ERROR_NOMEMORY and sets
- * *outlen to the size needed. Returns the number of replacements, or a
- * negative ZR_ERROR_* code. `md` supplies the limits and may be NULL. */
+ * `p` in `subject` (`len` bytes; SIZE_MAX means NUL-terminated) by `tmpl`
+ * in PCRE2's extended syntax ($1, ${name}, ${1:-default}, \U...\E) or, with
+ * ZR_SUBSTITUTE_LITERAL, as text. With no match the result is the subject.
+ *
+ * *outlen holds the size of `out` on entry. The result is written to `out`
+ * followed by a NUL, so `out` needs one byte more than the result: on
+ * success *outlen is set to the result's length without the NUL; if `out`
+ * is too small, ZR_ERROR_NOMEMORY is returned and *outlen is set to the size
+ * needed, the NUL included. On any error, `out` may hold partial output.
+ *
+ * Returns the number of replacements, or a negative ZR_ERROR_* code. `md`,
+ * which may be NULL, supplies only the limits; it may have been made for
+ * any pattern, and holds no match afterwards. */
 typedef int (*zr_substitute_fn)(const zr_pattern *p, const char *subject,
                                 size_t len, const char *tmpl, size_t tlen,
                                 uint32_t options, zr_match_data *md,

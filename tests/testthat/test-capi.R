@@ -138,6 +138,12 @@ test_that("the C API's argument checks, status codes and edge cases", {
   expect_identical(e$offsets_unset, zr()$NOMATCH)
   # Match data made for a pattern with fewer groups holds the pairs it can.
   expect_identical(e$foreign_md_rc, 1L)
+  # The pairs guard hides offsets a longer, earlier match left behind.
+  expect_identical(e$offsets_past_pairs, zr()$NOMATCH)
+  # After an argument error the last match is gone (#177).
+  expect_identical(e$offsets_after_argument_error, zr()$NOMATCH)
+  # Match data sized for another pattern lends only its limits (#177).
+  expect_identical(e$substitute_small_md, "[ea]")
   # "x*" on "ab": no empty match at the start, so the empty match at 1.
   expect_identical(e$notempty_atstart, 1L)
   expect_identical(e$substitute_bad_option, zr()$ERROR_ARGUMENT)

@@ -142,7 +142,9 @@ SEXP zuregex_capi_limit_c(SEXP pattern, SEXP subject, SEXP match_limit) {
 SEXP zuregex_capi_edges_c(void) {
   const char *names[] = {
     "unknown_flags", "bad_dialect", "null_pattern", "zero_terminated_groups",
-    "offsets_bad_group", "offsets_unset", "foreign_md_rc", "notempty_atstart",
+    "offsets_bad_group", "offsets_unset", "foreign_md_rc",
+    "offsets_past_pairs", "offsets_after_argument_error", "substitute_small_md",
+    "notempty_atstart",
     "substitute_bad_option", "substitute_with_md", "substitute_limit",
     "depth_limit", "heap_limit", "jit_stack", "jit_stack_retry",
     "strerror_match_limit", "strerror_unknown", "strerror_all", ""
@@ -174,6 +176,25 @@ SEXP zuregex_capi_edges_c(void) {
   zr_pattern *none = zr_compile("b", 1, 0, ZR_DIALECT_PCRE, err, sizeof(err));
   zr_match_data *small = zr_match_data_create(none);
   SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(zr_match(p, s, 1, 0, 0, small)));
+
+  // "b" sets group 2, then "a" sets only groups 0 and 1: group 2's old
+  // offsets are still in the vector, and only the pairs guard hides them.
+  const char *sa = padded("a", 1);
+  zr_match(p, s, 1, 0, 0, md);
+  zr_match(p, sa, 1, 0, 0, md);
+  SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(zr_offsets(md, 2, &a, &b)));
+  // An argument error leaves no match to read (#177).
+  zr_match(p, sa, 1, 0, 0, md);
+  zr_match(p, sa, 1, 9, 0, md);
+  SET_VECTOR_ELT(out, k++, Rf_ScalarInteger(zr_offsets(md, 0, &a, &b)));
+  // Match data made for a pattern with no groups lends only its limits to
+  // a substitution that needs five (#177).
+  zr_pattern *five = zr_compile("(a)(b)(c)(d)(e)", 15, 0, ZR_DIALECT_PCRE, err, sizeof(err));
+  char sub[16];
+  size_t sublen = sizeof(sub);
+  int src = zr_substitute(five, padded("abcde", 5), 5, "[$5$1]", 6, 0, small, sub, &sublen);
+  SET_VECTOR_ELT(out, k++, src >= 0 ? Rf_mkString(sub) : Rf_ScalarInteger(src));
+  zr_free(five);
   zr_match_data_free(small);
   zr_free(none);
 

@@ -243,11 +243,12 @@ static uint32_t match_options(uint32_t options) {
 
 int zuregex_capi_match(const zr_pattern *p, const char *subject, size_t len,
                        size_t start, uint32_t options, zr_match_data *md) {
+  // Forget the last match first, so no failure leaves it readable (#177).
+  if (md != NULL) md->pairs = 0;
   if (p == NULL || md == NULL || (subject == NULL && len > 0) ||
       start > len || (options & ~KNOWN_MATCH_OPTIONS) != 0) {
     return ZR_ERROR_ARGUMENT;
   }
-  md->pairs = 0;
   int rc = pcre2_match(p->p->code, (PCRE2_SPTR) (subject ? subject : ""), len,
                        start, match_options(options), md->md, md->mctx);
   if (rc == 0) {
@@ -289,9 +290,10 @@ int zuregex_capi_substitute(const zr_pattern *p, const char *subject,
   if (options & ZR_SUBSTITUTE_GLOBAL) o |= PCRE2_SUBSTITUTE_GLOBAL;
   char empty[1];
   PCRE2_SIZE size = *outlen;
+  // `md` lends its limits only. Its match data may be sized for another
+  // pattern, and pcre2_substitute() refuses a group past it (#177).
   int rc = pcre2_substitute(p->p->code, (PCRE2_SPTR) (subject ? subject : ""),
-                            len, 0, o, md != NULL ? md->md : NULL,
-                            md != NULL ? md->mctx : NULL,
+                            len, 0, o, NULL, md != NULL ? md->mctx : NULL,
                             (PCRE2_SPTR) (tmpl ? tmpl : ""), tlen,
                             (PCRE2_UCHAR *) (out != NULL ? out : empty), &size);
   if (md != NULL) md->pairs = 0;

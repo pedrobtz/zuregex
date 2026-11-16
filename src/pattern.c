@@ -108,14 +108,15 @@ size_t zuregex_patterns_live(void) {
   return live_patterns;
 }
 
+// Atomic, because zr_compile() may read the cap on a consumer's thread
+// while re_compile_size() writes it on R's (#160). Relaxed order: the cap
+// guards no other data.
 size_t zuregex_max_compiled(void) {
-  return max_compiled;
+  return __atomic_load_n(&max_compiled, __ATOMIC_RELAXED);
 }
 
 size_t zuregex_set_max_compiled(size_t bytes) {
-  size_t old = max_compiled;
-  max_compiled = bytes;
-  return old;
+  return __atomic_exchange_n(&max_compiled, bytes, __ATOMIC_RELAXED);
 }
 
 // Whether `needle` occurs in the first n bytes of s, which may hold NULs.
@@ -196,7 +197,7 @@ zuregex_pattern *zuregex_pattern_compile(const zuregex_key *key, int *errcode,
     }
   }
   pcre2_set_compile_extra_options(ctx, extra);
-  pcre2_set_max_pattern_compiled_length(ctx, max_compiled);
+  pcre2_set_max_pattern_compiled_length(ctx, zuregex_max_compiled());
 
   PCRE2_SIZE off = 0;
   p->code = pcre2_compile((PCRE2_SPTR) copy, key->length, options, errcode,
