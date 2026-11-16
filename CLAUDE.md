@@ -270,6 +270,12 @@ stage establishes it.
 - **Two offset conventions, deliberately** (design §6.2). R results are
   one-based, inclusive and in characters; the C API is zero-based,
   half-open and in bytes. Convert at the boundary, never in the middle.
+- **The JIT is used only where it agrees with the interpreter** (#166,
+  #167). `zuregex_match_once()` retries a JIT stack overflow in the
+  interpreter, and records it in `status.no_jit`, which `replace.c` must
+  pass on to `pcre2_substitute()`. `zuregex_pattern_compile()` skips the JIT
+  for variable-length lookbehinds until the vendored PCRE2 has upstream
+  PR #1004; drop `has_variable_lookbehind()` then, and keep `test-jit.R`.
 - **The compiled-size cap is main-thread state** (#128). `re_compile_size()`
   sets it in `src/pattern.c`, and every compile, the C API's included, applies
   it through the compile context. It is not part of the cache key, so a

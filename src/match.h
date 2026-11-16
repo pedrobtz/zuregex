@@ -55,6 +55,8 @@ typedef struct {
   int in_template;  // the error came from expanding a replacement template
   size_t offset;  // UTF errors: byte offset of the bad character;
                   // template errors: byte offset in the template
+  int no_jit;     // the last match ran in the interpreter after a JIT stack
+                  // overflow, so expanding it needs PCRE2_NO_JIT too (#166)
 } zuregex_status;
 
 // limits: a double vector of match, depth and heap limits (NA keeps
