@@ -21,7 +21,7 @@ Description: Matches regular expressions with a bundled copy of the 'PCRE2'
     capture groups are returned as character vectors and data frames built
     in C. Replacements use the full 'PCRE2' substitution language, and each
     call can bound its work with match, depth and heap limits. Other
-    packages reach the same library from C through 'LinkingTo', instead of
+    packages reach the same library from C through LinkingTo, instead of
     bundling their own copy.
 License: MIT + file LICENSE
 Copyright: file inst/COPYRIGHTS
