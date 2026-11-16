@@ -44,6 +44,10 @@ jobs:
   gctorture:
     uses: pedrobtz/r-actions/.github/workflows/gctorture.yml@v1
     with:
+      # The full run took 96 minutes on main before the 0.1.0 fixes and 77
+      # to 103+ after, against r-actions' default of 120, and a job that
+      # reaches it is cancelled with nothing checked. Every test stays in.
+      timeout-minutes: 180
       profile: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci') && 'quick' || 'full' }}
 
   rchk:
