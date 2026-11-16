@@ -270,29 +270,29 @@ run_replace <- function(
 raise_template_error <- function(err, repl, call) {
   element <- err$element
   tmpl <- if (length(repl) == 1L) repl[[1L]] else repl[[element]]
-  # PCRE2 reports a byte offset into the UTF-8 template; count characters.
-  # The prefix is marked UTF-8, or nchar() would decode it in the native
+  # PCRE2 reports a byte offset into the template. A bytes or invalid UTF-8
+  # template is shown in bytes (#131); otherwise characters are counted in
+  # a prefix marked UTF-8, or nchar() would decode it in the native
   # encoding, which in a C locale counts bytes (#126).
-  bytes <- charToRaw(to_utf8(tmpl))
-  upto <- rawToChar(bytes[seq_len(min(err$offset - 1, length(bytes)))])
-  Encoding(upto) <- "UTF-8"
-  position <- nchar(upto, type = "chars", allowNA = TRUE) + 1L
-  shown <- pattern_window(tmpl, position)
-  before <- substr(shown$text, 1L, shown$caret - 1L)
-  caret <- paste0(strrep(" ", nchar(before, type = "width")), "^")
+  shown <- display_units(tmpl)
+  position <- as.integer(err$offset)
+  if (!shown$bytes) {
+    bytes <- charToRaw(to_utf8(tmpl))
+    upto <- rawToChar(bytes[seq_len(min(err$offset - 1, length(bytes)))])
+    Encoding(upto) <- "UTF-8"
+    position <- nchar(upto, type = "chars", allowNA = TRUE) + 1L
+  }
   zuregex_abort(
     "template",
     paste0(
       sprintf(
-        "Can't expand the replacement template for element %s: %s at character %d.\n",
+        "Can't expand the replacement template for element %s: %s at %s %d.\n",
         format(element, scientific = FALSE),
         err$message,
+        if (shown$bytes) "byte" else "character",
         position
       ),
-      "  ",
-      shown$text,
-      "\n  ",
-      caret
+      error_window(shown$units, position)
     ),
     template = tmpl,
     element = element,

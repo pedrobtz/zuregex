@@ -20,15 +20,18 @@ static void finalize_pattern(SEXP ptr) {
 }
 
 // An error description for the R side to raise: list(kind, element,
-// offset, message). `offset` is one-based and in characters.
+// offset, message, byte). `offset` is one-based and in characters, counted
+// as UTF-8; `byte` is the same position, one-based, in bytes, which the R
+// side reports for a bytes or invalid UTF-8 pattern (#131).
 static SEXP compile_error(const char *kind, int element, int offset,
-                          const char *message) {
-  const char *names[] = {"kind", "element", "offset", "message", ""};
+                          const char *message, size_t byte) {
+  const char *names[] = {"kind", "element", "offset", "message", "byte", ""};
   SEXP err = PROTECT(Rf_mkNamed(VECSXP, names));
   SET_VECTOR_ELT(err, 0, Rf_mkString(kind));
   SET_VECTOR_ELT(err, 1, Rf_ScalarInteger(element));
   SET_VECTOR_ELT(err, 2, Rf_ScalarInteger(offset));
   SET_VECTOR_ELT(err, 3, Rf_mkString(message));  // PCRE2's are ASCII
+  SET_VECTOR_ELT(err, 4, Rf_ScalarReal((double) byte + 1));
   UNPROTECT(1);
   return err;
 }
@@ -52,11 +55,11 @@ SEXP zuregex_compile_error_for(const char *pattern, int errcode,
   for (size_t i = 0; i < erroffset; i++) {
     if (((unsigned char) pattern[i] & 0xC0) != 0x80) chars++;
   }
-  return compile_error(kind, 1, chars + 1, (const char *) msg);
+  return compile_error(kind, 1, chars + 1, (const char *) msg, erroffset);
 }
 
 SEXP zuregex_flags_error_for(int offset) {
-  return compile_error("flags", 1, offset, "");
+  return compile_error("flags", 1, offset, "", (size_t) offset - 1);
 }
 
 static SEXP result(SEXP value, SEXP error) {
@@ -92,7 +95,7 @@ static SEXP compile_table(SEXP pattern, const char *f, int dialect,
 
   int bad = zuregex_parse_flags(f, key.literal, &key.options, &key.extra);
   if (bad) {
-    SEXP err = PROTECT(compile_error("flags", 1, bad, ""));
+    SEXP err = PROTECT(compile_error("flags", 1, bad, "", (size_t) bad - 1));
     SEXP res = result(R_NilValue, err);
     UNPROTECT(1);
     return res;
@@ -117,7 +120,7 @@ static SEXP compile_table(SEXP pattern, const char *f, int dialect,
       const char *kind = compile_message(errcode, msg, sizeof(msg));
       int offset = byte_to_char_offset(key.pattern, erroffset) + 1;
       SEXP err = PROTECT(compile_error(kind, (int) i + 1, offset,
-                                       (const char *) msg));
+                                       (const char *) msg, erroffset));
       SEXP res = result(R_NilValue, err);
       UNPROTECT(3);
       return res;

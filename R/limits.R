@@ -57,7 +57,7 @@ re_limits <- function(
 #' @export
 format.re_limits <- function(x, ...) {
   show <- function(v) {
-    if (is.null(v)) "default" else format(v, big.mark = ",", scientific = FALSE)
+    if (is.null(v)) "default" else format_count(v)
   }
   heap <- if (is.null(x$heap)) "default" else paste(show(x$heap), "KiB")
   sprintf(

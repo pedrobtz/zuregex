@@ -112,7 +112,9 @@ compile_patterns <- function(
   jit,
   call = sys.call(-1L),
   utf = TRUE,
-  use_cache = TRUE
+  use_cache = TRUE,
+  shown = pattern,
+  positions = seq_along(pattern)
 ) {
   res <- native(
     .Call(
@@ -128,7 +130,11 @@ compile_patterns <- function(
     call
   )
   if (!is.null(res$error)) {
-    raise_compile_error(res$error, pattern, flags, literal, call)
+    # Report the element as the user numbered it, not as the de-duplicated
+    # table did (#170).
+    err <- res$error
+    err$element <- positions[[err$element]]
+    raise_compile_error(err, shown, flags, literal, call)
   }
   ptrs <- res$value
   attributes(ptrs) <- list(
@@ -144,7 +150,10 @@ compile_patterns <- function(
 
 raise_compile_error <- function(err, pattern, flags, literal, call) {
   if (err$kind == "flags") {
-    letter <- substr(flags, err$offset, err$offset)
+    # Flags that are not valid UTF-8 are shown byte by byte (#131).
+    shown <- display_units(flags)
+    letter <- shown$units[[min(err$offset, length(shown$units))]]
+    flags_text <- paste(shown$units, collapse = "")
     why <- if (literal) {
       "is unknown, repeated, or not allowed with `literal = TRUE` (only `i` and `r` are)"
     } else {
@@ -156,7 +165,7 @@ raise_compile_error <- function(err, pattern, flags, literal, call) {
         "Flag `%s` at position %d of `flags = \"%s\"` %s.",
         letter,
         err$offset,
-        flags,
+        flags_text,
         why
       ),
       flags = flags,
@@ -177,7 +186,7 @@ raise_compile_error <- function(err, pattern, flags, literal, call) {
       sprintf(
         "Can't compile pattern%s: it would compile to more than %s bytes. See `?re_compile_size`.",
         where,
-        format(re_compile_size(), big.mark = ",", scientific = FALSE)
+        format_count(re_compile_size())
       ),
       pattern = bad,
       element = err$element,
@@ -185,52 +194,67 @@ raise_compile_error <- function(err, pattern, flags, literal, call) {
       call = call
     )
   }
-  shown <- pattern_window(bad, err$offset)
-  before <- substr(shown$text, 1L, shown$caret - 1L)
-  caret <- paste0(strrep(" ", nchar(before, type = "width")), "^")
+  # A bytes or invalid UTF-8 pattern is shown, and its position counted,
+  # in bytes.
+  shown <- display_units(bad)
+  position <- if (shown$bytes) as.integer(err$byte) else err$offset
   zuregex_abort(
     "compile",
     paste0(
       sprintf(
-        "Can't compile pattern%s: %s at character %d.\n",
+        "Can't compile pattern%s: %s at %s %d.\n",
         where,
         err$message,
-        err$offset
+        if (shown$bytes) "byte" else "character",
+        position
       ),
-      "  ",
-      shown$text,
-      "\n  ",
-      caret
+      error_window(shown$units, position)
     ),
     pattern = bad,
     element = err$element,
-    offset = err$offset,
+    offset = position,
     pcre2_message = err$message,
     call = call
   )
 }
 
-# At most `width` characters of a pattern around `offset`, with "..." where
-# it is cut, so a compile error in a long pattern stays readable. Returns
-# the text and the caret's position in it.
-pattern_window <- function(pattern, offset, width = 60L) {
-  n <- nchar(pattern)
-  if (n <= width) {
-    return(list(text = pattern, caret = offset))
+# The characters of `x`, or, for a string marked "bytes" or not valid
+# UTF-8, its bytes, those outside printable ASCII written as \xHH. Errors
+# show a pattern or template this way, so any string can be shown (#131).
+display_units <- function(x) {
+  if (!identical(Encoding(x), "bytes") && validUTF8(x)) {
+    return(list(units = strsplit(enc2utf8(x), "")[[1]], bytes = FALSE))
   }
-  from <- max(1L, offset - width %/% 2L)
-  to <- min(n, from + width - 1L)
-  from <- max(1L, to - width + 1L)
-  text <- substr(pattern, from, to)
-  caret <- offset - from + 1L
+  b <- as.integer(charToRaw(x))
+  units <- sprintf("\\x%02x", b)
+  printable <- b >= 0x20L & b < 0x7fL
+  units[printable] <- intToUtf8(b[printable], multiple = TRUE)
+  list(units = units, bytes = TRUE)
+}
+
+# At most `width` units around `position`, with "..." where they are cut,
+# and a caret under `position` on the next line, so an error in a long
+# pattern stays readable. Compile and template errors share it (#58).
+error_window <- function(units, position, width = 60L) {
+  n <- length(units)
+  from <- 1L
+  to <- n
+  if (n > width) {
+    from <- max(1L, position - width %/% 2L)
+    to <- min(n, from + width - 1L)
+    from <- max(1L, to - width + 1L)
+  }
+  text <- paste(units[seq_len(to - from + 1L) + from - 1L], collapse = "")
+  before <- units[seq_len(max(0L, min(position, n + 1L) - from)) + from - 1L]
+  column <- sum(nchar(before, type = "width"))
   if (from > 1L) {
     text <- paste0("...", text)
-    caret <- caret + 3L
+    column <- column + 3L
   }
   if (to < n) {
     text <- paste0(text, "...")
   }
-  list(text = text, caret = caret)
+  paste0("  ", text, "\n  ", strrep(" ", column), "^")
 }
 
 # An `re` whose external pointers did not survive serialization (saveRDS(),

@@ -68,3 +68,64 @@ test_that("native() classes an error native code raises without a class", {
   # Without an error the value comes back.
   expect_identical(zuregex:::native(1L, call), 1L)
 })
+
+test_that("a compile error names the user's pattern, not the table's (#170)", {
+  err <- expect_error(
+    re_detect(c("a", "b", "c", "d"), c("ok", "ok", "(bad", "(bad")),
+    class = "zuregex_error_compile"
+  )
+  expect_identical(err$element, 3L)
+  expect_identical(err$pattern, "(bad")
+  err <- expect_error(
+    re_detect(c("a", "b", "c", "d"), c(NA, "ok", "ok", "(bad")),
+    class = "zuregex_error_compile"
+  )
+  expect_identical(err$element, 4L)
+  # An re object recompiled for bytes subjects, with an NA element first.
+  r <- re_compile(c(NA, "ok", "(*UTF)x"))
+  err <- expect_error(
+    re_detect(as.list(charToRaw("abc"))[1:3], r),
+    class = "zuregex_error_compile"
+  )
+  expect_identical(err$element, 3L)
+})
+
+test_that("bytes and invalid UTF-8 patterns raise classed errors (#131)", {
+  bad <- "a\xff("
+  Encoding(bad) <- "UTF-8"
+  expect_error(re_compile(bad), class = "zuregex_error_compile")
+  expect_error(re_detect("a", bad), class = "zuregex_error_compile")
+  expect_error(
+    re_detect(c("a", "b"), c(bad, "b")),
+    class = "zuregex_error_compile"
+  )
+  p <- "\x80\x80\x80("
+  Encoding(p) <- "bytes"
+  err <- expect_error(re_compile(p), class = "zuregex_error_compile")
+  err <- expect_error(
+    re_detect(charToRaw("abc"), p),
+    class = "zuregex_error_compile"
+  )
+  # The position of a bytes pattern is in bytes.
+  expect_identical(err$offset, 5L)
+  tm <- "\xff${9"
+  Encoding(tm) <- "bytes"
+  expect_error(
+    re_replace(charToRaw("abc"), "b", tm),
+    class = "zuregex_error_template"
+  )
+  f <- "\xff."
+  Encoding(f) <- "UTF-8"
+  expect_error(re_compile("a", flags = f), class = "zuregex_error_flags")
+  expect_snapshot(re_detect(charToRaw("abc"), p), error = TRUE)
+})
+
+test_that("messages do not depend on OutDec (#172)", {
+  withr::local_options(OutDec = ",", warn = 2)
+  expect_no_error(print(re_limits(match = 1e5)))
+  local_compile_size(100)
+  expect_error(
+    re_compile("(?:(?:ab|cd){20}){20}"),
+    class = "zuregex_error_compile"
+  )
+})

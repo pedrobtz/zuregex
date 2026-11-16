@@ -14,11 +14,10 @@ test_that("a byte invalid in a C locale is not matched as <xx> text (#126)", {
   expect_error(re_detect(x, "<"), class = "zuregex_error_utf")
   expect_error(re_locate_all(x, "f"), class = "zuregex_error_utf")
   expect_error(re_split("a\xffb", "f"), class = "zuregex_error_utf")
-  # Patterns and templates are refused too, never read as "<ff>".
-  matched <- tryCatch(re_detect("<ff>", "\xff"), error = function(e) FALSE)
-  expect_false(matched)
-  replaced <- tryCatch(re_replace("a", "a", "\xff"), error = function(e) NULL)
-  expect_false(identical(replaced, "<ff>"))
+  # Patterns and templates are refused too, with their own class, never
+  # read as "<ff>" (#131).
+  expect_error(re_detect("<ff>", "\xff"), class = "zuregex_error_compile")
+  expect_error(re_replace("a", "a", "\xff"), class = "zuregex_error_template")
 })
 
 test_that("a template error counts characters in a C locale (#126)", {
