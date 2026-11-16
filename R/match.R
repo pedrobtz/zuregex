@@ -193,7 +193,9 @@ patterns <- function(pattern, n, bytes, call, opts = NULL) {
     TRUE,
     call = call,
     utf = !bytes,
-    use_cache = use_cache
+    use_cache = use_cache,
+    shown = pattern,
+    positions = match(distinct, pattern)
   )
   list(table = unclass(table), index = match(pattern, distinct))
 }
@@ -213,7 +215,9 @@ re_patterns <- function(re, bytes, call) {
       attr(re, "literal"),
       attr(re, "jit"),
       call = call,
-      utf = FALSE
+      utf = FALSE,
+      shown = attr(re, "pattern"),
+      positions = which(keep)
     )
     index[keep] <- seq_len(sum(keep))
     return(list(table = unclass(table), index = index))
