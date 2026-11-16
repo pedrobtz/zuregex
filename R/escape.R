@@ -23,22 +23,35 @@ re_escape <- function(x) {
   # that character, so escaping a few more than strictly needed is safe.
   out <- gsub("([][\\\\^$.|?*+(){}#/ -])", "\\\\\\1", enc2utf8(x), perl = TRUE)
   # Control whitespace is written as an escape sequence, which the `x` flag
-  # does not skip.
-  controls <- c(
-    "\n" = "\\n",
-    "\t" = "\\t",
-    "\r" = "\\r",
-    "\f" = "\\f",
-    "\v" = "\\x0b",
+  # does not skip. Two vectors, not names: R converts names to the native
+  # encoding, so in a C locale "\u0085" would become the text "<U+0085>".
+  from <- c(
+    "\n",
+    "\t",
+    "\r",
+    "\f",
+    "\v",
     # The Unicode white space PCRE2 also skips under `x` in UTF mode.
-    "\u0085" = "\\x{85}",
-    "\u200e" = "\\x{200e}",
-    "\u200f" = "\\x{200f}",
-    "\u2028" = "\\x{2028}",
-    "\u2029" = "\\x{2029}"
+    "\u0085",
+    "\u200e",
+    "\u200f",
+    "\u2028",
+    "\u2029"
   )
-  for (ch in names(controls)) {
-    out <- gsub(ch, controls[[ch]], out, fixed = TRUE)
+  to <- c(
+    "\\n",
+    "\\t",
+    "\\r",
+    "\\f",
+    "\\x0b",
+    "\\x{85}",
+    "\\x{200e}",
+    "\\x{200f}",
+    "\\x{2028}",
+    "\\x{2029}"
+  )
+  for (k in seq_along(from)) {
+    out <- gsub(from[[k]], to[[k]], out, fixed = TRUE)
   }
   out[is.na(x)] <- NA_character_
   names(out) <- names(x)

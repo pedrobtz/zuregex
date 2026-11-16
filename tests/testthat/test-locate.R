@@ -77,7 +77,9 @@ test_that("bytes = TRUE counts bytes", {
     cbind(start = 4L, end = 5L)
   )
   b <- re_locate(x, "w\u00f6r", bytes = TRUE)
-  expect_identical(rawToChar(charToRaw(x)[b[, "start"]:b[, "end"]]), "w\u00f6r")
+  # Bytes, not strings: rawToChar() is unmarked, so identical() would
+  # translate it, which a non-UTF-8 locale cannot do (#126).
+  expect_identical(charToRaw(x)[b[, "start"]:b[, "end"]], charToRaw("w\u00f6r"))
   all <- re_locate_all(x, "[\u00e9\u00f6]", bytes = TRUE)
   expect_identical(all$start, c(2L, 9L))
   expect_identical(all$end, c(3L, 10L))

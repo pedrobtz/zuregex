@@ -2,6 +2,27 @@
 # UTF-8 and bytes, apply the pairing rule to `pattern` (design section 6.5,
 # D8) and compile each distinct pattern once.
 
+# enc2utf8() for patterns and templates. R writes a byte that is invalid in
+# a non-UTF-8 native encoding as "<ff>", so "\xff" in a C locale would match
+# the text "<ff>" (#126). Such a string keeps its bytes, marked UTF-8, and
+# is then rejected as invalid UTF-8, as it is in a UTF-8 locale.
+to_utf8 <- function(x) {
+  if (l10n_info()[["UTF-8"]]) {
+    return(enc2utf8(x))
+  }
+  native <- !is.na(x) & Encoding(x) == "unknown"
+  out <- enc2utf8(x)
+  if (any(native)) {
+    conv <- iconv(x[native], "", "UTF-8")
+    bad <- is.na(conv)
+    kept <- x[native][bad]
+    Encoding(kept) <- "UTF-8"
+    conv[bad] <- kept
+    out[native] <- conv
+  }
+  out
+}
+
 # subjects() and patterns() in one step: list(x, n, bytes, table, index).
 # A character vector with one pattern string, the common case, takes one
 # .Call; anything else goes through the two R functions below. Call it
@@ -139,7 +160,7 @@ patterns <- function(pattern, n, bytes, call, opts = NULL) {
   if (len == 1L && is.character(pattern) && !is.na(pattern)) {
     # The common case, one pattern string: a cache lookup in C, without
     # unique(), match() or the attributes of an `re` object.
-    pattern <- enc2utf8(pattern)
+    pattern <- to_utf8(pattern)
     res <- native(
       .Call(zuregex_compile_c, pattern, flags, 0L, literal, TRUE, !bytes, TRUE),
       call
@@ -159,7 +180,7 @@ patterns <- function(pattern, n, bytes, call, opts = NULL) {
       call = call
     )
   }
-  pattern <- enc2utf8(pattern)
+  pattern <- to_utf8(pattern)
   distinct <- unique(pattern[!is.na(pattern)])
   # More distinct patterns than the cache holds are compiled for this call
   # only, so one call does not flush the cache for everything else.
@@ -278,7 +299,7 @@ fast_result <- function(res, call, pattern, repl = NULL, opts = NULL) {
   }
   if (!is.null(err) && err$kind == "template") {
     # PCRE2's offset is into the UTF-8 template, as on the general path.
-    raise_template_error(err, enc2utf8(repl), call)
+    raise_template_error(err, to_utf8(repl), call)
   }
   verb_result(res, call)
 }

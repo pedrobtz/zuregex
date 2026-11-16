@@ -1,4 +1,4 @@
-# a malformed template is a zuregex_error_template with its position
+# a template error shows the template with a caret
 
     Code
       re_replace(c("a", "b"), "b", "é${x")

@@ -4,9 +4,44 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <R_ext/Riconv.h>
+
 #include "zuregex.h"
 #include "match.h"
 #include "omp.h"
+
+const char *zuregex_utf8_of(SEXP s, size_t *len) {
+  // Rf_translateCharUTF8() never fails: it writes a byte that is invalid
+  // in the native encoding as "<ff>". Declared encodings always convert,
+  // so only a native string is converted here, with Riconv, which reports
+  // the invalid byte.
+  if (Rf_getCharCE(s) == CE_NATIVE) {
+    void *cd = Riconv_open("UTF-8", "");
+    if (cd != (void *) -1) {
+      const char *in = CHAR(s);
+      size_t in_left = (size_t) LENGTH(s);
+      // A native character of k bytes is at most 4 UTF-8 bytes, k >= 1.
+      size_t cap = 4 * in_left + 1;
+      char *buf = R_alloc(cap, 1);
+      char *out = buf;
+      size_t out_left = cap;
+      size_t rc = Riconv(cd, &in, &in_left, &out, &out_left);
+      if (rc != (size_t) -1) {
+        rc = Riconv(cd, NULL, NULL, &out, &out_left);
+      }
+      Riconv_close(cd);
+      if (rc == (size_t) -1) {
+        *len = (size_t) LENGTH(s);
+        return CHAR(s);
+      }
+      *len = cap - out_left;
+      return buf;
+    }
+  }
+  const char *t = Rf_translateCharUTF8(s);
+  *len = strlen(t);
+  return t;
+}
 
 static void set_subject(zuregex_subject *s, const char *ptr, size_t len) {
   // Offsets are returned as R integers.
@@ -182,8 +217,9 @@ void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index, SEXP limits,
       } else if (Rf_charIsUTF8(s)) {
         set_subject(&call->subjects[i], CHAR(s), (size_t) LENGTH(s));
       } else {
-        const char *t = Rf_translateCharUTF8(s);
-        set_subject(&call->subjects[i], t, strlen(t));
+        size_t len;
+        const char *t = zuregex_utf8_of(s, &len);
+        set_subject(&call->subjects[i], t, len);
       }
     }
   }

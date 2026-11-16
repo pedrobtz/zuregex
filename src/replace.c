@@ -168,8 +168,7 @@ SEXP zuregex_replace_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,
       r[j].ptr = CHAR(s);
       r[j].len = (size_t) LENGTH(s);
     } else {
-      r[j].ptr = Rf_translateCharUTF8(s);
-      r[j].len = strlen(r[j].ptr);
+      r[j].ptr = zuregex_utf8_of(s, &r[j].len);
     }
   }
 
