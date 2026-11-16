@@ -31,7 +31,9 @@ re_locate_all(
 
 \item{pattern}{A character vector or an \code{re} vector; see Patterns.}
 
-\item{bytes}{If \code{TRUE}, offsets count bytes instead of characters.}
+\item{bytes}{If \code{TRUE}, offsets count bytes instead of characters. A
+string in another encoding, such as latin1, is matched as UTF-8, so
+the bytes counted are those of its UTF-8 form.}
 
 \item{flags}{A single string of flag letters for pattern strings, such as
 \code{"i"} for case-insensitive matching; see \code{\link[=re_compile]{re_compile()}} for every

@@ -369,3 +369,29 @@ test_that("unmatched raw subjects and latin1 templates come back right", {
   wide <- re_replace(charToRaw("é"), "z", "y")
   expect_identical(Encoding(wide), "bytes")
 })
+
+test_that("a replacement function's strings are checked as templates are (#175)", {
+  expect_error(
+    re_replace("aa", "a", function(m) c("x", "y", "z")),
+    class = "zuregex_error_argument"
+  )
+  expect_error(
+    re_replace("aa", "a", function(m) "x"),
+    class = "zuregex_error_argument"
+  )
+  bad <- "\xff."
+  Encoding(bad) <- "UTF-8"
+  expect_error(
+    re_replace("a", "a", function(m) bad),
+    class = "zuregex_error_argument"
+  )
+  marked <- "\xe9"
+  Encoding(marked) <- "bytes"
+  expect_error(
+    re_replace("a", "a", function(m) marked),
+    class = "zuregex_error_argument"
+  )
+  # Bytes subjects take any bytes back.
+  out <- re_replace(charToRaw("a"), "a", function(m) marked)
+  expect_identical(charToRaw(out), as.raw(0xe9))
+})

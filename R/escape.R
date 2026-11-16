@@ -19,9 +19,21 @@ re_escape <- function(x) {
       call = sys.call()
     )
   }
+  # to_utf8(), not enc2utf8(): R would turn a byte that is invalid in the
+  # native encoding into the text "<ff>", which then matches only itself.
+  text <- to_utf8(x)
+  bad <- which(!is.na(text) & !validUTF8(text))
+  if (length(bad) > 0L) {
+    zuregex_abort(
+      "argument",
+      sprintf("Element %d of `x` is not valid UTF-8.", bad[[1L]]),
+      element = bad[[1L]],
+      call = sys.call()
+    )
+  }
   # PCRE2 allows a backslash before any ASCII punctuation, and reads it as
   # that character, so escaping a few more than strictly needed is safe.
-  out <- gsub("([][\\\\^$.|?*+(){}#/ -])", "\\\\\\1", enc2utf8(x), perl = TRUE)
+  out <- gsub("([][\\\\^$.|?*+(){}#/ -])", "\\\\\\1", text, perl = TRUE)
   # Control whitespace is written as an escape sequence, which the `x` flag
   # does not skip. Two vectors, not names: R converts names to the native
   # encoding, so in a C locale "\u0085" would become the text "<U+0085>".
@@ -44,11 +56,14 @@ re_escape <- function(x) {
     "\\r",
     "\\f",
     "\\x0b",
-    "\\x{85}",
-    "\\x{200e}",
-    "\\x{200f}",
-    "\\x{2028}",
-    "\\x{2029}"
+    # \Q...\E, not \x{...}: the JavaScript dialect does not read \x{...},
+    # and in bytes mode it names one byte (#171). Quoted text is literal
+    # everywhere, under `x` too.
+    "\\Q\u0085\\E",
+    "\\Q\u200e\\E",
+    "\\Q\u200f\\E",
+    "\\Q\u2028\\E",
+    "\\Q\u2029\\E"
   )
   for (k in seq_along(from)) {
     out <- gsub(from[[k]], to[[k]], out, fixed = TRUE)
