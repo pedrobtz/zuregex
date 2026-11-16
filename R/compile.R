@@ -469,6 +469,11 @@ re_info <- function(re) {
     cols$literal,
     USE.NAMES = FALSE
   )
+  # PCRE2's minimum counts the subject a match consumes, which \K makes
+  # longer than the match reported, so 0 is the bound there (#169).
+  min_length <- cols$min_length
+  reset <- !cols$literal & grepl("\\K", cols$pattern, fixed = TRUE)
+  min_length[reset & !is.na(min_length)] <- 0L
   version <- zuregex_info()$pcre2_version
   out <- data.frame(
     pattern = cols$pattern,
@@ -477,7 +482,7 @@ re_info <- function(re) {
     literal = cols$literal,
     groups = cols$groups,
     jit = cols$jit,
-    min_length = cols$min_length,
+    min_length = min_length,
     prefix = as.character(prefix),
     backrefs = cols$backrefs,
     pcre2_version = ifelse(is.na(cols$pattern), NA_character_, version),
@@ -513,7 +518,13 @@ literal_prefix <- function(pattern, flags, literal) {
   if (literal) {
     return(pattern)
   }
-  if (grepl("x", flags, fixed = TRUE) || has_top_level_bar(pattern)) {
+  # \K moves the start of the match past what it matched so far, so a
+  # pattern with one has no certain prefix (#169).
+  if (
+    grepl("x", flags, fixed = TRUE) ||
+      grepl("\\K", pattern, fixed = TRUE) ||
+      has_top_level_bar(pattern)
+  ) {
     return("")
   }
   chars <- strsplit(pattern, "", fixed = TRUE)[[1]]
@@ -548,7 +559,13 @@ literal_prefix <- function(pattern, flags, literal) {
   paste(atoms, collapse = "")
 }
 
+# Whether `pattern` may have an alternation at the top level. Conservative:
+# comments, \Q...\E and \c can hide a parenthesis or bracket from this
+# scan, so a pattern with any of them counts as having one (#169).
 has_top_level_bar <- function(pattern) {
+  if (any(vapply(c("(?#", "\\Q", "\\c"), grepl, NA, pattern, fixed = TRUE))) {
+    return(TRUE)
+  }
   chars <- strsplit(pattern, "", fixed = TRUE)[[1]]
   depth <- 0L
   in_class <- FALSE
