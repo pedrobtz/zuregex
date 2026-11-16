@@ -29,6 +29,13 @@ SEXP zuregex_flags_error_for(int offset);
 SEXP zuregex_prepare_c(SEXP x, SEXP pattern, SEXP flags, SEXP literal);
 SEXP zuregex_re_valid_c(SEXP re);
 SEXP zuregex_re_info_c(SEXP re);
+// The pattern an `re` element's external pointer holds, or NULL for an NA,
+// a stale pointer or a pointer zuregex did not make (src/compile.c).
+struct zuregex_pattern;
+struct zuregex_pattern *zuregex_pattern_of(SEXP ptr);
+// Runs the finalizers of live `re` pointers and empties the cache, while
+// the DLL is still loaded; .onUnload() calls it (src/compile.c).
+SEXP zuregex_unload_c(void);
 SEXP zuregex_re_consistent_c(SEXP re);
 SEXP zuregex_cache_size_c(SEXP n);
 SEXP zuregex_compile_size_c(SEXP bytes);

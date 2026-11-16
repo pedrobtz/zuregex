@@ -280,6 +280,13 @@ stage establishes it.
   sets it in `src/pattern.c`, and every compile, the C API's included, applies
   it through the compile context. It is not part of the cache key, so a
   cached pattern outlives a lower cap until the cache drops it.
+- **An `re` pointer is read only through `zuregex_pattern_of()`**
+  (#159, #168). It checks the pointer's tag, so a foreign pointer reads as
+  stale. Its finalizer lives in a weak reference in the registry in
+  `src/compile.c`, which `.onUnload()` runs, through `zuregex_unload_c()`,
+  before the code is unmapped. `R_unload_zuregex()` would not work: with
+  `R_useDynamicSymbols(dll, FALSE)`, R never finds it. A new kind of long-lived pointer needs the same tag, registry
+  and unload step.
 - **A pattern's reference count is main-thread only.** The cache, each
   `re` external pointer and its finalizer own references. A worker thread
   may read a `zuregex_pattern`, never retain or release one.

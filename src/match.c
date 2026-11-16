@@ -244,8 +244,7 @@ static void collect_table(SEXP table, SEXP index, zuregex_call *call) {
   call->max_ovector = 1;
   for (int k = 0; k < call->n_patterns; k++) {
     SEXP ptr = VECTOR_ELT(table, k);
-    zuregex_pattern *p =
-      TYPEOF(ptr) == EXTPTRSXP ? R_ExternalPtrAddr(ptr) : NULL;
+    zuregex_pattern *p = zuregex_pattern_of(ptr);
     if (p == NULL) Rf_error("internal error: pattern %d is not compiled", k + 1);
     call->patterns[k] = p;
     uint32_t groups = 0;
