@@ -1,0 +1,25 @@
+"task","size","engine","median_ms"
+"Detect","50,000 strings","zuregex",10.3375000000057
+"Detect","50,000 strings","base",12.0181335000069
+"Detect","50,000 strings","stringi",34.1363889999826
+"Count matches","50,000 strings","zuregex",18.6123700000138
+"Count matches","50,000 strings","base",327.303267500007
+"Count matches","50,000 strings","stringi",45.8824000000106
+"Locate the first match","50,000 strings","zuregex",11.428937500007
+"Locate the first match","50,000 strings","base",19.5249329999854
+"Locate the first match","50,000 strings","stringi",46.3921835000036
+"Extract every match","50,000 strings","zuregex",45.8331730000054
+"Extract every match","50,000 strings","base",768.995610500006
+"Extract every match","50,000 strings","stringi",78.3367670000032
+"Capture groups","50,000 strings","zuregex",21.0584335000021
+"Capture groups","50,000 strings","base",1003.54804400001
+"Capture groups","50,000 strings","stringi",52.6206315000053
+"Replace every match","50,000 strings","zuregex",30.3644064999986
+"Replace every match","50,000 strings","base",41.8145330000073
+"Replace every match","50,000 strings","stringi",87.5352070000091
+"Split","50,000 strings","zuregex",32.858731999994
+"Split","50,000 strings","base",54.5044805000074
+"Split","50,000 strings","stringi",58.067396999995
+"Detect, one string","1 string","zuregex",0.0130789999985836
+"Detect, one string","1 string","base",0.0209865000044829
+"Detect, one string","1 string","stringi",0.0129000000086421
