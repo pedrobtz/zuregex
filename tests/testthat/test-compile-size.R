@@ -64,3 +64,13 @@ test_that("re_compile_size() checks its argument", {
   }
   expect_snapshot(re_compile_size(0), error = TRUE)
 })
+
+test_that("a lowered cap holds the recompiles of an re object (#176)", {
+  local_cache()
+  r <- re_compile("(?:ab|cd){100}")
+  local_compile_size(1000)
+  # Character subjects use the compiled pattern; bytes subjects compile it
+  # again, under the cap of the moment, as ?re_compile_size says.
+  expect_false(re_detect("x", r))
+  expect_error(re_detect(charToRaw("x"), r), class = "zuregex_error_compile")
+})

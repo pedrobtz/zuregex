@@ -29,6 +29,7 @@ SEXP zuregex_flags_error_for(int offset);
 SEXP zuregex_prepare_c(SEXP x, SEXP pattern, SEXP flags, SEXP literal);
 SEXP zuregex_re_valid_c(SEXP re);
 SEXP zuregex_re_info_c(SEXP re);
+SEXP zuregex_re_consistent_c(SEXP re);
 SEXP zuregex_cache_size_c(SEXP n);
 SEXP zuregex_compile_size_c(SEXP bytes);
 SEXP zuregex_cache_clear_c(void);
