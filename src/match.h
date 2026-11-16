@@ -72,6 +72,12 @@ typedef struct {
 void zuregex_collect(SEXP x, int bytes, SEXP table, SEXP index, SEXP limits,
                      zuregex_call *call);
 
+// The UTF-8 bytes of s, which is neither ASCII nor known to be UTF-8, and
+// their length. Phase 1 only. A native string that is invalid in its
+// encoding comes back as its own bytes, so PCRE2 rejects it as invalid
+// UTF-8 instead of matching R's "<ff>" escapes (#126).
+const char *zuregex_utf8_of(SEXP s, size_t *len);
+
 // Threads for phase 2 of this call (threads.c): 1 below the serial
 // threshold, otherwise the cap set by re_threads().
 int zuregex_threads_for(const zuregex_call *call);

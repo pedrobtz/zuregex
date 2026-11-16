@@ -28,6 +28,10 @@
   character vectors, raw vectors and lists of raw vectors, with one pattern
   for every element or one per element. Offsets are one-based and
   inclusive, in characters or bytes.
+* Strings in any declared or native encoding are matched as UTF-8. A
+  string that is invalid in its encoding raises `zuregex_error_utf` in
+  every locale, including the C locale, where R's own translation would
+  turn a byte such as `0xff` into the text `<ff>`.
 * `re_extract()`, `re_extract_all()`, `re_match()` and `re_match_all()`
   return matches and capture groups as vectors and data frames built in C.
   `re_match()` types its columns through `proto`, as `utils::strcapture()`

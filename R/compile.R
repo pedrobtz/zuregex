@@ -86,7 +86,7 @@ re_compile <- function(
     check_flag(jit, "jit", call)
   }
   out <- compile_patterns(
-    unname(enc2utf8(pattern)),
+    unname(to_utf8(pattern)),
     flags,
     dialect,
     literal,

@@ -117,7 +117,7 @@ re_replace <- function(
   run_replace(
     prep,
     lim,
-    enc2utf8(replacement),
+    to_utf8(replacement),
     0L,
     syntax == "literal",
     n,
@@ -182,7 +182,7 @@ re_expand <- function(
   run_replace(
     prep,
     lim,
-    enc2utf8(template),
+    to_utf8(template),
     0L,
     FALSE,
     1,
@@ -264,10 +264,13 @@ run_replace <- function(
 raise_template_error <- function(err, repl, call) {
   element <- err$element
   tmpl <- if (length(repl) == 1L) repl[[1L]] else repl[[element]]
-  # PCRE2 reports a byte offset into the template; count characters.
-  bytes <- charToRaw(tmpl)
-  upto <- bytes[seq_len(min(err$offset - 1, length(bytes)))]
-  position <- nchar(rawToChar(upto), type = "chars", allowNA = TRUE) + 1L
+  # PCRE2 reports a byte offset into the UTF-8 template; count characters.
+  # The prefix is marked UTF-8, or nchar() would decode it in the native
+  # encoding, which in a C locale counts bytes (#126).
+  bytes <- charToRaw(to_utf8(tmpl))
+  upto <- rawToChar(bytes[seq_len(min(err$offset - 1, length(bytes)))])
+  Encoding(upto) <- "UTF-8"
+  position <- nchar(upto, type = "chars", allowNA = TRUE) + 1L
   shown <- pattern_window(tmpl, position)
   before <- substr(shown$text, 1L, shown$caret - 1L)
   caret <- paste0(strrep(" ", nchar(before, type = "width")), "^")
@@ -353,7 +356,7 @@ replace_with_function <- function(prep, fun, n, lim, call) {
   out <- run_replace(
     prep,
     lim,
-    enc2utf8(repl),
+    to_utf8(repl),
     1L,
     TRUE,
     n,

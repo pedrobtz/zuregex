@@ -50,9 +50,15 @@ test_that("a malformed template is a zuregex_error_template with its position", 
     re_expand("abc", "b", "${1:+x}"),
     class = "zuregex_error_template"
   )
-  expect_snapshot(re_replace(c("a", "b"), "b", "\u00e9${x"), error = TRUE)
   # Reported where a match first uses the template, not before.
   expect_identical(re_replace("abc", "z", "${oops"), "abc")
+})
+
+test_that("a template error shows the template with a caret", {
+  # A non-UTF-8 locale prints the e-acute as <U+00E9>; test-locale.R
+  # checks the position there.
+  skip_if_not(l10n_info()[["UTF-8"]], "the snapshot is UTF-8")
+  expect_snapshot(re_replace(c("a", "b"), "b", "\u00e9${x"), error = TRUE)
 })
 
 test_that("syntax = \"literal\" inserts the replacement as it is", {
