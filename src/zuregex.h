@@ -30,6 +30,7 @@ SEXP zuregex_prepare_c(SEXP x, SEXP pattern, SEXP flags, SEXP literal);
 SEXP zuregex_re_valid_c(SEXP re);
 SEXP zuregex_re_info_c(SEXP re);
 SEXP zuregex_cache_size_c(SEXP n);
+SEXP zuregex_compile_size_c(SEXP bytes);
 SEXP zuregex_cache_clear_c(void);
 SEXP zuregex_cache_stats_c(void);
 SEXP zuregex_detect_c(SEXP x, SEXP bytes, SEXP table, SEXP index, SEXP limits,

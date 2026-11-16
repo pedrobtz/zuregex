@@ -170,6 +170,21 @@ raise_compile_error <- function(err, pattern, flags, literal, call) {
   } else {
     ""
   }
+  if (err$kind == "size") {
+    # The whole pattern is too big, so there is no position to show.
+    zuregex_abort(
+      "compile",
+      sprintf(
+        "Can't compile pattern%s: it would compile to more than %s bytes. See `?re_compile_size`.",
+        where,
+        format(re_compile_size(), big.mark = ",", scientific = FALSE)
+      ),
+      pattern = bad,
+      element = err$element,
+      pcre2_message = err$message,
+      call = call
+    )
+  }
   shown <- pattern_window(bad, err$offset)
   before <- substr(shown$text, 1L, shown$caret - 1L)
   caret <- paste0(strrep(" ", nchar(before, type = "width")), "^")
