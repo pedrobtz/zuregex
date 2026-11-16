@@ -3,6 +3,17 @@
 <!-- markdownlint-disable-next-line MD013 -->
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Shared conventions
+
+<!-- r-skills: shared-rules -->
+
+The portfolio's shared rules (`workflow`, `r-package`, `ci`, `native-code`,
+`correctness`, `assurance`) come from the
+[r-skills](https://github.com/pedrobtz/r-skills) plugin's `rules/`, loaded at
+session start because of the marker above. Never copy them here. Where this
+file and a shared rule disagree, this file wins for this package. Cloud
+sessions do not load the plugin and run without them.
+
 ## What this is
 
 `zuregex` is PCRE2 packaged twice. For R code it is a set of `re_*` verbs
@@ -311,6 +322,10 @@ stage establishes it.
   it times, asserts a speedup only where the measured margin is wide, and
   "no slower" with room for noise where it is close. Timing tests add about
   18 seconds to the suite.
+- **Every boundary, object and limit has an oracle.** `.agents/assurance.md`
+  names what checks each one against a known answer, or the issue for the
+  gap; `assurance.yaml` holds the file to the shared `assurance` rules. A
+  change that adds a boundary, a long-lived object or a limit adds its row.
 - **Keep the suite inside the CRAN time budget.** About 12 seconds on a
   2026 laptop after the second critical review, timing tests off.
   Re-measure when a change adds a large corpus.
