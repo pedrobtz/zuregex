@@ -35,6 +35,7 @@ reference:
       - re_limits
       - re_threads
       - re_cache_size
+      - re_compile_size
   - title: The package
     contents:
       - zuregex_info

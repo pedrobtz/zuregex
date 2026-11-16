@@ -50,6 +50,16 @@ void zuregex_format_flags(uint32_t options, uint32_t extra, char *buf);
 zuregex_pattern *zuregex_pattern_compile(const zuregex_key *key, int *errcode,
                                          size_t *erroffset);
 
+// The most bytes a compiled pattern may take (#128), for every compile,
+// the C API's included; SIZE_MAX for no cap. Nested counted repeats grow
+// bytecode multiplicatively: 77 characters can compile to 458 MB. PCRE2
+// measures the size before allocating, so a refusal costs nothing; the
+// error is PCRE2_ERROR_PATTERN_COMPILED_SIZE_TOO_BIG. Main thread only,
+// like the cache. Setting returns the previous cap.
+#define ZUREGEX_MAX_COMPILED_DEFAULT ((size_t) 16 << 20)
+size_t zuregex_max_compiled(void);
+size_t zuregex_set_max_compiled(size_t bytes);
+
 void zuregex_pattern_retain(zuregex_pattern *p);
 void zuregex_pattern_release(zuregex_pattern *p);
 

@@ -21,6 +21,10 @@
   and may not use `(*UTF)`, which would match UTF-8 nothing has checked.
 * Patterns are cached, 128 by default; `re_cache_size()` and
   `re_cache_clear()` manage the cache.
+* A compiled pattern may take at most 16 MiB, so a short pattern of nested
+  counted repeats cannot take gigabytes of memory to compile. A larger one
+  is a compile error, refused before PCRE2 allocates; `re_compile_size()`
+  changes the cap.
 
 ## Matching
 

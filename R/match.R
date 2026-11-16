@@ -288,7 +288,7 @@ raise_match_error <- function(err, call) {
 # which then starts from out <- NULL.
 fast_result <- function(res, call, pattern, repl = NULL, opts = NULL) {
   err <- res$error
-  if (!is.null(err) && err$kind %in% c("compile", "flags")) {
+  if (!is.null(err) && err$kind %in% c("compile", "size", "flags")) {
     raise_compile_error(
       err,
       pattern,

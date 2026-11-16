@@ -33,17 +33,26 @@ static SEXP compile_error(const char *kind, int element, int offset,
   return err;
 }
 
+// PCRE2's message for a compile error, and the kind the R side raises it
+// as: "size" for a pattern over re_compile_size(), which has no position.
+static const char *compile_message(int errcode, PCRE2_UCHAR *msg,
+                                   size_t size) {
+  if (pcre2_get_error_message(errcode, msg, size) < 0) {
+    strcpy((char *) msg, "unknown error");
+  }
+  return errcode == PCRE2_ERROR_PATTERN_COMPILED_SIZE_TOO_BIG ? "size"
+                                                              : "compile";
+}
+
 SEXP zuregex_compile_error_for(const char *pattern, int errcode,
                                size_t erroffset) {
   PCRE2_UCHAR msg[256];
-  if (pcre2_get_error_message(errcode, msg, sizeof(msg)) < 0) {
-    strcpy((char *) msg, "unknown error");
-  }
+  const char *kind = compile_message(errcode, msg, sizeof(msg));
   int chars = 0;
   for (size_t i = 0; i < erroffset; i++) {
     if (((unsigned char) pattern[i] & 0xC0) != 0x80) chars++;
   }
-  return compile_error("compile", 1, chars + 1, (const char *) msg);
+  return compile_error(kind, 1, chars + 1, (const char *) msg);
 }
 
 SEXP zuregex_flags_error_for(int offset) {
@@ -105,11 +114,9 @@ static SEXP compile_table(SEXP pattern, const char *f, int dialect,
     zuregex_pattern *p = zuregex_cache_get(&key, cached, &errcode, &erroffset);
     if (p == NULL) {
       PCRE2_UCHAR msg[256];
-      if (pcre2_get_error_message(errcode, msg, sizeof(msg)) < 0) {
-        strcpy((char *) msg, "unknown error");
-      }
+      const char *kind = compile_message(errcode, msg, sizeof(msg));
       int offset = byte_to_char_offset(key.pattern, erroffset) + 1;
-      SEXP err = PROTECT(compile_error("compile", (int) i + 1, offset,
+      SEXP err = PROTECT(compile_error(kind, (int) i + 1, offset,
                                        (const char *) msg));
       SEXP res = result(R_NilValue, err);
       UNPROTECT(3);
@@ -271,6 +278,20 @@ SEXP zuregex_re_info_c(SEXP re) {
 SEXP zuregex_cache_size_c(SEXP n) {
   if (Rf_isNull(n)) return Rf_ScalarInteger(zuregex_cache_capacity());
   return Rf_ScalarInteger(zuregex_cache_set_capacity(Rf_asInteger(n)));
+}
+
+// re_compile_size(): the cap in bytes, Inf for none. A double, as the cap
+// can exceed INT_MAX.
+SEXP zuregex_compile_size_c(SEXP bytes) {
+  size_t old;
+  if (Rf_isNull(bytes)) {
+    old = zuregex_max_compiled();
+  } else {
+    double b = Rf_asReal(bytes);
+    old = zuregex_set_max_compiled(b >= (double) SIZE_MAX ? SIZE_MAX
+                                                          : (size_t) b);
+  }
+  return Rf_ScalarReal(old == SIZE_MAX ? R_PosInf : (double) old);
 }
 
 SEXP zuregex_cache_clear_c(void) {

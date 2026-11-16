@@ -259,6 +259,10 @@ stage establishes it.
 - **Two offset conventions, deliberately** (design §6.2). R results are
   one-based, inclusive and in characters; the C API is zero-based,
   half-open and in bytes. Convert at the boundary, never in the middle.
+- **The compiled-size cap is main-thread state** (#128). `re_compile_size()`
+  sets it in `src/pattern.c`, and every compile, the C API's included, applies
+  it through the compile context. It is not part of the cache key, so a
+  cached pattern outlives a lower cap until the cache drops it.
 - **A pattern's reference count is main-thread only.** The cache, each
   `re` external pointer and its finalizer own references. A worker thread
   may read a `zuregex_pattern`, never retain or release one.
