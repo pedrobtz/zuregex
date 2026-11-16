@@ -17,7 +17,9 @@
 #' @inheritParams re_detect
 #' @inheritSection re_detect Patterns
 #' @inheritSection re_detect Strings and bytes
-#' @param bytes If `TRUE`, offsets count bytes instead of characters.
+#' @param bytes If `TRUE`, offsets count bytes instead of characters. A
+#'   string in another encoding, such as latin1, is matched as UTF-8, so
+#'   the bytes counted are those of its UTF-8 form.
 #' @param n The most matches to return per element, `Inf` for all.
 #' @param overlap If `TRUE`, each search starts one character after the
 #'   start of the previous match, so matches may overlap.

@@ -395,6 +395,16 @@ int zuregex_match_once(const zuregex_call *call, const zuregex_pattern *p,
     rc = pcre2_match(p->code, (PCRE2_SPTR) s->ptr, s->len, start, options, md,
                      call->mctx);
   }
+  // The JIT runs on PCRE2's 32 KiB stack, and a repeated group uses some
+  // for each iteration, so ordinary patterns overflowed it from about 1 KB
+  // (#166). The interpreter keeps its frames on the heap, which `heap`
+  // bounds, so the element is matched again there. Its frames come from
+  // the match data's allocator, malloc(), so this stays off the R API.
+  st->no_jit = rc == PCRE2_ERROR_JIT_STACKLIMIT;
+  if (st->no_jit) {
+    rc = pcre2_match(p->code, (PCRE2_SPTR) s->ptr, s->len, start,
+                     options | PCRE2_NO_JIT, md, call->mctx);
+  }
   if (rc >= 0) return 1;
   if (rc == PCRE2_ERROR_NOMATCH) return 0;
   st->rc = rc;

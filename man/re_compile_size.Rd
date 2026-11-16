@@ -28,7 +28,10 @@ matching, use \code{\link[=re_limits]{re_limits()}}.
 
 The cap applies to every compile in the session, including compiles
 through the C API. A pattern already in the cache keeps working when the
-cap is lowered; \code{\link[=re_cache_clear]{re_cache_clear()}} drops it.
+cap is lowered; \code{\link[=re_cache_clear]{re_cache_clear()}} drops it. An \code{re} object's pattern is
+compiled again for bytes subjects and after \code{\link[=readRDS]{readRDS()}}, and that compile
+is held to the cap of the moment, so an object made under a higher cap
+may refuse raw subjects once the cap is lowered.
 }
 \examples{
 re_compile_size()

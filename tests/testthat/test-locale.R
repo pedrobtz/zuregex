@@ -14,11 +14,10 @@ test_that("a byte invalid in a C locale is not matched as <xx> text (#126)", {
   expect_error(re_detect(x, "<"), class = "zuregex_error_utf")
   expect_error(re_locate_all(x, "f"), class = "zuregex_error_utf")
   expect_error(re_split("a\xffb", "f"), class = "zuregex_error_utf")
-  # Patterns and templates are refused too, never read as "<ff>".
-  matched <- tryCatch(re_detect("<ff>", "\xff"), error = function(e) FALSE)
-  expect_false(matched)
-  replaced <- tryCatch(re_replace("a", "a", "\xff"), error = function(e) NULL)
-  expect_false(identical(replaced, "<ff>"))
+  # Patterns and templates are refused too, with their own class, never
+  # read as "<ff>" (#131).
+  expect_error(re_detect("<ff>", "\xff"), class = "zuregex_error_compile")
+  expect_error(re_replace("a", "a", "\xff"), class = "zuregex_error_template")
 })
 
 test_that("a template error counts characters in a C locale (#126)", {
@@ -46,4 +45,27 @@ test_that("unmarked strings in a Latin-1 locale are still translated", {
   expect_true(re_detect(x, "caf\u00e9"))
   expect_identical(re_locate(x, "\u00e9"), cbind(start = 4L, end = 4L))
   expect_identical(re_replace(x, "caf", "th\xe9 "), "th\u00e9 \u00e9")
+})
+
+test_that("bytes mode takes a latin1 pattern or template as its bytes (#173)", {
+  lat <- iconv("caf\u00e9", "UTF-8", "latin1")
+  expect_identical(Encoding(lat), "latin1")
+  # As base R's useBytes = TRUE: a string matches its own bytes.
+  expect_true(re_detect(charToRaw(lat), lat))
+  expect_identical(
+    re_detect(list(charToRaw(lat), charToRaw("x")), lat),
+    c(grepl(lat, lat, useBytes = TRUE), FALSE)
+  )
+  out <- re_replace(
+    charToRaw("a\xe9b"),
+    "\\xe9",
+    iconv("\u00fc", "UTF-8", "latin1")
+  )
+  expect_identical(charToRaw(out), as.raw(c(0x61, 0xfc, 0x62)))
+  # A character subject matches as UTF-8, so `bytes = TRUE` counts the bytes
+  # of its UTF-8 form, as ?re_locate says.
+  expect_identical(
+    re_locate(lat, "\u00e9", bytes = TRUE),
+    cbind(start = 4L, end = 5L)
+  )
 })

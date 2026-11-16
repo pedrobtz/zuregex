@@ -90,15 +90,18 @@ SEXP zuregex_unload_c(void) {
 }
 
 // An error description for the R side to raise: list(kind, element,
-// offset, message). `offset` is one-based and in characters.
+// offset, message, byte). `offset` is one-based and in characters, counted
+// as UTF-8; `byte` is the same position, one-based, in bytes, which the R
+// side reports for a bytes or invalid UTF-8 pattern (#131).
 static SEXP compile_error(const char *kind, int element, int offset,
-                          const char *message) {
-  const char *names[] = {"kind", "element", "offset", "message", ""};
+                          const char *message, size_t byte) {
+  const char *names[] = {"kind", "element", "offset", "message", "byte", ""};
   SEXP err = PROTECT(Rf_mkNamed(VECSXP, names));
   SET_VECTOR_ELT(err, 0, Rf_mkString(kind));
   SET_VECTOR_ELT(err, 1, Rf_ScalarInteger(element));
   SET_VECTOR_ELT(err, 2, Rf_ScalarInteger(offset));
   SET_VECTOR_ELT(err, 3, Rf_mkString(message));  // PCRE2's are ASCII
+  SET_VECTOR_ELT(err, 4, Rf_ScalarReal((double) byte + 1));
   UNPROTECT(1);
   return err;
 }
@@ -122,11 +125,11 @@ SEXP zuregex_compile_error_for(const char *pattern, int errcode,
   for (size_t i = 0; i < erroffset; i++) {
     if (((unsigned char) pattern[i] & 0xC0) != 0x80) chars++;
   }
-  return compile_error(kind, 1, chars + 1, (const char *) msg);
+  return compile_error(kind, 1, chars + 1, (const char *) msg, erroffset);
 }
 
 SEXP zuregex_flags_error_for(int offset) {
-  return compile_error("flags", 1, offset, "");
+  return compile_error("flags", 1, offset, "", (size_t) offset - 1);
 }
 
 static SEXP result(SEXP value, SEXP error) {
@@ -162,7 +165,7 @@ static SEXP compile_table(SEXP pattern, const char *f, int dialect,
 
   int bad = zuregex_parse_flags(f, key.literal, &key.options, &key.extra);
   if (bad) {
-    SEXP err = PROTECT(compile_error("flags", 1, bad, ""));
+    SEXP err = PROTECT(compile_error("flags", 1, bad, "", (size_t) bad - 1));
     SEXP res = result(R_NilValue, err);
     UNPROTECT(1);
     return res;
@@ -189,7 +192,7 @@ static SEXP compile_table(SEXP pattern, const char *f, int dialect,
       const char *kind = compile_message(errcode, msg, sizeof(msg));
       int offset = byte_to_char_offset(key.pattern, erroffset) + 1;
       SEXP err = PROTECT(compile_error(kind, (int) i + 1, offset,
-                                       (const char *) msg));
+                                       (const char *) msg, erroffset));
       SEXP res = result(R_NilValue, err);
       UNPROTECT(3);
       return res;
@@ -253,6 +256,37 @@ SEXP zuregex_prepare_c(SEXP x, SEXP pattern, SEXP flags, SEXP literal) {
 
 static zuregex_pattern *pattern_at(SEXP re, R_xlen_t i) {
   return zuregex_pattern_of(VECTOR_ELT(re, i));
+}
+
+// TRUE when every live pattern of `re` is what its attributes say. Character
+// subjects use the pointer, while bytes subjects and re_restore() compile
+// from the attributes, so an edited attribute would make one object match
+// two patterns; the R side refuses it instead (#176).
+SEXP zuregex_re_consistent_c(SEXP re) {
+  SEXP pattern = PROTECT(Rf_getAttrib(re, Rf_install("pattern")));
+  SEXP flags = PROTECT(Rf_getAttrib(re, Rf_install("flags")));
+  SEXP dialect = PROTECT(Rf_getAttrib(re, Rf_install("dialect")));
+  int literal = Rf_asLogical(Rf_getAttrib(re, Rf_install("literal")));
+  int jit = Rf_asLogical(Rf_getAttrib(re, Rf_install("jit")));
+  int ok = 1;
+  uint32_t options = 0, extra = 0;
+  if (zuregex_parse_flags(CHAR(STRING_ELT(flags, 0)), literal, &options,
+                          &extra) != 0) {
+    ok = 0;
+  }
+  int js = strcmp(CHAR(STRING_ELT(dialect, 0)), "js") == 0;
+  for (R_xlen_t i = 0; ok && i < XLENGTH(re); i++) {
+    zuregex_pattern *p = pattern_at(re, i);
+    if (p == NULL) continue;
+    SEXP s = STRING_ELT(pattern, i);
+    ok = s != NA_STRING && (size_t) LENGTH(s) == p->key.length &&
+         memcmp(CHAR(s), p->key.pattern, p->key.length) == 0 &&
+         p->key.options == options && p->key.extra == extra &&
+         p->key.dialect == (js ? ZUREGEX_DIALECT_JS : ZUREGEX_DIALECT_PCRE) &&
+         p->key.literal == literal && p->key.jit == jit;
+  }
+  UNPROTECT(3);
+  return Rf_ScalarLogical(ok);
 }
 
 // TRUE where an element holds a live pattern; FALSE for NA patterns and

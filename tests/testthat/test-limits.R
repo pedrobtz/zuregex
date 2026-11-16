@@ -103,27 +103,6 @@ test_that("PCRE2's default limits apply without any", {
   expect_error(re_detect(case$x, case$pattern), class = "zuregex_error_limit")
 })
 
-test_that("a JIT stack overflow is the jit_stack limit", {
-  skip_if_not(zuregex_info()$jit_usable, "the JIT compiler is not usable here")
-  x <- strrep("ab", 2e5)
-  err <- expect_error(
-    re_detect(x, "^(?:(a)|b)*$"),
-    class = "zuregex_error_limit"
-  )
-  expect_identical(err$limit, "jit_stack")
-  expect_warning(
-    expect_identical(
-      re_detect(
-        c(x, "ab"),
-        "^(?:(a)|b)*$",
-        limits = re_limits(on_limit = "na")
-      ),
-      c(NA, TRUE)
-    ),
-    class = "zuregex_warning_limit"
-  )
-})
-
 test_that("an edited re_limits object is refused with a class", {
   lim <- re_limits(match = 10)
   lim$match <- -1

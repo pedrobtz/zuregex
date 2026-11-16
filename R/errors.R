@@ -91,3 +91,9 @@ describe <- function(x) {
   }
   sprintf("a %s vector of length %d", typeof(x), length(x))
 }
+
+# A whole number with thousands separated by commas. format()'s big.mark
+# warns when OutDec is also "," (#172), so the decimal mark is fixed.
+format_count <- function(x) {
+  formatC(x, format = "d", big.mark = ",", decimal.mark = ".")
+}

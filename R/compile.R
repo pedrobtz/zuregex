@@ -35,7 +35,11 @@
 #'   with no metacharacters. Only the flags `i` and `r` apply to a literal.
 #' @param jit If `TRUE`, JIT-compile each pattern when the platform allows
 #'   it. If JIT compilation fails, the interpreter is used and
-#'   `re_info()$jit` is `FALSE`.
+#'   `re_info()$jit` is `FALSE`. A pattern with a variable-length
+#'   lookbehind, such as `(?<=a?)`, also uses the interpreter, because
+#'   PCRE2's JIT matches some of them wrongly. A match that needs more stack
+#'   than the JIT has is retried in the interpreter, so `heap` in
+#'   [re_limits()] bounds it.
 #' @return An `re` vector, as long as `pattern`.
 #' @seealso [re_info()] to inspect compiled patterns, [re_escape()] to quote
 #'   metacharacters.
@@ -112,7 +116,9 @@ compile_patterns <- function(
   jit,
   call = sys.call(-1L),
   utf = TRUE,
-  use_cache = TRUE
+  use_cache = TRUE,
+  shown = pattern,
+  positions = seq_along(pattern)
 ) {
   res <- native(
     .Call(
@@ -128,7 +134,11 @@ compile_patterns <- function(
     call
   )
   if (!is.null(res$error)) {
-    raise_compile_error(res$error, pattern, flags, literal, call)
+    # Report the element as the user numbered it, not as the de-duplicated
+    # table did (#170).
+    err <- res$error
+    err$element <- positions[[err$element]]
+    raise_compile_error(err, shown, flags, literal, call)
   }
   ptrs <- res$value
   attributes(ptrs) <- list(
@@ -144,7 +154,10 @@ compile_patterns <- function(
 
 raise_compile_error <- function(err, pattern, flags, literal, call) {
   if (err$kind == "flags") {
-    letter <- substr(flags, err$offset, err$offset)
+    # Flags that are not valid UTF-8 are shown byte by byte (#131).
+    shown <- display_units(flags)
+    letter <- shown$units[[min(err$offset, length(shown$units))]]
+    flags_text <- paste(shown$units, collapse = "")
     why <- if (literal) {
       "is unknown, repeated, or not allowed with `literal = TRUE` (only `i` and `r` are)"
     } else {
@@ -156,7 +169,7 @@ raise_compile_error <- function(err, pattern, flags, literal, call) {
         "Flag `%s` at position %d of `flags = \"%s\"` %s.",
         letter,
         err$offset,
-        flags,
+        flags_text,
         why
       ),
       flags = flags,
@@ -177,7 +190,7 @@ raise_compile_error <- function(err, pattern, flags, literal, call) {
       sprintf(
         "Can't compile pattern%s: it would compile to more than %s bytes. See `?re_compile_size`.",
         where,
-        format(re_compile_size(), big.mark = ",", scientific = FALSE)
+        format_count(re_compile_size())
       ),
       pattern = bad,
       element = err$element,
@@ -185,52 +198,67 @@ raise_compile_error <- function(err, pattern, flags, literal, call) {
       call = call
     )
   }
-  shown <- pattern_window(bad, err$offset)
-  before <- substr(shown$text, 1L, shown$caret - 1L)
-  caret <- paste0(strrep(" ", nchar(before, type = "width")), "^")
+  # A bytes or invalid UTF-8 pattern is shown, and its position counted,
+  # in bytes.
+  shown <- display_units(bad)
+  position <- if (shown$bytes) as.integer(err$byte) else err$offset
   zuregex_abort(
     "compile",
     paste0(
       sprintf(
-        "Can't compile pattern%s: %s at character %d.\n",
+        "Can't compile pattern%s: %s at %s %d.\n",
         where,
         err$message,
-        err$offset
+        if (shown$bytes) "byte" else "character",
+        position
       ),
-      "  ",
-      shown$text,
-      "\n  ",
-      caret
+      error_window(shown$units, position)
     ),
     pattern = bad,
     element = err$element,
-    offset = err$offset,
+    offset = position,
     pcre2_message = err$message,
     call = call
   )
 }
 
-# At most `width` characters of a pattern around `offset`, with "..." where
-# it is cut, so a compile error in a long pattern stays readable. Returns
-# the text and the caret's position in it.
-pattern_window <- function(pattern, offset, width = 60L) {
-  n <- nchar(pattern)
-  if (n <= width) {
-    return(list(text = pattern, caret = offset))
+# The characters of `x`, or, for a string marked "bytes" or not valid
+# UTF-8, its bytes, those outside printable ASCII written as \xHH. Errors
+# show a pattern or template this way, so any string can be shown (#131).
+display_units <- function(x) {
+  if (!identical(Encoding(x), "bytes") && validUTF8(x)) {
+    return(list(units = strsplit(enc2utf8(x), "")[[1]], bytes = FALSE))
   }
-  from <- max(1L, offset - width %/% 2L)
-  to <- min(n, from + width - 1L)
-  from <- max(1L, to - width + 1L)
-  text <- substr(pattern, from, to)
-  caret <- offset - from + 1L
+  b <- as.integer(charToRaw(x))
+  units <- sprintf("\\x%02x", b)
+  printable <- b >= 0x20L & b < 0x7fL
+  units[printable] <- intToUtf8(b[printable], multiple = TRUE)
+  list(units = units, bytes = TRUE)
+}
+
+# At most `width` units around `position`, with "..." where they are cut,
+# and a caret under `position` on the next line, so an error in a long
+# pattern stays readable. Compile and template errors share it (#58).
+error_window <- function(units, position, width = 60L) {
+  n <- length(units)
+  from <- 1L
+  to <- n
+  if (n > width) {
+    from <- max(1L, position - width %/% 2L)
+    to <- min(n, from + width - 1L)
+    from <- max(1L, to - width + 1L)
+  }
+  text <- paste(units[seq_len(to - from + 1L) + from - 1L], collapse = "")
+  before <- units[seq_len(max(0L, min(position, n + 1L) - from)) + from - 1L]
+  column <- sum(nchar(before, type = "width"))
   if (from > 1L) {
     text <- paste0("...", text)
-    caret <- caret + 3L
+    column <- column + 3L
   }
   if (to < n) {
     text <- paste0(text, "...")
   }
-  list(text = text, caret = caret)
+  paste0("  ", text, "\n  ", strrep(" ", column), "^")
 }
 
 # An `re` whose external pointers did not survive serialization (saveRDS(),
@@ -265,7 +293,8 @@ check_re_attributes <- function(re, call) {
     is_string(a$dialect) &&
     a$dialect %in% c("pcre", "js") &&
     is_bool(a$literal) &&
-    is_bool(a$jit)
+    is_bool(a$jit) &&
+    .Call(zuregex_re_consistent_c, re)
   if (!ok) {
     zuregex_abort(
       "argument",
@@ -369,6 +398,19 @@ re_index <- function(x, i) {
       call = call
     )
   }
+  # Base R recycles silently, or drops values; an `re` takes one value for
+  # every element or one for each (#174).
+  if (length(value) != 1L && length(value) != length(idx)) {
+    zuregex_abort(
+      "argument",
+      sprintf(
+        "`value` must have length 1 or the number of elements it replaces (%d), not %d.",
+        length(idx),
+        length(value)
+      ),
+      call = call
+    )
+  }
   ptrs[idx] <- rep_len(unclass(value), length(idx))
   pattern[idx] <- rep_len(attr(value, "pattern"), length(idx))
   attrs$pattern <- pattern
@@ -379,7 +421,8 @@ re_index <- function(x, i) {
 #' @export
 `[[.re` <- function(x, i) {
   idx <- if (length(i) == 1L) re_index(x, i) else NA
-  if (anyNA(idx)) {
+  # A negative, zero or logical index can select other than one element.
+  if (length(idx) != 1L || anyNA(idx)) {
     zuregex_abort(
       "argument",
       "`[[` takes one element of an `re` vector that exists.",
@@ -400,6 +443,33 @@ re_index <- function(x, i) {
   }
   x[i] <- value
   x
+}
+
+# `$` and `$<-` go through `[[` and `[[<-`, so an `re` keeps its pattern
+# attribute in step with its pointers (#174).
+#' @export
+`$.re` <- function(x, name) {
+  x[[name]]
+}
+
+#' @export
+`$<-.re` <- function(x, name, value) {
+  x[[name]] <- value
+  x
+}
+
+#' @export
+`length<-.re` <- function(x, value) {
+  zuregex_abort(
+    "argument",
+    "An `re` vector can't change length by assignment; use `[` or `c()`.",
+    call = sys.call()
+  )
+}
+
+#' @export
+unique.re <- function(x, incomparables = FALSE, ...) {
+  x[!duplicated(attr(x, "pattern"))]
 }
 
 #' @export
@@ -469,6 +539,11 @@ re_info <- function(re) {
     cols$literal,
     USE.NAMES = FALSE
   )
+  # PCRE2's minimum counts the subject a match consumes, which \K makes
+  # longer than the match reported, so 0 is the bound there (#169).
+  min_length <- cols$min_length
+  reset <- !cols$literal & grepl("\\K", cols$pattern, fixed = TRUE)
+  min_length[reset & !is.na(min_length)] <- 0L
   version <- zuregex_info()$pcre2_version
   out <- data.frame(
     pattern = cols$pattern,
@@ -477,7 +552,7 @@ re_info <- function(re) {
     literal = cols$literal,
     groups = cols$groups,
     jit = cols$jit,
-    min_length = cols$min_length,
+    min_length = min_length,
     prefix = as.character(prefix),
     backrefs = cols$backrefs,
     pcre2_version = ifelse(is.na(cols$pattern), NA_character_, version),
@@ -513,7 +588,13 @@ literal_prefix <- function(pattern, flags, literal) {
   if (literal) {
     return(pattern)
   }
-  if (grepl("x", flags, fixed = TRUE) || has_top_level_bar(pattern)) {
+  # \K moves the start of the match past what it matched so far, so a
+  # pattern with one has no certain prefix (#169).
+  if (
+    grepl("x", flags, fixed = TRUE) ||
+      grepl("\\K", pattern, fixed = TRUE) ||
+      has_top_level_bar(pattern)
+  ) {
     return("")
   }
   chars <- strsplit(pattern, "", fixed = TRUE)[[1]]
@@ -548,7 +629,13 @@ literal_prefix <- function(pattern, flags, literal) {
   paste(atoms, collapse = "")
 }
 
+# Whether `pattern` may have an alternation at the top level. Conservative:
+# comments, \Q...\E and \c can hide a parenthesis or bracket from this
+# scan, so a pattern with any of them counts as having one (#169).
 has_top_level_bar <- function(pattern) {
+  if (any(vapply(c("(?#", "\\Q", "\\c"), grepl, NA, pattern, fixed = TRUE))) {
+    return(TRUE)
+  }
   chars <- strsplit(pattern, "", fixed = TRUE)[[1]]
   depth <- 0L
   in_class <- FALSE
