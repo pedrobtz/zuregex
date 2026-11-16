@@ -1,13 +1,14 @@
-CMD
 CMake
+CMD
 Lifecycle
 LinkingTo
+lookbehind
 OpenMP
+pcre
+py
 PyPcre
 R's
 R’s
-pcre
-py
 sljit
 stringi
 stringr

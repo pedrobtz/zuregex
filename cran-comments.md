@@ -10,7 +10,7 @@ hidden, so it cannot bind to the PCRE2 R itself loads.
 
 ## Test environments
 
-* local macOS, R 4.5.2
+* local macOS, R 4.6.2
 * GitHub Actions: ubuntu-latest (R release, oldrel-1), macOS-latest
   (R release), windows-latest (R release, R-devel)
 * r-actions R-devel containers: `clang23`, `ubuntu-clang`, `ubuntu-gcc16`
