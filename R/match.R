@@ -23,6 +23,13 @@ to_utf8 <- function(x) {
   out
 }
 
+# A pattern or template as the engine reads it: its own bytes in bytes
+# mode, as base R's useBytes = TRUE takes them, so a latin1 string matches
+# its own bytes (#173); otherwise UTF-8.
+match_text <- function(x, bytes) {
+  if (isTRUE(bytes)) x else to_utf8(x)
+}
+
 # subjects() and patterns() in one step: list(x, n, bytes, table, index).
 # A character vector with one pattern string, the common case, takes one
 # .Call; anything else goes through the two R functions below. Call it
@@ -160,7 +167,7 @@ patterns <- function(pattern, n, bytes, call, opts = NULL) {
   if (len == 1L && is.character(pattern) && !is.na(pattern)) {
     # The common case, one pattern string: a cache lookup in C, without
     # unique(), match() or the attributes of an `re` object.
-    pattern <- to_utf8(pattern)
+    pattern <- match_text(pattern, bytes)
     res <- native(
       .Call(zuregex_compile_c, pattern, flags, 0L, literal, TRUE, !bytes, TRUE),
       call
@@ -180,7 +187,7 @@ patterns <- function(pattern, n, bytes, call, opts = NULL) {
       call = call
     )
   }
-  pattern <- to_utf8(pattern)
+  pattern <- match_text(pattern, bytes)
   distinct <- unique(pattern[!is.na(pattern)])
   # More distinct patterns than the cache holds are compiled for this call
   # only, so one call does not flush the cache for everything else.

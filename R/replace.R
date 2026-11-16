@@ -123,7 +123,7 @@ re_replace <- function(
   run_replace(
     prep,
     lim,
-    to_utf8(replacement),
+    match_text(replacement, prep$bytes),
     0L,
     syntax == "literal",
     n,
@@ -188,7 +188,7 @@ re_expand <- function(
   run_replace(
     prep,
     lim,
-    to_utf8(template),
+    match_text(template, prep$bytes),
     0L,
     FALSE,
     1,
@@ -358,11 +358,33 @@ replace_with_function <- function(prep, fun, n, lim, call) {
         call = call
       )
     }
+    # The strings go in as a template would, so they are checked as one is
+    # (#175): in UTF-8 mode, neither bytes-marked nor invalid UTF-8.
+    if (!isTRUE(prep$bytes)) {
+      if (any(Encoding(repl) == "bytes")) {
+        zuregex_abort(
+          "argument",
+          "The replacement function returned strings marked as \"bytes\", so `x` must be bytes too: a raw vector, or strings marked as \"bytes\".",
+          call = call
+        )
+      }
+      bad <- which(!is.na(repl) & !validUTF8(to_utf8(repl)))
+      if (length(bad) > 0L) {
+        zuregex_abort(
+          "argument",
+          sprintf(
+            "The replacement function returned a string that is not valid UTF-8, for match %d.",
+            bad[[1L]]
+          ),
+          call = call
+        )
+      }
+    }
   }
   out <- run_replace(
     prep,
     lim,
-    to_utf8(repl),
+    match_text(repl, prep$bytes),
     1L,
     TRUE,
     n,
