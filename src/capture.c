@@ -261,7 +261,9 @@ static SEXP build_match(void *data) {
     int k = entry_for(call, i);
     element_caps *e = &job->el[i];
     if (e->count < 0 || (!job->all && e->count == 0)) {
-      if (job->all) {
+      // element and match exist exactly when job->all; testing them says so
+      // to gcc's analyzer, which cannot tie the two (#184).
+      if (element != NULL && match != NULL) {
         element[r] = (int) i + 1;
         match[r] = NA_INTEGER;
       }
@@ -275,7 +277,7 @@ static SEXP build_match(void *data) {
     int utf = utf_of(call, k);
     for (int m = 0; m < e->count; m++, r++) {
       const PCRE2_SIZE *ov = caps_of(job, e) + (size_t) m * job->width * 2;
-      if (job->all) {
+      if (element != NULL && match != NULL) {
         element[r] = (int) i + 1;
         match[r] = m + 1;
       }

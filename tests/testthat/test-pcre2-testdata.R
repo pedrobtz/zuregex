@@ -1,16 +1,16 @@
 # PCRE2's own test results, run through the C API (design section 9): the
 # Perl-compatible tests without UTF (testoutput1) and with it (testoutput4)
 # of the vendored release. tools/pcre2-testdata/convert.py made the corpus;
-# tools/pcre2-testdata/skipped.tsv lists every case it left out and why.
+# tests/testthat/fixtures/pcre2-skipped.tsv lists every case it left out
+# and why. It sits under tests/ so this check runs where R CMD check runs
+# (#182); tools/ is not in the tarball.
 
 test_that("the corpus and the skip list cover every case of both files", {
   cases <- pcre2_cases()
   skipped <- utils::read.delim(
-    test_path("..", "..", "tools", "pcre2-testdata", "skipped.tsv"),
+    test_path("fixtures", "pcre2-skipped.tsv"),
     colClasses = "character"
-  ) |>
-    tryCatch(error = function(e) NULL)
-  skip_if(is.null(skipped), "tools/ is not installed")
+  )
   expect_gt(nrow(cases), 3500)
   expect_true(all(nzchar(skipped$reason)))
   ids <- c(paste(cases$source, cases$case), paste(skipped$source, skipped$case))

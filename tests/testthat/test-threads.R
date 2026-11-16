@@ -84,20 +84,18 @@ test_that("the suite runs capped at two threads", {
   expect_lte(re_threads(), 2L)
 })
 
-test_that("re_detect() on four threads is at least 2.5 times faster than one", {
+test_that("re_detect() on four threads is faster than on one", {
   skip_unless_timing()
   skip_if_not(zuregex_info()$openmp, "a build without OpenMP")
   old <- re_threads(0)
   withr::defer(re_threads(old))
   skip_if(re_threads() < 4L, "fewer than four threads available")
-  # A hardware measurement: it needs four dedicated cores. GitHub's shared
-  # runners gave 1.99 and 2.19 times; four cores of a laptop gave 3.32
-  # (see the roadmap). So it runs only where it is asked for, on a machine
-  # that has them, with ZUREGEX_BENCH_THREADS=true as well.
-  skip_if_not(
-    identical(Sys.getenv("ZUREGEX_BENCH_THREADS"), "true"),
-    "set ZUREGEX_BENCH_THREADS=true on a machine with four free cores"
-  )
+  # GitHub's shared runners gave 1.99 and 2.19 times and four free cores of
+  # a laptop 3.32 (see the roadmap). So every timing leg with four threads
+  # asserts a speedup with room for a noisy runner, and the 2.5 times a
+  # quiet machine gives is asserted where ZUREGEX_BENCH_THREADS=true says
+  # it has four free cores. Before, the test ran on no leg at all (#182).
+  bench <- identical(Sys.getenv("ZUREGEX_BENCH_THREADS"), "true")
   withr::local_seed(1)
   x <- vapply(
     seq_len(2e5),
@@ -117,7 +115,7 @@ test_that("re_detect() on four threads is at least 2.5 times faster than one", {
   one <- with_threads(1, timed)
   four <- with_threads(4, timed)
   expect_identical(four$value, one$value)
-  expect_gt(one$elapsed / four$elapsed, 2.5)
+  expect_gt(one$elapsed / four$elapsed, if (bench) 2.5 else 1.25)
 })
 
 test_that("long results agree with base R at one thread and at the cap", {

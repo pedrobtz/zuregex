@@ -20,18 +20,19 @@ test_that("re objects survive serialization", {
   expect_identical(re_info(back), re_info(re))
 })
 
-test_that("finalizers release patterns the cache no longer holds", {
+test_that("finalizers release patterns the cache no longer holds (#183)", {
+  local_cache()
+  invisible(gc())
+  before <- zuregex:::cache_stats()$live
+  held <- lapply(1:200, function(i) re_compile(paste0("p", i, "(q)+")))
   re_cache_clear()
-  withr::defer(re_cache_clear())
-  for (i in 1:200) {
-    re_compile(paste0("p", i, "(q)+"))
-  }
-  re_cache_clear()
-  gc()
-  gc()
-  # Nothing observable to assert in R beyond surviving; valgrind and ASan
-  # in CI check that every pattern was freed exactly once.
-  expect_identical(zuregex:::cache_stats()$size, 0L)
+  # The cache let go; the re objects still hold every pattern.
+  expect_identical(zuregex:::cache_stats()$live, before + 200)
+  rm(held)
+  invisible(gc())
+  invisible(gc())
+  # Each finalizer freed its pattern exactly once.
+  expect_identical(zuregex:::cache_stats()$live, before)
 })
 
 test_that("assignment and c() keep pointers and patterns in step", {

@@ -55,6 +55,12 @@ jobs:
 
   analyzers:
     uses: pedrobtz/r-actions/.github/workflows/analyzers.yml@v1
+    with:
+      # First-party code is at zero findings, so the next one is a
+      # regression (#184). Upstream's are reported, never gated.
+      exclude: |
+        src/vendor
+      fail-on-findings: true
 
   cran-special:
     uses: pedrobtz/r-actions/.github/workflows/cran-special.yml@v1
