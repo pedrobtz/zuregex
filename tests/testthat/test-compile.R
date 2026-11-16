@@ -210,3 +210,41 @@ test_that("a bar inside a character class does not end the literal prefix", {
   expect_identical(re_info(re_compile("ab[^]|]c"))$prefix, "ab")
   expect_identical(re_info(re_compile("ab|cd"))$prefix, "")
 })
+
+test_that("re_info() prefix and min_length hold for every match (#169)", {
+  patterns <- c(
+    parity_patterns(),
+    "abc\\Kd",
+    "a\\Kb",
+    "ab(?#[)|cd",
+    "a(?#()|b",
+    "a\\Q(\\E|b",
+    "a\\Q[\\E|b",
+    "a\\c(|b",
+    "foo(bar|baz)",
+    "x\\.y+"
+  )
+  subjects <- c(
+    parity_subjects(),
+    "abcd",
+    "ab",
+    "cd",
+    "b",
+    "a(",
+    "foobaz",
+    "x.yy"
+  )
+  info <- re_info(re_compile(patterns))
+  for (k in seq_along(patterns)) {
+    m <- unlist(re_extract_all(subjects, patterns[[k]]))
+    m <- m[!is.na(m)]
+    expect_true(
+      all(startsWith(m, info$prefix[[k]])),
+      label = paste("prefix of", patterns[[k]])
+    )
+    expect_true(
+      all(nchar(m) >= info$min_length[[k]]),
+      label = paste("min_length of", patterns[[k]])
+    )
+  }
+})
