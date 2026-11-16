@@ -1,6 +1,6 @@
 #' Bound the work a match may do
 #'
-#' PCRE2 matches by backtracking, so a pattern such as `(a+)+b` can take
+#' PCRE2 matches by backtracking, so a pattern such as `^(a+)+$` can take
 #' time exponential in the length of the subject. zuregex makes no
 #' linear-time promise; for that, use the re2 package. What it promises is
 #' that limits bound the work per element, and that hitting one is either a
@@ -25,9 +25,14 @@
 #' @return An object of class `re_limits`.
 #' @export
 #' @examples
-#' x <- strrep("a", 30)
-#' try(re_detect(x, "(a+)+b", limits = re_limits(match = 1000)))
-#' re_detect(c(x, "ab"), "(a+)+b", limits = re_limits(match = 1000, on_limit = "na"))
+#' # No match, but only after trying every way to split the a's
+#' x <- paste0(strrep("a", 30), "!")
+#' try(re_detect(x, "^(a+)+$", limits = re_limits(match = 1000)))
+#' re_detect(
+#'   c(x, "aaa"),
+#'   "^(a+)+$",
+#'   limits = re_limits(match = 1000, on_limit = "na")
+#' )
 #'
 #' old <- options(zuregex.limits = re_limits(match = 1e5))
 #' options(old)

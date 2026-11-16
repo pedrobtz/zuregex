@@ -59,15 +59,21 @@ first match, as Python's \code{Match.expand()} does.
 \section{Templates}{
 
 With \code{syntax = "extended"}, the default, templates use PCRE2's extended
-substitution syntax, not base R's \verb{\\\\1}:\tabular{ll}{
+substitution syntax:\tabular{ll}{
    Template \tab Meaning \cr
    \verb{$1}, \verb{$\{12\}}, \verb{$\{name\}} \tab A group by number, past nine, or by name. \verb{$0} is the whole match. \cr
+   \verb{\\1}, \verb{\\g<1>}, \verb{\\g<name>} \tab A group, as in base R or Python. \cr
    \verb{$\{1:-none\}} \tab The group, or \code{none} when it did not take part in the match. \cr
    \verb{$\{1:+yes:no\}} \tab \code{yes} when the group took part, otherwise \code{no}. \cr
    \verb{\\U...\\E}, \verb{\\L...\\E}, \verb{\\u}, \verb{\\l} \tab Upper or lower case until \verb{\\E}, or for one character. \cr
    \verb{$$}, \verb{\\$} \tab A literal \code{$}. \cr
 }
 
+
+A backslash and digits are read as in a pattern. So \verb{\\12} is group 12
+only when the pattern has 12 groups, and otherwise the octal escape for
+a newline. Prefer \verb{$\{12\}} past nine. In an R string each backslash is
+doubled, as in \code{"\\\\1"}.
 
 A group that did not take part in the match is replaced by \code{""}. A
 reference to a group that does not exist, or a malformed template,
