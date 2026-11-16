@@ -265,7 +265,8 @@ check_re_attributes <- function(re, call) {
     is_string(a$dialect) &&
     a$dialect %in% c("pcre", "js") &&
     is_bool(a$literal) &&
-    is_bool(a$jit)
+    is_bool(a$jit) &&
+    .Call(zuregex_re_consistent_c, re)
   if (!ok) {
     zuregex_abort(
       "argument",
@@ -369,6 +370,19 @@ re_index <- function(x, i) {
       call = call
     )
   }
+  # Base R recycles silently, or drops values; an `re` takes one value for
+  # every element or one for each (#174).
+  if (length(value) != 1L && length(value) != length(idx)) {
+    zuregex_abort(
+      "argument",
+      sprintf(
+        "`value` must have length 1 or the number of elements it replaces (%d), not %d.",
+        length(idx),
+        length(value)
+      ),
+      call = call
+    )
+  }
   ptrs[idx] <- rep_len(unclass(value), length(idx))
   pattern[idx] <- rep_len(attr(value, "pattern"), length(idx))
   attrs$pattern <- pattern
@@ -379,7 +393,8 @@ re_index <- function(x, i) {
 #' @export
 `[[.re` <- function(x, i) {
   idx <- if (length(i) == 1L) re_index(x, i) else NA
-  if (anyNA(idx)) {
+  # A negative, zero or logical index can select other than one element.
+  if (length(idx) != 1L || anyNA(idx)) {
     zuregex_abort(
       "argument",
       "`[[` takes one element of an `re` vector that exists.",
@@ -400,6 +415,33 @@ re_index <- function(x, i) {
   }
   x[i] <- value
   x
+}
+
+# `$` and `$<-` go through `[[` and `[[<-`, so an `re` keeps its pattern
+# attribute in step with its pointers (#174).
+#' @export
+`$.re` <- function(x, name) {
+  x[[name]]
+}
+
+#' @export
+`$<-.re` <- function(x, name, value) {
+  x[[name]] <- value
+  x
+}
+
+#' @export
+`length<-.re` <- function(x, value) {
+  zuregex_abort(
+    "argument",
+    "An `re` vector can't change length by assignment; use `[` or `c()`.",
+    call = sys.call()
+  )
+}
+
+#' @export
+unique.re <- function(x, incomparables = FALSE, ...) {
+  x[!duplicated(attr(x, "pattern"))]
 }
 
 #' @export

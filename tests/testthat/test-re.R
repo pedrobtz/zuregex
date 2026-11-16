@@ -110,3 +110,69 @@ test_that("[[ on an re vector takes exactly one existing element", {
     class = "zuregex_error_argument"
   )
 })
+
+test_that("[[ takes exactly one element (#174)", {
+  r <- re_compile(c(a = "a", b = "b", c = "c", d = "d"))
+  for (i in list(-1, 0, TRUE, c(1, 2), NA, 5, "zz")) {
+    expect_error(r[[i]], class = "zuregex_error_argument")
+  }
+  expect_identical(attr(r[["b"]], "pattern"), "b")
+  expect_identical(attr(r[[2]], "pattern"), "b")
+  # Selecting one element by exclusion is still one element.
+  expect_identical(attr(r[1:2][[-1]], "pattern"), "b")
+})
+
+test_that("[<- refuses values that do not fit exactly (#174)", {
+  r <- re_compile(c("a", "b", "c"))
+  expect_error(
+    r[1] <- re_compile(character()),
+    class = "zuregex_error_argument"
+  )
+  expect_error(
+    r[1:2] <- re_compile(c("x", "y", "z")),
+    class = "zuregex_error_argument"
+  )
+  expect_error(
+    r[1:3] <- re_compile(c("x", "y")),
+    class = "zuregex_error_argument"
+  )
+  r[1:3] <- re_compile("x")
+  expect_identical(attr(r, "pattern"), rep("x", 3))
+  r[2:3] <- re_compile(c("y", "z"))
+  expect_identical(attr(r, "pattern"), c("x", "y", "z"))
+})
+
+test_that("$, $<-, length<- and unique() keep an re valid or refuse (#174)", {
+  r <- re_compile(c(one = "\\d", two = "[a-z]"))
+  expect_s3_class(r$one, "re")
+  expect_identical(attr(r$one, "pattern"), "\\d")
+  r$two <- re_compile("z")
+  expect_identical(attr(r, "pattern"), c("\\d", "z"))
+  expect_true(re_detect("z", r[2]))
+  expect_error(r$one <- NULL, class = "zuregex_error_argument")
+  expect_error(r$three <- re_compile("q"), class = "zuregex_error_argument")
+  expect_error(length(r) <- 1, class = "zuregex_error_argument")
+  u <- unique(c(r[1], r[1], r[2]))
+  expect_s3_class(u, "re")
+  expect_identical(attr(u, "pattern"), c("\\d", "z"))
+})
+
+test_that("an edited re object is refused on every path (#176)", {
+  r <- re_compile("[a-z]", flags = "i")
+  attr(r, "flags") <- ""
+  expect_error(re_detect("A", r), class = "zuregex_error_argument")
+  expect_error(re_detect(charToRaw("A"), r), class = "zuregex_error_argument")
+  expect_error(re_info(r), class = "zuregex_error_argument")
+  r <- re_compile(c("\\d", "x"))
+  attr(r, "pattern")[1] <- "zzz"
+  expect_error(re_detect(c("1", "x"), r), class = "zuregex_error_argument")
+  r <- re_compile("a", jit = FALSE)
+  attr(r, "jit") <- TRUE
+  expect_error(re_detect("a", r), class = "zuregex_error_argument")
+  # An object restored by readRDS() is recompiled from its attributes,
+  # which are then the truth.
+  path <- withr::local_tempfile(fileext = ".rds")
+  saveRDS(re_compile(c("a", NA), flags = "i"), path)
+  restored <- readRDS(path)
+  expect_identical(re_detect(c("A", "b"), restored), c(TRUE, NA))
+})

@@ -13,7 +13,10 @@
 #'
 #' The cap applies to every compile in the session, including compiles
 #' through the C API. A pattern already in the cache keeps working when the
-#' cap is lowered; [re_cache_clear()] drops it.
+#' cap is lowered; [re_cache_clear()] drops it. An `re` object's pattern is
+#' compiled again for bytes subjects and after [readRDS()], and that compile
+#' is held to the cap of the moment, so an object made under a higher cap
+#' may refuse raw subjects once the cap is lowered.
 #'
 #' @param bytes `NULL` to query the cap, or a whole number of bytes, at
 #'   least 1, to set it. `Inf` turns the cap off.

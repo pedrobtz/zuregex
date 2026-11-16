@@ -185,6 +185,37 @@ static zuregex_pattern *pattern_at(SEXP re, R_xlen_t i) {
   return R_ExternalPtrAddr(ptr);
 }
 
+// TRUE when every live pattern of `re` is what its attributes say. Character
+// subjects use the pointer, while bytes subjects and re_restore() compile
+// from the attributes, so an edited attribute would make one object match
+// two patterns; the R side refuses it instead (#176).
+SEXP zuregex_re_consistent_c(SEXP re) {
+  SEXP pattern = Rf_getAttrib(re, Rf_install("pattern"));
+  SEXP flags = Rf_getAttrib(re, Rf_install("flags"));
+  SEXP dialect = Rf_getAttrib(re, Rf_install("dialect"));
+  int literal = Rf_asLogical(Rf_getAttrib(re, Rf_install("literal")));
+  int jit = Rf_asLogical(Rf_getAttrib(re, Rf_install("jit")));
+  uint32_t options = 0, extra = 0;
+  if (zuregex_parse_flags(CHAR(STRING_ELT(flags, 0)), literal, &options,
+                          &extra) != 0) {
+    return Rf_ScalarLogical(FALSE);
+  }
+  int js = strcmp(CHAR(STRING_ELT(dialect, 0)), "js") == 0;
+  for (R_xlen_t i = 0; i < XLENGTH(re); i++) {
+    zuregex_pattern *p = pattern_at(re, i);
+    if (p == NULL) continue;
+    SEXP s = STRING_ELT(pattern, i);
+    if (s == NA_STRING || (size_t) LENGTH(s) != p->key.length ||
+        memcmp(CHAR(s), p->key.pattern, p->key.length) != 0 ||
+        p->key.options != options || p->key.extra != extra ||
+        p->key.dialect != (js ? ZUREGEX_DIALECT_JS : ZUREGEX_DIALECT_PCRE) ||
+        p->key.literal != literal || p->key.jit != jit) {
+      return Rf_ScalarLogical(FALSE);
+    }
+  }
+  return Rf_ScalarLogical(TRUE);
+}
+
 // TRUE where an element holds a live pattern; FALSE for NA patterns and
 // for pointers that did not survive serialization.
 SEXP zuregex_re_valid_c(SEXP re) {
