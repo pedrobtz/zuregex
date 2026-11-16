@@ -24,7 +24,7 @@ stay open until the roadmap or a stage settles them.
 
 ## Current state
 
-PCRE2 10.48 is vendored and builds on every platform (Stage 1). Patterns
+PCRE2 10.49 is vendored and builds on every platform (Stage 1). Patterns
 compile, with flags, dialects and a cache (Stage 2). `re_detect()` and
 `re_count()` match, serially, through the three-phase core (Stage 3), and
 `re_locate()` and `re_locate_all()` locate (Stage 4), and the extract and
@@ -413,9 +413,9 @@ D1). Vendored in Stage 1:
 
 | | |
 | --- | --- |
-| Tag | `pcre2-10.48` |
-| Commit | `7978954dbd2efc6f2196869290553cf1871b4ce6` |
-| Archive SHA-256 | `ebcc25aadf2a51fa1fefa9b8bc9e7a79b3dae86870a0f1152a22e42befd46888` |
+| Tag | `pcre2-10.49` |
+| Commit | `6f9d7c1373262c541324a16a358785b33ef116cf` |
+| Archive SHA-256 | `929f0b20e62879252a15886b06c89f1edef61a363cbd5826fb041080a5e557ae` |
 | Per-file checksums | `tools/vendor/checksums.sha256` |
 | Patches | `tools/patches/pcre2/`, listed in `src/vendor/PROVENANCE` |
 

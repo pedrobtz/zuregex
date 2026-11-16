@@ -5,7 +5,7 @@
  * neither. Every vendored unit includes it through -DHAVE_CONFIG_H, and finds
  * it through -Ipcre2-config in src/Makevars.
  *
- * Only the macros PCRE2 10.48 reads are set. On an upgrade, compare this file
+ * Only the macros PCRE2 10.49 reads are set. On an upgrade, compare this file
  * with src/config.h.generic of the new release: upstream has changed what
  * some of these mean between releases. Limits that callers can change at run
  * time keep upstream's defaults. */

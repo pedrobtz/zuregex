@@ -1,4 +1,4 @@
-# PCRE2 10.48, 8-bit library with JIT. One upstream path per line,
+# PCRE2 10.49, 8-bit library with JIT. One upstream path per line,
 # optionally followed by the vendored path when it is renamed.
 
 LICENCE.md

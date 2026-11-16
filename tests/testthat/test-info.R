@@ -3,7 +3,7 @@ test_that("zuregex_info() reports the bundled PCRE2", {
   # Must match version_string in tools/vendor/manifest.tsv, which
   # tools/vendor/verify checks; tools/ is not installed, so the literal is
   # duplicated here.
-  expect_identical(info$pcre2_version, "10.48")
+  expect_identical(info$pcre2_version, "10.49")
   expect_match(info$pcre2_date, "^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
   expect_true(info$unicode)
   expect_match(info$unicode_version, "^[0-9]+\\.[0-9]+\\.[0-9]+$")

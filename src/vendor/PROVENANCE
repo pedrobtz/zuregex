@@ -1,12 +1,12 @@
 Vendored dependency: PCRE2, the 8-bit library with its JIT compiler
 
   Upstream:      https://github.com/PCRE2Project/pcre2
-  Version:       10.48
-  Tag:           pcre2-10.48
-  Commit:        7978954dbd2efc6f2196869290553cf1871b4ce6
-  Archive:       https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.48/pcre2-10.48.tar.gz
-  SHA-256:       ebcc25aadf2a51fa1fefa9b8bc9e7a79b3dae86870a0f1152a22e42befd46888
-  Imported:      2026-10-21
+  Version:       10.49
+  Tag:           pcre2-10.49
+  Commit:        6f9d7c1373262c541324a16a358785b33ef116cf
+  Archive:       https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.49/pcre2-10.49.tar.gz
+  SHA-256:       929f0b20e62879252a15886b06c89f1edef61a363cbd5826fb041080a5e557ae
+  Imported:      2026-11-16
   License:       BSD-3-Clause WITH PCRE2-exception (src/vendor/pcre2/LICENCE.md);
                  sljit is BSD-2-Clause (src/vendor/pcre2/deps/sljit/LICENSE)
   Local patches: applied in this order, from tools/patches/pcre2/
