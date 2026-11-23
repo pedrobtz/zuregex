@@ -1,6 +1,6 @@
 Package: zuregex
 Title: Bundled 'PCRE2' Regular Expressions with a C Interface
-Version: 0.1.0
+Version: 0.1.0.9000
 Authors@R: c(
     person("Pedro", "Baltazar", , "pedrobtz@gmail.com",
            role = c("aut", "cre", "cph")),
