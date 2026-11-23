@@ -47,7 +47,7 @@ same wherever zuregex is installed, the second is not.
 zuregex_info()$pcre2_version
 #> [1] "10.49"
 extSoftVersion()[["PCRE"]]
-#> [1] "10.42 2022-12-11"
+#> [1] "10.46 2025-08-27"
 ```
 
 ## Compiled once
