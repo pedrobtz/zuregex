@@ -369,9 +369,13 @@ entry.
 - **The pretest is automated and does not read `cran-comments.md`.** A NOTE
   that is explained but not fixed gets the upload archived. Fix the NOTE, as
   under Vendored native code, instead of justifying it.
-- **After acceptance,** `pkg-post-cran` tags the submitted commit with the
-  bare version, `0.1.0` (no `v`), publishes the GitHub release, bumps to
-  `0.1.0.9000`, closes the version's parent issue and moves the board card.
+- **After submitting,** commit `CRAN-SUBMISSION` (in `.Rbuildignore`,
+  never `.gitignore`). Its push runs `.github/workflows/cran-release.yaml`,
+  which tags the submitted commit with the bare version, `0.1.0` (no `v`),
+  publishes the GitHub release and opens the `.9000` bump pull request.
+- **After acceptance,** merge the bump pull request and run
+  `pkg-post-cran`, which closes the version's parent issue and moves the
+  board card.
 
 ## Editing rules
 
